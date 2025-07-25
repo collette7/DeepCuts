@@ -17,19 +17,19 @@ app.add_middleware(
 def hello_api():
     return {"msg":"Blello"}
 
-# @app.get("/testdb")
-# def check_database():
-#     """Test database connection"""
-#     try:
-#         result = supabase_admin.table('albums').select('*').limit(1).execute()
-#         return {
-#             "status": "healthy",
-#             "message": "Database connection successful",
-#             "tables_accessible": True
-#         }
-#     except Exception as e:
-#         return {
-#             "status": "error", 
-#             "message": f"Database connection failed: {str(e)}",
-#             "tables_accessible": False
-#         }
+@app.get("/testdb")
+def check_database():
+    """Test database connection"""
+    try:
+        result = supabase_admin.table('albums').select('*').limit(1).execute()
+        return {
+            "status": "healthy",
+            "message": "Database connection successful",
+            "tables_accessible": True
+        }
+    except Exception as e:
+        return {
+            "status": "error", 
+            "message": f"Database connection failed: {str(e)}",
+            "tables_accessible": False
+        }
