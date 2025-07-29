@@ -33,6 +33,5 @@ def check_database():
             "status": "error", 
             "message": f"Connection FAILED!: {str(e)}",
             "tables_accessible": False
-        }
-    
-@app.get("/albums/{album_id}")
+        }    
+# @app.get("/albums/{album_id}")
