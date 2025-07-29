@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import supabase_admin
-# from app.routes import albums_routes  # TODO: Add when routes are ready
+from app.routes import albums_routes
 
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.PROJECT_VERSION)
 
@@ -33,5 +33,38 @@ def check_database():
             "status": "error", 
             "message": f"Connection FAILED!: {str(e)}",
             "tables_accessible": False
-        }    
-# @app.get("/albums/{album_id}")
+        }
+@app.get("/albums")
+def get_albums():
+        return [
+    {
+        "id": 1,
+        "title": "Cosmic Slop",
+        "artist": "Funkadelic",
+        "year": 1973
+    },
+    {
+        "id": 2,
+        "title": "To Each His Own",
+        "artist": "Faith, Hope & Charity",
+        "year": 1975
+    },
+    {
+        "id": 3,
+        "title": "Love's in Need",
+        "artist": "Syreeta",
+        "year": 1977
+    },
+    {
+        "id": 4,
+        "title": "A Dream Fulfilled",
+        "artist": "Chuck Jackson", 
+        "year": 1980
+    },
+    {
+        "id": 5,
+        "title": "Feel the Fire",
+        "artist": "Peabo Bryson",
+        "year": 1977
+    }
+]

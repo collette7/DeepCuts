@@ -17,8 +17,8 @@ class Settings:
     def get_cors_origins(self) -> List[str]:
         if self.ENVIRONMENT == "production":
             return [
-                "https://your-frontend-domain.com",  # Update this with your actual frontend domain
-                "https://deepcuts-frontend.onrender.com",  # If using Render for frontend too
+                "https://deepcuts.casa", 
+                "https://deepcuts.onrender.com",  
             ]
         return [
             "http://localhost:3000",
