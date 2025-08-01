@@ -65,8 +65,8 @@ class SearchResponse(BaseModel):
     query: str = Field(..., description="Original search query")
     recommendations: List[AlbumData] = Field(
         default_factory=list,
-        description="List of recommended albums with metadata"
+        description="List of recommended albums"
     )
-    total_found: int = Field(..., description="Total number of recommendations found")
+    total_found: int = Field(..., description="Total number")
     processing_time_ms: int = Field(..., description="Time taken to process request")
     

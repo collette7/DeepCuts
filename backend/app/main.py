@@ -1,14 +1,15 @@
 import os
-import uuid
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from typing import List, Dict, Any
 import time
-from app.models.albums import AlbumData, SearchRequest, SearchResponse
+from app.models.albums import AlbumMetadata, SearchRequest, SearchResponse
 from app.config import settings
 from app.services.claude import claude_service
+from app.services.spotify import spotify_service
+import asyncio
 
 load_dotenv()
 
@@ -34,15 +35,15 @@ supabase: Client = create_client(supabase_url, supabase_key)
 
 @app.get("/")
 async def root():
-    """Root endpoint for health check."""
+    """Health check."""
     return {
         "message": f"Welcome to {settings.PROJECT_NAME}",
         "version": settings.PROJECT_VERSION,
         "status": "healthy",
         "features": {
             "ai_search": "enabled",
-            "spotify_integration": "coming_in_wave_2",
-            "playlist_sync": "coming_in_wave_5"
+            "spotify_integration": "NULL",
+            "playlist_sync": "NULL"
         }
     }
 
@@ -53,15 +54,14 @@ async def search_albums(request: SearchRequest) -> SearchResponse:
     start_time = time.time()
     
     try:
-        # Get AI-powered album recommendations
+        # Get album recommendations from claude
         recommendations = await claude_service.get_album_recommendations(request.query)
         
-        # If AI returns empty or insufficient results, use fallback
+        # fallback if claude returns empty results
         if not recommendations or len(recommendations) == 0:
-            print("AI returned no recommendations, using fallback data")
+            print("No recommendations, using fallback data")
             recommendations = [
-                AlbumData(
-                    id=str(uuid.uuid4()),
+                AlbumMetadata(
                     title="Kind of Blue",
                     artist="Miles Davis",
                     year=1959,
@@ -71,8 +71,7 @@ async def search_albums(request: SearchRequest) -> SearchResponse:
                     discogs_url=None,
                     cover_url=None  
                 ),
-                AlbumData(
-                    id=str(uuid.uuid4()),
+                AlbumMetadata(
                     title="Bitches Brew",
                     artist="Miles Davis",
                     year=1970,
@@ -84,15 +83,16 @@ async def search_albums(request: SearchRequest) -> SearchResponse:
                 )
             ]
         
-        # Limit results to max_results
+        # Limit results
         limited_recommendations = recommendations[:request.max_results]
         
+       
+        
     except Exception as e:
-        print(f"Error getting AI recommendations: {e}")
-        # Fallback to sample data if AI fails
+        print(f"Recommendations Error: {e}")
+
         limited_recommendations = [
             AlbumMetadata(
-                id=str(uuid.uuid4()),
                 title="Kind of Blue",
                 artist="Miles Davis",
                 year=1959,
@@ -103,7 +103,6 @@ async def search_albums(request: SearchRequest) -> SearchResponse:
                 cover_url=None  
             ),
             AlbumMetadata(
-                id=str(uuid.uuid4()),
                 title="Bitches Brew",
                 artist="Miles Davis",
                 year=1970,
