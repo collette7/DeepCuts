@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'http://127.0.0.1:8000';
 
 class ApiClient {
     // client for FastAPI 
@@ -10,11 +10,17 @@ class ApiClient {
         fetch(`${API_BASE_URL}/`);
         return response.json();
     }
-    async getAlbums() {
-        //Get albums
+    async searchAlbums(query: string = 'Miles Davis') {
+        //Search albums
         try {
-            console.log('Fetching albums from:', `${API_BASE_URL}/albums`);
-            const response = await fetch(`${API_BASE_URL}/albums`);
+            console.log('Searching albums from:', `${API_BASE_URL}/api/v1/search`);
+            const response = await fetch(`${API_BASE_URL}/api/v1/search`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ query })
+            });
             console.log('Response status:', response.status);
             console.log('Response ok:', response.ok);
 
@@ -23,7 +29,7 @@ class ApiClient {
             }
             
             const data = await response.json();
-            console.log('Albums data:', data);
+            console.log('Search data:', data);
             return data;
         } catch (error) {
             console.error('API Error:', error);
@@ -34,11 +40,29 @@ class ApiClient {
 
 export const apiClient = new ApiClient();
 
-export interface Album {
+export interface AlbumData {
     id: string;
     title: string;
     artist: string;
-    release_year?: number;
-    genre?: string;
+    year?: number;
+    genre: string;
+    spotify_preview_url?: string;
+    spotify_url?: string;
+    discogs_url?: string;
+    cover_url?: string;
+}
+
+export interface SearchRequest {
+    query: string;
+    max_results?: number;
+    include_spotify?: boolean;
+    include_discogs?: boolean;
+}
+
+export interface SearchResponse {
+    query: string;
+    recommendations: AlbumData[];
+    total_found: number;
+    processing_time_ms: number;
 }
     

@@ -1,11 +1,14 @@
 import os
+import uuid
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from typing import List, Dict, Any
-from app.models.album import Album, AddAlbum
+import time
+from app.models.albums import AlbumData, SearchRequest, SearchResponse
 from app.config import settings
+from app.services.claude import claude_service
 
 load_dotenv()
 
@@ -30,41 +33,94 @@ if not supabase_url or not supabase_key:
 supabase: Client = create_client(supabase_url, supabase_key)
 
 @app.get("/")
-def welcome():
-    return {"msg":"Blello errybodie"}
+async def root():
+    """Root endpoint for health check."""
+    return {
+        "message": f"Welcome to {settings.PROJECT_NAME}",
+        "version": settings.PROJECT_VERSION,
+        "status": "healthy",
+        "features": {
+            "ai_search": "enabled",
+            "spotify_integration": "coming_in_wave_2",
+            "playlist_sync": "coming_in_wave_5"
+        }
+    }
 
-@app.get("/albums", response_model=List[Album])
-def get_albums():
-    """Fetch all albums"""
+
+@app.post("/api/v1/search")
+async def search_albums(request: SearchRequest) -> SearchResponse:
+    """Search for albums based on user query."""
+    start_time = time.time()
+    
     try:
-        result = supabase.table('albums').select('id, title, artist, release_year, genre').order('created_at').execute()
-        return result.data
+        # Get AI-powered album recommendations
+        recommendations = await claude_service.get_album_recommendations(request.query)
+        
+        # If AI returns empty or insufficient results, use fallback
+        if not recommendations or len(recommendations) == 0:
+            print("AI returned no recommendations, using fallback data")
+            recommendations = [
+                AlbumData(
+                    id=str(uuid.uuid4()),
+                    title="Kind of Blue",
+                    artist="Miles Davis",
+                    year=1959,
+                    genre="Jazz",
+                    spotify_preview_url=None,
+                    spotify_url=None,
+                    discogs_url=None,
+                    cover_url=None  
+                ),
+                AlbumData(
+                    id=str(uuid.uuid4()),
+                    title="Bitches Brew",
+                    artist="Miles Davis",
+                    year=1970,
+                    genre="Jazz Fusion",
+                    spotify_preview_url=None,
+                    spotify_url=None,
+                    discogs_url=None,
+                    cover_url=None
+                )
+            ]
+        
+        # Limit results to max_results
+        limited_recommendations = recommendations[:request.max_results]
         
     except Exception as e:
-        print(f"Database error: {e}")
-        
-        raise HTTPException(
-            status_code=500, 
-            detail="Failed to fetch albums from database"
-        )
+        print(f"Error getting AI recommendations: {e}")
+        # Fallback to sample data if AI fails
+        limited_recommendations = [
+            AlbumMetadata(
+                id=str(uuid.uuid4()),
+                title="Kind of Blue",
+                artist="Miles Davis",
+                year=1959,
+                genre="Jazz",
+                spotify_preview_url=None,
+                spotify_url=None,
+                discogs_url=None,
+                cover_url=None  
+            ),
+            AlbumMetadata(
+                id=str(uuid.uuid4()),
+                title="Bitches Brew",
+                artist="Miles Davis",
+                year=1970,
+                genre="Jazz Fusion",
+                spotify_preview_url=None,
+                spotify_url=None,
+                discogs_url=None,
+                cover_url=None
+            )
+        ]
+    
+    processing_time = int((time.time() - start_time) * 1000)
+    
+    return SearchResponse(
+        query=request.query,
+        recommendations=limited_recommendations,
+        total_found=len(limited_recommendations),
+        processing_time_ms=processing_time 
+    )
 
-@app.post("/albums", response_model=Album)  
-def add_album(album: AddAlbum):
-    """Add new album"""
-    try:
-        album_data = album.model_dump()
-        print(f"Attempting to insert: {album_data}")
-        result = supabase.table('albums').insert(album_data).execute()
-        print(f"Insert result: {result}")
-        
-        return result.data[0]
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Database error: {e}")
-        print(f"Error type: {type(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create album: {str(e)}"
-        )
