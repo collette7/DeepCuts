@@ -1,14 +1,38 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { apiClient, Album } from '@/lib/api';
+import { apiClient, AlbumData, SearchResponse } from '@/lib/api';
+import AlbumCard from './components/AlbumCard';
+import SearchForm from './components/SearchForm';
+import LoadingSpinner from './components/ui/LoadingSpinner';
+import ErrorMessage from './components/ui/ErrorMessage';
 import './page.css';
 
 export default function Home() {
 
-  const [albums, setAlbums] = useState<Album[]>([]);
+  const [albums, setAlbums] = useState<AlbumData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState('Miles Davis');
+
+const handleSearch = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  try {
+    setLoading(true);
+    setError(null);
+    
+    const searchData: SearchResponse = await apiClient.searchAlbums(searchQuery);
+    setAlbums(searchData.recommendations);
+    
+  } catch (error) {
+    console.error('Error searching albums:', error);
+    setError(error instanceof Error ? error.message : 'Search failed');
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Fetch albums
   useEffect(() => {
@@ -18,14 +42,14 @@ export default function Home() {
         setLoading(true);     
         setError(null);     
         
-        const albumData = await apiClient.getAlbums();
-        console.log('Received album data:', albumData);
-        console.log('Is array:', Array.isArray(albumData));
+        const searchData: SearchResponse = await apiClient.searchAlbums();
+        console.log('Search data:', searchData);
+        console.log('Is array:', Array.isArray(searchData.recommendations));
         
-        if (Array.isArray(albumData)) {
-          setAlbums(albumData); 
+        if (searchData && searchData.recommendations && Array.isArray(searchData.recommendations)) {
+          setAlbums(searchData.recommendations); 
         } else {
-          throw new Error('Invalid data format received from API');
+          throw new Error('Bad data format');
         }
         
       } catch (err) {
@@ -40,58 +64,41 @@ export default function Home() {
     fetchAlbums();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-content">
-          <div className="loading-spinner"></div>
-          <p className="loading-text">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-
-    return (
-      <div className="error-container">
-        <div className="error-content">
-          <p className="error-message">{error}</p>
-          <p className="error-description">Something went wrong :/</p>
-        </div>
-      </div>
-    );
-  }
 
   // Albums
   return (
     <div className="page-container">
       <div className="container">
         
-        {/* Header Section */}
+        {/* Header */}
         <header className="header">
           <h1>DeepCuts</h1>
           <p>Album Discovery</p>
         </header>
 
-        {/* Albums Display */}
-        <div className="albums-section">
-          <h2 className="albums-title">Albums ({albums.length})</h2>
-          
-          {/* Album Grid */}
-          <div className="albums-grid">
-            {albums && Array.isArray(albums) && albums.map((album) => (
-              //album
-              <div key={album.id} className="album-card">
-                <h3 className="album-title">{album.title || 'Unknown Title'}</h3>
-                <p className="album-artist">{album.artist || 'Unknown Artist'}</p>
-                <p className="album-year">{album.release_year || 'Unknown Year'}</p>
-                {album.genre && <p className="album-genre">{album.genre}</p>}
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* Search */}
+        <SearchForm 
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
+          onSubmit={handleSearch}
+          loading={loading}
+        />
 
+        {/* Results Area */}
+        {loading && <LoadingSpinner />}
+        
+        {error && <ErrorMessage error={error} />}
+        
+        {!loading && !error && albums.length > 0 && (
+          <div className="albums-section">
+            <h2 className="albums-title">Recommended Albums ({albums.length})</h2>
+            <div className="albums-grid">
+              {albums.map((album) => (
+                <AlbumCard key={album.id} album={album} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

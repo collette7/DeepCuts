@@ -1,4 +1,4 @@
-# 🎵 Music Recommendation App
+#  DeepCuts Record Discovery
 
 A full-stack album recommendation platform powered by Spotify, Discogs, and OpenAI/Claude. Built using **FastAPI**, **Supabase**, and **Next.js + TypeScript**, this app helps music lovers discover albums similar to the ones they already love — especially the deep cuts.
 
