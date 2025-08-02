@@ -51,6 +51,74 @@ async def root():
     }
 
 
+async def get_album_cover_from_discogs(title: str, artist: str) -> Optional[str]:
+    """Get high-resolution album cover URL from Discogs API."""
+    discogs_key = os.getenv("DISCOGS_KEY")
+    discogs_secret = os.getenv("DISCOGS_SECRET")
+    
+    if not discogs_key or not discogs_secret:
+        return None
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # Search for the specific album
+            search_query = f"{artist} {title}"
+            url = "https://api.discogs.com/database/search"
+            params = {
+                "q": search_query,
+                "type": "release",
+                "per_page": 5,
+                "key": discogs_key,
+                "secret": discogs_secret
+            }
+            headers = {
+                "User-Agent": "DeepCuts/1.0 +http://localhost:8000"
+            }
+            
+            response = await client.get(url, params=params, headers=headers)
+            
+            if response.status_code == 200:
+                data = response.json()
+                results = data.get("results", [])
+                
+                # Find the best match 
+                best_match = None
+                for result in results:
+                    result_title = result.get("title", "").lower()
+                    if artist.lower() in result_title and title.lower() in result_title:
+                        best_match = result
+                        break
+                
+                # If no exact match, use first result
+                if not best_match and results:
+                    best_match = results[0]
+                
+                if best_match:
+                    release_id = best_match.get("id")
+                    if release_id:
+                        release_url = f"https://api.discogs.com/releases/{release_id}"
+                        release_response = await client.get(release_url, params={"key": discogs_key, "secret": discogs_secret}, headers=headers)
+                        
+                        if release_response.status_code == 200:
+                            release_data = release_response.json()
+                            images = release_data.get("images", [])
+                            
+                            for image in images:
+                                if image.get("type") == "primary":
+                                    return image.get("uri")  # Full resolution image
+                            
+                            if images:
+                                return images[0].get("uri")
+                    
+                    # Fallback to search result images
+                    return best_match.get("cover_image") or best_match.get("thumb")
+                    
+    except Exception as e:
+        print(f"Error fetching cover from Discogs: {e}")
+    
+    return None
+
+
 @app.post("/api/v1/search")
 async def search_albums(request: SearchRequest) -> SearchResponse:
     """Get album recommendations based on user query."""
@@ -64,6 +132,29 @@ async def search_albums(request: SearchRequest) -> SearchResponse:
         if not recommendations or len(recommendations) == 0:
             print("No recommendations from Claude")
             recommendations = []
+        
+        # cover images from Discogs
+        if recommendations and request.include_discogs:
+            enriched_recommendations = []
+            for album in recommendations:
+                
+                cover_url = await get_album_cover_from_discogs(album.title, album.artist)
+                
+                # Create new album with cover 
+                enriched_album = AlbumData(
+                    id=album.id,
+                    title=album.title,
+                    artist=album.artist,
+                    year=album.year,
+                    genre=album.genre,
+                    spotify_preview_url=album.spotify_preview_url,
+                    spotify_url=album.spotify_url,
+                    discogs_url=album.discogs_url,
+                    cover_url=cover_url
+                )
+                enriched_recommendations.append(enriched_album)
+            
+            recommendations = enriched_recommendations
         
         # Limit results
         limited_recommendations = recommendations[:request.max_results]
