@@ -5,10 +5,9 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 from typing import List, Dict, Any
 import time
-from app.models.albums import AlbumMetadata, SearchRequest, SearchResponse
+from app.models.albums import AlbumData, SearchRequest, SearchResponse
 from app.config import settings
 from app.services.claude import claude_service
-from app.services.spotify import spotify_service
 import asyncio
 
 load_dotenv()
@@ -61,7 +60,8 @@ async def search_albums(request: SearchRequest) -> SearchResponse:
         if not recommendations or len(recommendations) == 0:
             print("No recommendations, using fallback data")
             recommendations = [
-                AlbumMetadata(
+                AlbumData(
+                    id="1",
                     title="Kind of Blue",
                     artist="Miles Davis",
                     year=1959,
@@ -71,7 +71,8 @@ async def search_albums(request: SearchRequest) -> SearchResponse:
                     discogs_url=None,
                     cover_url=None  
                 ),
-                AlbumMetadata(
+                AlbumData(
+                    id="2",
                     title="Bitches Brew",
                     artist="Miles Davis",
                     year=1970,
@@ -92,7 +93,8 @@ async def search_albums(request: SearchRequest) -> SearchResponse:
         print(f"Recommendations Error: {e}")
 
         limited_recommendations = [
-            AlbumMetadata(
+            AlbumData(
+                id="1",
                 title="Kind of Blue",
                 artist="Miles Davis",
                 year=1959,
@@ -102,7 +104,8 @@ async def search_albums(request: SearchRequest) -> SearchResponse:
                 discogs_url=None,
                 cover_url=None  
             ),
-            AlbumMetadata(
+            AlbumData(
+                id="2",
                 title="Bitches Brew",
                 artist="Miles Davis",
                 year=1970,

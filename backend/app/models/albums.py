@@ -42,7 +42,7 @@ class SearchRequest(BaseModel):
         ..., 
         min_length=1, 
         max_length=200,
-        description="Album name or artist to search for"
+        description="Album name to search for"
     )
     max_results: int = Field(
         default=10, 
