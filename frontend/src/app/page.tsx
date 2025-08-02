@@ -2,19 +2,96 @@
 
 import { useState, useEffect } from 'react';
 import { apiClient, AlbumData, SearchResponse } from '@/lib/api';
+import { useAuth } from './contexts/AuthContext';
 import AlbumCard from './components/AlbumCard';
 import SearchForm from './components/SearchForm';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import ErrorMessage from './components/ui/ErrorMessage';
+import AuthModal from './components/auth/AuthModal';
 import './page.css';
 
+// Example search results to avoid API calls on page load
+const exampleSearchResults: AlbumData[] = [
+  {
+    id: '1',
+    title: 'Live-Evil',
+    artist: 'Miles Davis',
+    year: 1971,
+    genre: 'Electric Jazz'
+  },
+  {
+    id: '2',
+    title: 'I Sing the Body Electric',
+    artist: 'Weather Report',
+    year: 1972,
+    genre: 'Jazz Fusion'
+  },
+  {
+    id: '3',
+    title: 'Emergency!',
+    artist: 'Tony Williams Lifetime',
+    year: 1969,
+    genre: 'Jazz Rock'
+  },
+  {
+    id: '4',
+    title: 'Mwandishi',
+    artist: 'Herbie Hancock',
+    year: 1971,
+    genre: 'Electric Jazz'
+  },
+  {
+    id: '5',
+    title: 'Turn It Over',
+    artist: 'Tony Williams Lifetime',
+    year: 1970,
+    genre: 'Jazz Rock'
+  },
+  {
+    id: '6',
+    title: 'Crossings',
+    artist: 'Herbie Hancock',
+    year: 1972,
+    genre: 'Electric Jazz'
+  },
+  {
+    id: '7',
+    title: 'The Inner Mounting Flame',
+    artist: 'Mahavishnu Orchestra',
+    year: 1971,
+    genre: 'Jazz Fusion'
+  },
+  {
+    id: '8',
+    title: 'Third',
+    artist: 'Soft Machine',
+    year: 1970,
+    genre: 'Canterbury Scene'
+  },
+  {
+    id: '9',
+    title: 'Waka/Jawaka',
+    artist: 'Frank Zappa',
+    year: 1972,
+    genre: 'Jazz Rock'
+  },
+  {
+    id: '10',
+    title: 'Lawrence of Newark',
+    artist: 'Larry Young',
+    year: 1973,
+    genre: 'Electric Jazz'
+  }
+];
+
 export default function Home() {
-
-  const [albums, setAlbums] = useState<AlbumData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading, signOut } = useAuth();
+  const [albums, setAlbums] = useState<AlbumData[]>(exampleSearchResults);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
-  const [searchQuery, setSearchQuery] = useState('Miles Davis');
+  const [searchQuery, setSearchQuery] = useState('Example search');
 
 const handleSearch = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -24,45 +101,24 @@ const handleSearch = async (e: React.FormEvent) => {
     setError(null);
     
     const searchData: SearchResponse = await apiClient.searchAlbums(searchQuery);
-    setAlbums(searchData.recommendations);
+    
+    if (searchData.recommendations && searchData.recommendations.length > 0) {
+      setAlbums(searchData.recommendations);
+    } else {
+      setAlbums([]);
+      setError('No results found, try again later');
+    }
     
   } catch (error) {
     console.error('Error searching albums:', error);
-    setError(error instanceof Error ? error.message : 'Search failed');
+    setAlbums([]);
+    setError('Bad connection, try again later');
   } finally {
     setLoading(false);
   }
 };
 
-  // Fetch albums
-  useEffect(() => {
-    
-    async function fetchAlbums() {
-      try {
-        setLoading(true);     
-        setError(null);     
-        
-        const searchData: SearchResponse = await apiClient.searchAlbums();
-        console.log('Search data:', searchData);
-        console.log('Is array:', Array.isArray(searchData.recommendations));
-        
-        if (searchData && searchData.recommendations && Array.isArray(searchData.recommendations)) {
-          setAlbums(searchData.recommendations); 
-        } else {
-          throw new Error('Bad data format');
-        }
-        
-      } catch (err) {
-        console.error('Error in fetchAlbums:', err);
-        setError(err instanceof Error ? err.message : 'Something went wrong');
-        
-      } finally {
-        setLoading(false);  
-      }
-    }
-
-    fetchAlbums();
-  }, []);
+  // No automatic fetching on page load - user must search to trigger API calls
 
 
   // Albums
@@ -72,8 +128,22 @@ const handleSearch = async (e: React.FormEvent) => {
         
         {/* Header */}
         <header className="header">
-          <h1>DeepCuts</h1>
-          <p>Album Discovery</p>
+          <div>
+            <h1>DeepCuts</h1>
+            <p>Album Discovery</p>
+          </div>
+          <div className="auth-controls">
+            {user ? (
+              <div className="user-menu">
+                <span>Welcome, {user.email}</span>
+                <button onClick={signOut}>Sign Out</button>
+              </div>
+            ) : (
+              <div className="auth-buttons">
+                <button onClick={() => setAuthModalOpen(true)}>Sign In</button>
+              </div>
+            )}
+          </div>
         </header>
 
         {/* Search */}
@@ -99,6 +169,11 @@ const handleSearch = async (e: React.FormEvent) => {
             </div>
           </div>
         )}
+
+        <AuthModal 
+          isOpen={authModalOpen} 
+          onClose={() => setAuthModalOpen(false)} 
+        />
       </div>
     </div>
   );
