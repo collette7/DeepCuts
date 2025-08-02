@@ -10,7 +10,7 @@ import ErrorMessage from './components/ui/ErrorMessage';
 import AuthModal from './components/auth/AuthModal';
 import './page.css';
 
-// Example search results to avoid API calls on page load
+// Example search results
 const exampleSearchResults: AlbumData[] = [
   {
     id: '1',
@@ -118,7 +118,6 @@ const handleSearch = async (e: React.FormEvent) => {
   }
 };
 
-  // No automatic fetching on page load - user must search to trigger API calls
 
 
   // Albums
