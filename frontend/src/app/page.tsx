@@ -91,7 +91,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
-  const [searchQuery, setSearchQuery] = useState('Example search');
+  const [searchQuery, setSearchQuery] = useState('Bitches Brew - Miles Davis');
 
 const handleSearch = async (e: React.FormEvent) => {
   e.preventDefault();
