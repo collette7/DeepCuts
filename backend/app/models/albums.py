@@ -37,18 +37,18 @@ class AlbumData(Album):
 
 
 class SearchRequest(BaseModel):
-    """Search requests"""
+    """Search requests to claude for album recommendations"""
     query: str = Field(
         ..., 
         min_length=1, 
         max_length=200,
-        description="Album name to search for"
+        description="Name of album"
     )
     max_results: int = Field(
         default=10, 
         ge=1, 
         le=20,
-        description="Maximum number of recommendations to return"
+        description="Max number of recommendations to return"
     )
     include_spotify: bool = Field(
         default=True,
@@ -61,7 +61,7 @@ class SearchRequest(BaseModel):
 
 
 class SearchResponse(BaseModel):
-    """Search recommendations."""
+    """Recommendations"""
     query: str = Field(..., description="Original search query")
     recommendations: List[AlbumData] = Field(
         default_factory=list,
