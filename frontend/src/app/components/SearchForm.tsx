@@ -20,7 +20,7 @@ export default function SearchForm({
           <MagnifyingGlassIcon className="search-icon" />
           <input
             type="text"
-            placeholder="Search for albums or artists..."
+            placeholder="Search for albums"
             value={searchQuery}
             onChange={(e) => onSearchQueryChange(e.target.value)}
             className="search-input"
