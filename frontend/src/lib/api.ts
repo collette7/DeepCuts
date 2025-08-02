@@ -35,7 +35,34 @@ class ApiClient {
             console.error('API Error:', error);
             throw error;
         }
-    }  
+    }
+
+    async searchDiscogs(query: string) {
+        //Search Discogs for autocomplete
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/v1/discogs/search`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    query,
+                    type: 'release',
+                    per_page: 10 
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Discogs API Error:', error);
+            throw error;
+        }
+    }
 }
 
 export const apiClient = new ApiClient();
@@ -64,5 +91,23 @@ export interface SearchResponse {
     recommendations: AlbumData[];
     total_found: number;
     processing_time_ms: number;
+}
+
+export interface SuggestionResult {
+    id: number;
+    type: string;
+    title: string;
+    year?: string;
+    thumb?: string;
+}
+
+export interface SuggestionResponse {
+    results: SuggestionResult[];
+    pagination: {
+        per_page: number;
+        pages: number;
+        page: number;
+        items: number;
+    };
 }
     

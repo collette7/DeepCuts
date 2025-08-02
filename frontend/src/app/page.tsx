@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { apiClient, AlbumData, SearchResponse } from '@/lib/api';
 import { useAuth } from './contexts/AuthContext';
 import AlbumCard from './components/AlbumCard';
@@ -85,13 +85,13 @@ const exampleSearchResults: AlbumData[] = [
 ];
 
 export default function Home() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const [albums, setAlbums] = useState<AlbumData[]>(exampleSearchResults);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
-  const [searchQuery, setSearchQuery] = useState('Bitches Brew - Miles Davis');
+  const [searchQuery, setSearchQuery] = useState('');
 
 const handleSearch = async (e: React.FormEvent) => {
   e.preventDefault();
