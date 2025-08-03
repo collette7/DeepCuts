@@ -22,7 +22,6 @@ export default function SearchForm({
   const resultsRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
- 
   const delaySearch = useCallback(async (searchQuery: string) => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -125,7 +124,7 @@ export default function SearchForm({
   const handleResultClick = (result: SuggestionResult) => {
     onSearchQueryChange(result.title);
     setShowResults(false);
-    onSubmit(new Event('submit') as unknown as React.FormEvent);
+    
   };
   return (
     <div className="search-section">

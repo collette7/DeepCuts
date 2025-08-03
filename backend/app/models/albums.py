@@ -34,6 +34,7 @@ class AlbumData(Album):
     spotify_url: Optional[str] = Field(None, description="Spotify album URL")
     discogs_url: Optional[str] = Field(None, description="Discogs marketplace URL")
     cover_url: Optional[str] = Field(None, description="Album artwork URL")
+    reasoning: Optional[str] = Field(None, description="Claude's explanation")
 
 
 class SearchRequest(BaseModel):

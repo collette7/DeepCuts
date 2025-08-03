@@ -101,11 +101,12 @@ class ClaudeService:
                     title=title,
                     artist=artist,
                     year=parsed_year,
-                    genre="revise to add",  
+                    genre="genre",  
                     spotify_preview_url=None,
                     spotify_url=None,
                     discogs_url=None,
-                    cover_url=None
+                    cover_url=None,
+                    reasoning=explanation
                 )
                 recommendations.append(album)
                 
@@ -116,7 +117,7 @@ class ClaudeService:
         return recommendations
 
     async def get_album_recommendations(self, album_name: str) -> List[AlbumData]:
-        """Get album recommendations from Claude AI."""
+        """Get album recommendations from Claude"""
         try:
             prompt = self.get_recommendation_prompt(album_name)
             
