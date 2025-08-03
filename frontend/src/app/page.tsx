@@ -160,7 +160,7 @@ const handleSearch = async (e: React.FormEvent) => {
         
         {!loading && !error && albums.length > 0 && (
           <div className="albums-section">
-            <h2 className="albums-title">Recommended Albums ({albums.length})</h2>
+            <h2 className="albums-title">{albums.length} deep cut albums for {searchQuery || 'music'} lovers</h2>
             <div className="albums-grid">
               {albums.map((album) => (
                 <AlbumCard key={album.id} album={album} />
