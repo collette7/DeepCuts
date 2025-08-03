@@ -8,6 +8,7 @@ import SearchForm from './components/SearchForm';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import ErrorMessage from './components/ui/ErrorMessage';
 import AuthModal from './components/auth/AuthModal';
+import AlbumDetails from './components/AlbumDetails';
 import './page.css';
 
 // Example search results
@@ -90,6 +91,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedAlbum, setSelectedAlbum] = useState<AlbumData | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -116,6 +119,16 @@ const handleSearch = async (e: React.FormEvent) => {
   } finally {
     setLoading(false);
   }
+};
+
+const handleListenNow = (album: AlbumData) => {
+  setSelectedAlbum(album);
+  setDetailsOpen(true);
+};
+
+const handleCloseDetails = () => {
+  setDetailsOpen(false);
+  setSelectedAlbum(null);
 };
 
 
@@ -163,7 +176,11 @@ const handleSearch = async (e: React.FormEvent) => {
             <h2 className="albums-title">{albums.length} deep cut albums for {searchQuery || 'music'} lovers</h2>
             <div className="albums-grid">
               {albums.map((album) => (
-                <AlbumCard key={album.id} album={album} />
+                <AlbumCard 
+                  key={album.id} 
+                  album={album} 
+                  onListenNow={handleListenNow}
+                />
               ))}
             </div>
           </div>
@@ -172,6 +189,12 @@ const handleSearch = async (e: React.FormEvent) => {
         <AuthModal 
           isOpen={authModalOpen} 
           onClose={() => setAuthModalOpen(false)} 
+        />
+
+        <AlbumDetails
+          album={selectedAlbum}
+          isOpen={detailsOpen}
+          onClose={handleCloseDetails}
         />
       </div>
     </div>

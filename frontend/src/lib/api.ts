@@ -73,10 +73,10 @@ export interface AlbumData {
     artist: string;
     year?: number;
     genre: string;
-    spotify_preview_url?: string;
     spotify_url?: string;
     discogs_url?: string;
     cover_url?: string;
+    reasoning?: string;
 }
 
 export interface SearchRequest {

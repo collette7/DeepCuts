@@ -1,12 +1,13 @@
 import * as Avatar from '@radix-ui/react-avatar';
-import { DiscIcon } from '@radix-ui/react-icons';
+import { DiscIcon, PlayIcon } from '@radix-ui/react-icons';
 import { AlbumData } from '@/lib/api';
 
 interface AlbumCardProps {
   album: AlbumData;
+  onListenNow: (album: AlbumData) => void;
 }
 
-export default function AlbumCard({ album }: AlbumCardProps) {
+export default function AlbumCard({ album, onListenNow }: AlbumCardProps) {
   return (
     <div className="album-card">
       <div className="album-cover">
@@ -34,6 +35,15 @@ export default function AlbumCard({ album }: AlbumCardProps) {
           {album.genre && album.genre !== "Unknown" && (
             <span className="album-genre">{album.genre}</span>
           )}
+        </div>
+        <div className="album-actions">
+          <button 
+            onClick={() => onListenNow(album)}
+            className="listen-now-btn"
+          >
+            <PlayIcon />
+            Listen Now
+          </button>
         </div>
       </div>
     </div>

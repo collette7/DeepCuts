@@ -206,6 +206,41 @@
   font-weight: 500;
 }
 
+.album-actions {
+  margin-top: auto;
+}
+
+.listen-now-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  background: #1db954;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.listen-now-btn:hover {
+  background: #1ed760;
+  transform: translateY(-1px);
+}
+
+.listen-now-btn:active {
+  transform: translateY(0);
+}
+
+.listen-now-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
 
 
 
@@ -485,4 +520,222 @@
 .user-menu span {
   font-size: 14px;
   color: var(--foreground);
+}
+
+/* Album Details Flyout */
+.details-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.album-details-flyout {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 400px;
+  background: var(--background);
+  border-left: 1px solid #e5e7eb;
+  box-shadow: -4px 0 25px rgba(0, 0, 0, 0.15);
+  z-index: 1001;
+  animation: slideInRight 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+.details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.details-header h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.details-close-btn {
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  color: var(--foreground);
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.details-close-btn:hover {
+  opacity: 1;
+  background: #f3f4f6;
+}
+
+.details-content {
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.details-album-info {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.details-album-cover {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.details-album-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.details-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 2rem;
+}
+
+.details-album-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.details-album-text h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 4px 0;
+  line-height: 1.3;
+}
+
+.details-album-text p {
+  font-size: 1rem;
+  color: var(--foreground);
+  opacity: 0.8;
+  margin: 0 0 8px 0;
+}
+
+.details-year {
+  display: inline-block;
+  background: #f3f4f6;
+  color: var(--foreground);
+  opacity: 0.7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.recommendation-section {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+}
+
+.recommendation-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.recommendation-icon {
+  width: 18px;
+  height: 18px;
+  color: #3b82f6;
+}
+
+.recommendation-header h5 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.reasoning-content p {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--foreground);
+  opacity: 0.8;
+  margin: 0;
+  font-style: italic;
+}
+
+.details-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.spotify-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  background: #1db954;
+  color: white;
+}
+
+.spotify-action-btn:hover {
+  background: #1ed760;
+  transform: translateY(-1px);
+}
+
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { 
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to { 
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .album-details-flyout {
+    width: 100vw;
+    left: 0;
+    right: 0;
+    border-left: none;
+    border-top: 1px solid #e5e7eb;
+  }
 }
