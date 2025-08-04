@@ -52,12 +52,12 @@ async def root():
 
 
 async def get_spotify_album_data(title: str, artist: str) -> Dict[str, Optional[str]]:
-    """Get Spotify album external URL."""
+    """Get Spotify album data"""
     spotify_client_id = os.getenv("SPOTIFY_CLIENT_ID")
     spotify_client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
     
     if not spotify_client_id or not spotify_client_secret:
-        return {"external_url": None}
+        return {"preview_url": None, "external_url": None}
     
     try:
         async with httpx.AsyncClient() as client:
@@ -71,11 +71,11 @@ async def get_spotify_album_data(title: str, artist: str) -> Dict[str, Optional[
             auth_response = await client.post(auth_url, data=auth_data)
             
             if auth_response.status_code != 200:
-                return {"external_url": None}
+                return {"preview_url": None, "external_url": None}
             
             access_token = auth_response.json().get("access_token")
             
-            # Search for the album
+            # Search for album
             search_query = f"album:{title} artist:{artist}"
             search_url = "https://api.spotify.com/v1/search"
             headers = {"Authorization": f"Bearer {access_token}"}
@@ -99,18 +99,41 @@ async def get_spotify_album_data(title: str, artist: str) -> Dict[str, Optional[
                     if (title.lower() in album_name or album_name in title.lower()) and \
                        any(artist.lower() in album_artist for album_artist in album_artists):
                         
+                        # Get album tracks for preview URL
+                        album_id = album.get("id")
+                        if album_id:
+                            tracks_url = f"https://api.spotify.com/v1/albums/{album_id}/tracks"
+                            tracks_response = await client.get(tracks_url, headers=headers)
+                            
+                            if tracks_response.status_code == 200:
+                                tracks_data = tracks_response.json()
+                                tracks = tracks_data.get("items", [])
+                                
+                                # Find a track with preview URL
+                                preview_url = None
+                                for track in tracks:
+                                    if track.get("preview_url"):
+                                        preview_url = track.get("preview_url")
+                                        break
+                                
+                                return {
+                                    "preview_url": preview_url,
+                                    "external_url": album.get("external_urls", {}).get("spotify")
+                                }
+                        
                         return {
+                            "preview_url": None,
                             "external_url": album.get("external_urls", {}).get("spotify")
                         }
                 
     except Exception as e:
         print(f"Error fetching Spotify data: {e}")
     
-    return {"external_url": None}
+    return {"preview_url": None, "external_url": None}
 
 
 async def get_album_cover_from_discogs(title: str, artist: str) -> Optional[str]:
-    """Get high-resolution album cover URL from Discogs API."""
+    """Get album cover URL from Discogs API."""
     discogs_key = os.getenv("DISCOGS_KEY")
     discogs_secret = os.getenv("DISCOGS_SECRET")
     
@@ -201,18 +224,18 @@ async def search_albums(request: SearchRequest) -> SearchResponse:
                     cover_url = await get_album_cover_from_discogs(album.title, album.artist)
                 
                 # Get Spotify data
-                spotify_data = {"external_url": None}
+                spotify_data = {"preview_url": None, "external_url": None}
                 if request.include_spotify:
                     spotify_data = await get_spotify_album_data(album.title, album.artist)
                 
-                # Create new album with enriched data
+                # Create new album 
                 enriched_album = AlbumData(
                     id=album.id,
                     title=album.title,
                     artist=album.artist,
                     year=album.year,
                     genre=album.genre,
-                    spotify_preview_url=None,
+                    spotify_preview_url=spotify_data["preview_url"],
                     spotify_url=spotify_data["external_url"],
                     discogs_url=album.discogs_url,
                     cover_url=cover_url,
@@ -243,12 +266,11 @@ async def search_albums(request: SearchRequest) -> SearchResponse:
 async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
     """Get search suggestions from Discogs for autocomplete dropdown."""
     
-    # Get Discogs API credentials from environment
     discogs_key = os.getenv("DISCOGS_KEY")
     discogs_secret = os.getenv("DISCOGS_SECRET")
     
     if not discogs_key or not discogs_secret:
-        # Return empty results if no API keys
+        # Return empty results if no API
         return SuggestionResponse(
             results=[],
             pagination={"per_page": request.per_page, "pages": 0, "page": 1, "items": 0}
@@ -281,7 +303,6 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
                 
     except Exception as e:
         print(f"Discogs API Error: {e}")
-        # Return empty results on error
         return SuggestionResponse(
             results=[],
             pagination={"per_page": request.per_page, "pages": 0, "page": 1, "items": 0}

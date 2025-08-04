@@ -9,7 +9,7 @@ interface AlbumCardProps {
 
 export default function AlbumCard({ album, onListenNow }: AlbumCardProps) {
   return (
-    <div className="album-card">
+    <div className="album-card" onClick={() => onListenNow(album)}>
       <div className="album-cover">
         <Avatar.Root className="cover-placeholder">
           <Avatar.Image 
@@ -35,15 +35,6 @@ export default function AlbumCard({ album, onListenNow }: AlbumCardProps) {
           {album.genre && album.genre !== "Unknown" && (
             <span className="album-genre">{album.genre}</span>
           )}
-        </div>
-        <div className="album-actions">
-          <button 
-            onClick={() => onListenNow(album)}
-            className="listen-now-btn"
-          >
-            <PlayIcon />
-            Listen Now
-          </button>
         </div>
       </div>
     </div>
