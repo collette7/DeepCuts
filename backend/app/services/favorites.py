@@ -104,7 +104,7 @@ class FavoritesService:
             
             
             # Get all user favorites and remove the matching one
-            favorites = self.supabase.table('favorites').select('id, albums(*)').eq('user_id', user_uuid).execute()
+            favorites = self.supabase.table('favorites').select('id, albums!favorites_album_id_fkey(*)').eq('user_id', user_uuid).execute()
             
             favorite_to_delete = None
             for favorite in favorites.data:
@@ -134,7 +134,7 @@ class FavoritesService:
             user_uuid = user_result.data[0]['id']
             
             result = self.supabase.table('favorites').select(
-                'id, saved_at, albums(*)'
+                'id, saved_at, albums!favorites_album_id_fkey(*)'
             ).eq('user_id', user_uuid).order('saved_at', desc=True).execute()
             
             favorites = result.data or []
@@ -157,13 +157,13 @@ class FavoritesService:
         """Remove album method for authenticated endpoints"""
         return await self.remove_from_favorites(user_id, album_id)
 
-    async def get_favorites_with_album_details(self, user_id: str):
+    async def get_favorites_with_album_details(self, user_email: str):
         """Get favorites with details method for authenticated endpoints"""
-        favorites = await self.get_user_favorites(user_id)
+        favorites_result = await self.get_user_favorites(user_email)
         return {
-            "success": True,
-            "favorites": favorites,
-            "total": len(favorites) if favorites else 0
+            "success": favorites_result.success,
+            "favorites": favorites_result.favorites if favorites_result.success else [],
+            "total": favorites_result.total
         }
 
     def is_album_favorited(self, user_id: str, album_id: str) -> bool:
