@@ -2,6 +2,7 @@
 
 import { Cross2Icon, ExternalLinkIcon } from '@radix-ui/react-icons';
 import { AlbumData } from '@/lib/api';
+import './AlbumDetails.scss';
 
 interface AlbumDetailsProps {
   album: AlbumData | null;

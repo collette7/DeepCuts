@@ -164,7 +164,7 @@ const handleToggleFavorite = async (album: AlbumData) => {
         
         {!loading && !error && albums.length > 0 && (
           <div className="albums-section">
-            <h2 className="albums-title">{albums.length} deep cut albums for {searchQuery || 'piano jazz'} lovers</h2>
+            <h2 className="albums-title">{searchQuery ? `${albums.length} deep cut albums for ${searchQuery} lovers` : "Today's top favorites"}</h2>
             <div className="albums-grid">
               {albums.map((album) => (
                 <AlbumCard 

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Separator from '@radix-ui/react-separator';
-import './Navigation.css';
+import './Navigation.scss';
 
 
 
@@ -80,12 +80,6 @@ export default function Navigation() {
                         onSelect={() => router.push('/favorites')}
                       >
                         My Favorites
-                      </DropdownMenu.Item>
-                      <DropdownMenu.Item 
-                        className="menu-item"
-                        onSelect={() => router.push('/recommendations')}
-                      >
-                        Recommendation History
                       </DropdownMenu.Item>
                       <Separator.Root className="menu-divider" />
                       <DropdownMenu.Item 

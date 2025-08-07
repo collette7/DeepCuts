@@ -1,0 +1,136 @@
+@import '../../../styles/variables';
+
+/* Login Form Component Styles */
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(5);
+
+  h2 {
+    font-size: font-size(2xl);
+    font-weight: font-weight(semibold);
+    text-align: center;
+    margin-bottom: spacing(2);
+    color: color(foreground);
+  }
+}
+
+.auth-error-message {
+  padding: spacing(3) spacing(4);
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: radius(base);
+  color: color(error);
+  font-size: font-size(sm);
+}
+
+.auth-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(2);
+
+  label {
+    font-size: font-size(sm);
+    font-weight: font-weight(medium);
+    color: color(foreground);
+  }
+}
+
+.auth-form-input {
+  width: 100%;
+  padding: spacing(3) spacing(4);
+  border: 1px solid color(gray-300);
+  border-radius: radius(base);
+  font-size: font-size(base);
+  color: color(foreground);
+  background-color: color(background);
+  transition: transition(base);
+
+  &:focus {
+    outline: none;
+    border-color: color(primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.auth-submit-btn {
+  width: 100%;
+  padding: spacing(3) spacing(4);
+  background-color: color(primary);
+  color: white;
+  border: none;
+  border-radius: radius(base);
+  font-size: font-size(base);
+  font-weight: font-weight(medium);
+  cursor: pointer;
+  transition: transition(base);
+
+  &:hover:not(:disabled) {
+    background-color: color(primary-hover);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    background-color: color(gray-400);
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+.auth-divider {
+  height: 1px;
+  background-color: color(gray-200);
+  margin: spacing(2) 0;
+}
+
+.auth-switch {
+  text-align: center;
+  font-size: font-size(sm);
+  color: color(foreground);
+}
+
+.auth-switch-btn {
+  color: color(primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: font-size(sm);
+  text-decoration: underline;
+
+  &:hover {
+    color: color(primary-hover);
+  }
+}
+
+.auth-help-links {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(2);
+  font-size: font-size(sm);
+
+  p {
+    text-align: center;
+    margin: 0;
+    color: color(foreground);
+    opacity: 0.8;
+  }
+}
+
+.auth-help-link {
+  color: color(primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: font-size(sm);
+  text-decoration: underline;
+
+  &:hover {
+    color: color(primary-hover);
+  }
+}

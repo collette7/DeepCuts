@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import LoginForm from './LoginForm'
 import SignupForm from './SignupForm'
-import './AuthModal.css'
+import './AuthModal.scss'
 
 interface AuthModalProps {
   isOpen: boolean

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MagnifyingGlassIcon } from '@radix-ui/react-icons';
 import { apiClient, SuggestionResponse, SuggestionResult } from '@/lib/api';
+import './SearchForm.scss';
 
 interface SearchFormProps {
   searchQuery: string;
