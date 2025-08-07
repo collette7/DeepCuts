@@ -169,7 +169,7 @@ class ApiClient {
             return await response.json();
         } catch (error) {
             console.error('Ensure user exists error:', error);
-            return { success: false, message: error.message };
+            return { success: false, message: error instanceof Error ? error.message : 'Unknown error' };
         }
     }
 }
@@ -182,6 +182,7 @@ export interface AlbumData {
     artist: string;
     year?: number;
     genre: string;
+    spotify_preview_url?: string;
     spotify_url?: string;
     discogs_url?: string;
     cover_url?: string;
@@ -228,10 +229,17 @@ export interface FavoritedAlbumWithDetails {
 }
 
 export interface FavoritesWithDetailsResponse {
-    favorited_albums: FavoritedAlbumWithDetails[];
-    favorites_by_source: { [key: string]: FavoritedAlbumWithDetails[] };
-    total_count: number;
+    success: boolean;
+    favorites: FavoriteItem[];
+    total: number;
     error?: string;
+}
+
+export interface FavoriteItem {
+    id: string;
+    saved_at: string;
+    albums?: AlbumData;
+    album?: AlbumData;
 }
 
 export interface FavoriteActionResponse {

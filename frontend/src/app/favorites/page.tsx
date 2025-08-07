@@ -3,16 +3,17 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
-import { apiClient, AlbumData } from '@/lib/api';
+import { apiClient, AlbumData, FavoriteItem } from '@/lib/api';
 import AlbumCard from '../components/AlbumCard';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import AlbumDetails from '../components/AlbumDetails';
 
+
 export default function FavoritesPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [favorites, setFavorites] = useState<any[]>([]);
+  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumData | null>(null);
@@ -69,10 +70,10 @@ export default function FavoritesPage() {
       // Remove from local state
       setFavorites(prev => prev.filter(fav => {
         const favAlbum = fav.albums || fav.album;
-        return favAlbum.id !== album.id;
+        return favAlbum?.id !== album.id;
       }));
     } catch (error) {
-      console.error('Error removing favorite:', error);
+      console.error(`Error removing favorite:`, error);
     } finally {
       setRemovingIds(prev => {
         const newSet = new Set(prev);
@@ -126,7 +127,9 @@ export default function FavoritesPage() {
             <div className="albums-grid">
               {favorites.map((favorite) => {
                 // Handle different response formats
-                const album = favorite.albums || favorite.album || favorite;
+                const album = favorite.albums || favorite.album;
+                
+                if (!album) return null; // Skip if no album data
                 
                 return (
                   <AlbumCard 
