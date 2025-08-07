@@ -6,10 +6,13 @@ from ..models.favorites import AddToFavoritesRequest, FavoriteActionResponse, Us
 
 class FavoritesService:
     def __init__(self):
-        url: str = os.environ.get("SUPABASE_URL")
-        key: str = os.environ.get("SUPABASE_ANON_KEY")
-        self.supabase: Client = create_client(url, key)
-
+        self.url: str = os.environ.get("SUPABASE_URL")
+        self.anon_key: str = os.environ.get("SUPABASE_ANON_KEY")
+        self.supabase: Client = create_client(self.url, self.anon_key)
+    
+    def _get_authenticated_client(self, user_token: str) -> Client:
+        """Get a Supabase client with user's access token for RLS"""
+    
     async def ensure_user_exists(self, user_id: str, user_email: str) -> bool:
         """Ensure user exists in the users table"""
         try:
@@ -123,17 +126,20 @@ class FavoritesService:
             print(f"Error removing from favorites: {e}")
             return FavoriteActionResponse(success=False, message=f"Failed to remove from favorites: {str(e)}")
 
-    async def get_user_favorites(self, user_email: str) -> UserFavoritesList:
+    async def get_user_favorites(self, user_email: str, user_token: str = None) -> UserFavoritesList:
         """Get all favorited albums for a user with full album details"""
         try:
+            # Use authenticated client if token provided (for RLS)
+            client = self._get_authenticated_client(user_token) if user_token else self.supabase
+            
             # Get user UUID by email
-            user_result = self.supabase.table('users').select('id').eq('email', user_email).execute()
+            user_result = client.table('users').select('id').eq('email', user_email).execute()
             if not user_result.data:
                 return UserFavoritesList(success=True, favorites=[], total=0)
             
             user_uuid = user_result.data[0]['id']
             
-            result = self.supabase.table('favorites').select(
+            result = client.table('favorites').select(
                 'id, saved_at, albums!favorites_album_id_fkey(*)'
             ).eq('user_id', user_uuid).order('saved_at', desc=True).execute()
             
@@ -157,9 +163,9 @@ class FavoritesService:
         """Remove album method for authenticated endpoints"""
         return await self.remove_from_favorites(user_id, album_id)
 
-    async def get_favorites_with_album_details(self, user_email: str):
+    async def get_favorites_with_album_details(self, user_email: str, user_token: str = None):
         """Get favorites with details method for authenticated endpoints"""
-        favorites_result = await self.get_user_favorites(user_email)
+        favorites_result = await self.get_user_favorites(user_email, user_token)
         return {
             "success": favorites_result.success,
             "favorites": favorites_result.favorites if favorites_result.success else [],
