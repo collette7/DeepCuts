@@ -10,29 +10,30 @@ class FavoritesService:
         key: str = os.environ.get("SUPABASE_ANON_KEY")
         self.supabase: Client = create_client(url, key)
 
-    async def ensure_user_exists(self, user_id: str, user_email: str = None) -> str:
-        """Ensure user exists in the users table using UUID"""
+    async def ensure_user_exists(self, user_id: str, user_email: str) -> bool:
+        """Ensure user exists in the users table"""
         try:
-            # Check if user already exists by UUID
-            existing_user = self.supabase.table('users').select('id').eq('id', user_id).execute()
+            # Check if user already exists
+            existing_user = self.supabase.table('users').select('id').eq('email', user_email).execute()
             
             if not existing_user.data:
-                # Create user if they don't exist - use UUID as primary key
-                insert_data = {'id': user_id}
-                if user_email:
-                    insert_data['email'] = user_email
-                    
-                self.supabase.table('users').insert(insert_data).execute()
+                # Create user if they don't exist
+                self.supabase.table('users').insert({
+                    'email': user_email
+                }).execute()
                 
-            return user_id
+                # Get the created user
+                existing_user = self.supabase.table('users').select('id').eq('email', user_email).execute()
+                
+            return existing_user.data[0]['id'] if existing_user.data else None
         except Exception as e:
             print(f"Error ensuring user exists: {e}")
             return None
 
-    async def add_to_favorites(self, user_id: str, user_email: str = None, request: AddToFavoritesRequest = None) -> FavoriteActionResponse:
+    async def add_to_favorites(self, user_id: str, user_email: str, request: AddToFavoritesRequest) -> FavoriteActionResponse:
         """Add an album to user's favorites"""
         try:
-            # Ensure user exists - user_id is already the UUID from JWT
+            # Ensure user exists and get their UUID
             user_uuid = await self.ensure_user_exists(user_id, user_email)
             if not user_uuid:
                 return FavoriteActionResponse(success=False, message="Failed to create/verify user")
@@ -94,13 +95,13 @@ class FavoritesService:
     async def remove_from_favorites(self, user_id: str, album_id: str) -> FavoriteActionResponse:
         """Remove an album from user's favorites"""
         try:
-            # user_id is already the UUID from JWT
-            user_uuid = user_id
+            # Get user UUID by email (using user_id as email for now)
+            user_result = self.supabase.table('users').select('id').eq('email', user_id).execute()
+            if not user_result.data:
+                return FavoriteActionResponse(success=False, message="User not found")
             
-            # Find album by frontend ID - we need to map the string ID to UUID
-            # For now, assume album_id is the frontend string ID, we need a way to map it
-            # Since our add_to_favorites stores albums, we'll need to find by album data
-            # This is a temporary solution - ideally frontend should store UUIDs
+            user_uuid = user_result.data[0]['id']
+            
             
             # Get all user favorites and remove the matching one
             favorites = self.supabase.table('favorites').select('id, albums(*)').eq('user_id', user_uuid).execute()
@@ -122,11 +123,15 @@ class FavoritesService:
             print(f"Error removing from favorites: {e}")
             return FavoriteActionResponse(success=False, message=f"Failed to remove from favorites: {str(e)}")
 
-    async def get_user_favorites(self, user_id: str) -> UserFavoritesList:
+    async def get_user_favorites(self, user_email: str) -> UserFavoritesList:
         """Get all favorited albums for a user with full album details"""
         try:
-            # user_id is already the UUID from JWT
-            user_uuid = user_id
+            # Get user UUID by email
+            user_result = self.supabase.table('users').select('id').eq('email', user_email).execute()
+            if not user_result.data:
+                return UserFavoritesList(success=True, favorites=[], total=0)
+            
+            user_uuid = user_result.data[0]['id']
             
             result = self.supabase.table('favorites').select(
                 'id, saved_at, albums(*)'
@@ -141,10 +146,9 @@ class FavoritesService:
 
 
     async def save_album(self, user_id: str, album_data: dict) -> FavoriteActionResponse:
-        """Save album method for authenticated endpoints - uses UUID directly"""
+        """Save album method for authenticated endpoints - converts user_id to email lookup"""
         try:
-            # user_id is the UUID from the JWT token, use it directly
-            return await self.add_to_favorites(user_id, None, AddToFavoritesRequest(album_data=album_data))
+            return await self.add_to_favorites(user_id, user_id, AddToFavoritesRequest(album_data=album_data))
         except Exception as e:
             print(f"Error in save_album: {e}")
             return FavoriteActionResponse(success=False, message=f"Failed to save album: {str(e)}")
@@ -163,13 +167,9 @@ class FavoritesService:
         }
 
     def is_album_favorited(self, user_id: str, album_id: str) -> bool:
-        """Check if album is favorited"""
-        try:
-            result = self.supabase.table('favorites').select('id').eq('user_id', user_id).eq('album_id', album_id).execute()
-            return bool(result.data)
-        except Exception as e:
-            print(f"Error checking if album is favorited: {e}")
-            return False
+        """Check if album is favorited - placeholder for now"""
+
+        return False
 
 
 # Create a global instance
