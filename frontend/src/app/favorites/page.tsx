@@ -37,10 +37,11 @@ export default function FavoritesPage() {
       
       const response = await apiClient.getFavoritesWithDetails();
       
-      if (response.success && response.favorites) {
+      if (response.favorites) {
         setFavorites(response.favorites);
       } else {
-        setError('Failed to load favorites');
+        // Empty favorites is not an error, just set empty array
+        setFavorites([]);
       }
     } catch (error) {
       console.error('Error loading favorites:', error);
@@ -105,11 +106,6 @@ export default function FavoritesPage() {
           <div>
             <h1>Your Favorites</h1>
             <p>{favorites.length} albums saved</p>
-          </div>
-          <div className="auth-controls">
-            <div className="auth-buttons">
-              <button onClick={() => router.push('/')}>Back to Home</button>
-            </div>
           </div>
         </header>
 

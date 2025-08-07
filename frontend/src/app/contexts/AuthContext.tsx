@@ -8,8 +8,8 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
-  signUp: (email: string, password: string) => Promise<{ error: unknown }>
-  signIn: (email: string, password: string) => Promise<{ error: unknown }>
+  signUp: (email: string, password?: string) => Promise<{ error: unknown }>
+  signIn: (email: string, password?: string) => Promise<{ error: unknown }>
   signOut: () => Promise<void>
 }
 
@@ -41,20 +41,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    })
-    return { error }
+  const signUp = async (email: string, password?: string) => {
+    if (password) {
+      // Traditional password signup
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      })
+      return { error }
+    } else {
+      // Magic link signup
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
+      return { error }
+    }
   }
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    return { error }
+  const signIn = async (email: string, password?: string) => {
+    if (password) {
+      // Traditional password login
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      return { error }
+    } else {
+      // Magic link login
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
+      return { error }
+    }
   }
 
   const signOut = async () => {
