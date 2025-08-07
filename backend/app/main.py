@@ -342,10 +342,26 @@ def get_current_user(authorization: str = Header(None)) -> str:
 @app.post("/api/v1/favorites/add")
 async def add_favorite(
     request: AddToFavoritesRequest,
-    user_id: str = Depends(get_current_user)
+    authorization: str = Header(None)
 ) -> FavoriteActionResponse:
     """Save album to user favorites"""
-    return favorites_service.save_album(user_id, request.album_data)
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authorization header required")
+    
+    token = authorization.replace("Bearer ", "")
+    
+    try:
+        # Verify token with Supabase and get user
+        user_response = supabase.auth.get_user(token)
+        if not user_response.user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        user = user_response.user
+        return await favorites_service.add_to_favorites(user.id, user.email, request)
+        
+    except Exception as e:
+        logger.error(f"Authentication failed: {e}")
+        raise HTTPException(status_code=401, detail="Authentication failed")
 
 
 @app.delete("/api/v1/favorites/remove/{album_id}")

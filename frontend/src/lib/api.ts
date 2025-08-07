@@ -93,7 +93,7 @@ class ApiClient {
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/favorites`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/favorites/add`, {
                 method: 'POST',
                 headers: await this.getAuthHeaders(),
                 body: JSON.stringify({ 
@@ -119,7 +119,7 @@ class ApiClient {
 
     async removeFromFavorites(albumId: string): Promise<FavoriteActionResponse> {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/favorites/${albumId}`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/favorites/remove/${albumId}`, {
                 method: 'DELETE',
                 headers: await this.getAuthHeaders()
             });
@@ -139,7 +139,7 @@ class ApiClient {
         try {
             const headers = await this.getAuthHeaders();
             
-            const response = await fetch(`${API_BASE_URL}/api/v1/favorites`, {
+            const response = await fetch(`${API_BASE_URL}/api/v1/favorites/with-details`, {
                 method: 'GET',
                 headers: headers
             });

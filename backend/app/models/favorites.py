@@ -12,3 +12,10 @@ class FavoriteActionResponse(BaseModel):
     """Response when adding or removing favorites"""
     success: bool = Field(..., description="True if the action worked")
     message: str = Field(..., description="What happened")
+
+
+class UserFavoritesList(BaseModel):
+    """Response for getting user's favorites list"""
+    success: bool = Field(..., description="True if the request worked")
+    favorites: list = Field(..., description="List of favorited albums")
+    total: int = Field(..., description="Total number of favorites")
