@@ -10,9 +10,16 @@ from pydantic import BaseModel
 from app.models.albums import AlbumData, SearchRequest, SearchResponse
 from app.models.searchSuggestions import SuggestionRequest, SuggestionResult, SuggestionResponse
 from app.models.favorites import AddToFavoritesRequest, FavoriteActionResponse, UserFavoritesList
+from app.models.recommendations import (
+    RecommendationSessionRequest, 
+    RecommendationSessionResponse, 
+    RecommendationSessionsList,
+    CreateRecommendationSessionResponse
+)
 from app.config import settings
 from app.services.claude import claude_service
 from app.services.favorites import favorites_service
+from app.services.recommendations import recommendation_service
 from app.database import supabase_admin
 import asyncio
 import logging
@@ -208,11 +215,38 @@ async def get_album_cover_from_discogs(title: str, artist: str) -> Optional[str]
 
 
 @app.post("/api/v1/search")
-async def search_albums(request: SearchRequest) -> SearchResponse:
+async def search_albums(
+    request: SearchRequest,
+    authorization: str = Header(None)
+) -> SearchResponse:
     """Get album recommendations based on user query."""
     start_time = time.time()
     
+    # Get user email if authenticated
+    user_email = None
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            token = authorization.replace("Bearer ", "")
+            user_response = supabase_admin.auth.get_user(token)
+            if user_response.user:
+                user_email = user_response.user.email
+        except Exception as e:
+            logger.info(f"Search: Could not authenticate user: {e}")
+    
+    session_id = None
+    
     try:
+        # Create recommendation session (for both authenticated and anonymous users)
+        try:
+            session_id = await recommendation_service.create_recommendation_session(
+                query=request.query,
+                user_email=user_email,
+                source_album_id=getattr(request, 'source_album_id', None),
+                enhancer_settings={}
+            )
+        except Exception as e:
+            logger.error(f"Failed to create recommendation session: {e}")
+        
         # Get album recommendations from claude
         recommendations = await claude_service.get_album_recommendations(request.query)
         
@@ -251,6 +285,13 @@ async def search_albums(request: SearchRequest) -> SearchResponse:
                 enriched_recommendations.append(enriched_album)
             
             recommendations = enriched_recommendations
+        
+        # Save recommendations to the session
+        if session_id and recommendations:
+            try:
+                await recommendation_service.save_recommendations(session_id, recommendations)
+            except Exception as e:
+                logger.error(f"Failed to save recommendations: {e}")
         
         # Limit results
         limited_recommendations = recommendations[:request.max_results]
@@ -375,18 +416,22 @@ async def remove_favorite(
 
 @app.get("/api/v1/favorites")
 async def get_user_favorites(
-    user_email: str = Depends(get_current_user)
+    user_email: str = Depends(get_current_user),
+    authorization: str = Header(None)
 ) -> UserFavoritesList:
     """Get all of a user's favorite albums"""
-    return await favorites_service.get_user_favorites(user_email)
+    token = authorization.replace("Bearer ", "") if authorization else None
+    return await favorites_service.get_user_favorites(user_email, token)
 
 
 @app.get("/api/v1/favorites/with-details")
 async def get_favorites_with_details(
-    user_email: str = Depends(get_current_user)
+    user_email: str = Depends(get_current_user),
+    authorization: str = Header(None)
 ) -> Dict[str, Any]:
     """Get user's favorites"""
-    return await favorites_service.get_favorites_with_album_details(user_email)
+    token = authorization.replace("Bearer ", "") if authorization else None
+    return await favorites_service.get_favorites_with_album_details(user_email, token)
 
 
 @app.get("/api/v1/favorites/check/{album_id}")
@@ -397,4 +442,22 @@ async def check_if_favorited(
     """Check if an album is in user favorites"""
     is_favorited = favorites_service.is_album_favorited(user_id, album_id)
     return {"is_favorited": is_favorited}
+
+
+@app.get("/api/v1/recommendations/sessions")
+async def get_user_recommendation_sessions(
+    user_email: str = Depends(get_current_user),
+    limit: int = 20
+) -> RecommendationSessionsList:
+    """Get all recommendation sessions for the current user"""
+    return await recommendation_service.get_user_sessions(user_email, limit)
+
+
+@app.get("/api/v1/recommendations/sessions/{session_id}")
+async def get_recommendation_session(
+    session_id: str,
+    user_email: str = Depends(get_current_user)
+) -> RecommendationSessionResponse:
+    """Get a specific recommendation session"""
+    return await recommendation_service.get_session_by_id(session_id, user_email)
 
