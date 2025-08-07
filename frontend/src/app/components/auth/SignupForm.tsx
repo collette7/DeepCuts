@@ -14,7 +14,6 @@ export default function SignupForm({ onSuccess, onSwitchToLogin }: SignupFormPro
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
   
   const { signUp } = useAuth()
 
@@ -22,7 +21,6 @@ export default function SignupForm({ onSuccess, onSwitchToLogin }: SignupFormPro
     e.preventDefault()
     setLoading(true)
     setError(null)
-    setMessage(null)
 
     if (password !== confirmPassword) {
       setError('Passwords do not match')
@@ -36,13 +34,16 @@ export default function SignupForm({ onSuccess, onSwitchToLogin }: SignupFormPro
       return
     }
 
-    const { error } = await signUp(email, password)
-    
-    if (error) {
-      setError(error instanceof Error ? error.message : 'Signup failed')
-    } else {
-      setMessage('Check your email for verification link!')
-      onSuccess?.()
+    try {
+      const { error } = await signUp(email, password)
+      
+      if (error) {
+        setError(error instanceof Error ? error.message : 'Signup failed')
+      } else {
+        onSuccess?.()
+      }
+    } catch {
+      setError('Signup failed')
     }
     
     setLoading(false)
@@ -50,25 +51,21 @@ export default function SignupForm({ onSuccess, onSwitchToLogin }: SignupFormPro
 
   return (
     <form onSubmit={handleSubmit} className="auth-form">
-      <h2>Create Account</h2>
+      <h2>Sign up</h2>
       
       {error && (
-        <div className="error-message">
+        <div className="auth-error-message">
           {error}
         </div>
       )}
 
-      {message && (
-        <div className="success-message">
-          {message}
-        </div>
-      )}
-
-      <div className="form-group">
-        <label htmlFor="email">Email</label>
+      <div className="auth-form-group">
+        <label htmlFor="signup-email">Email address</label>
         <input
           type="email"
-          id="email"
+          id="signup-email"
+          className="auth-form-input"
+          placeholder="Enter your email address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -76,44 +73,49 @@ export default function SignupForm({ onSuccess, onSwitchToLogin }: SignupFormPro
         />
       </div>
 
-      <div className="form-group">
-        <label htmlFor="password">Password</label>
+      <div className="auth-form-group">
+        <label htmlFor="signup-password">Password</label>
         <input
           type="password"
-          id="password"
+          id="signup-password"
+          className="auth-form-input"
+          placeholder="Create a password (min 6 characters)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
           disabled={loading}
-          minLength={6}
         />
       </div>
 
-      <div className="form-group">
-        <label htmlFor="confirmPassword">Confirm Password</label>
+      <div className="auth-form-group">
+        <label htmlFor="signup-confirm-password">Confirm Password</label>
         <input
           type="password"
-          id="confirmPassword"
+          id="signup-confirm-password"
+          className="auth-form-input"
+          placeholder="Confirm your password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
           disabled={loading}
-          minLength={6}
         />
       </div>
 
-      <button type="submit" disabled={loading}>
-        {loading ? 'Creating account...' : 'Create Account'}
+      <button type="submit" className="auth-submit-btn" disabled={loading}>
+        {loading ? 'Creating account...' : 'Sign up'}
       </button>
+
+      <div className="auth-divider"></div>
 
       {onSwitchToLogin && (
         <p className="auth-switch">
-          Already have an account?{' '}
-          <button type="button" onClick={onSwitchToLogin}>
-            Sign in
-          </button>
+          Already have an account? <button type="button" className="auth-switch-btn" onClick={onSwitchToLogin}>Log in</button>
         </p>
       )}
+      
+      <div className="auth-help-links">
+        <p>Trouble signing up? <button type="button" className="auth-help-link">Get help</button></p>
+      </div>
     </form>
   )
 }

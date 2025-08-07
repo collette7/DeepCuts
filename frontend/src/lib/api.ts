@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 class ApiClient {
     // client for FastAPI 
@@ -155,23 +155,22 @@ class ApiClient {
         }
     }
 
-    async ensureUserExists() {
+    async getRandomAlbums(limit: number = 10): Promise<{albums: AlbumData[], total: number}> {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/auth/ensure-user`, {
-                method: 'POST',
-                headers: await this.getAuthHeaders()
-            });
-
+            const response = await fetch(`${API_BASE_URL}/api/v1/albums/random?limit=${limit}`);
+            
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             return await response.json();
         } catch (error) {
-            console.error('Ensure user exists error:', error);
-            return { success: false, message: error instanceof Error ? error.message : 'Unknown error' };
+            console.error('Get random albums error:', error);
+            throw error;
         }
     }
+
+
 }
 
 export const apiClient = new ApiClient();
@@ -198,7 +197,7 @@ export interface SearchRequest {
 
 export interface SearchResponse {
     query: string;
-    recommendations: AlbumData[];
+    recommendations: AlbumData[];  // Keep this for search results
     total_found: number;
     processing_time_ms: number;
 }
@@ -221,12 +220,6 @@ export interface SuggestionResponse {
     };
 }
 
-export interface FavoritedAlbumWithDetails {
-    favorite_id: string;
-    saved_at: string;
-    source_album: string | null;
-    album: AlbumData;
-}
 
 export interface FavoritesWithDetailsResponse {
     success: boolean;
@@ -246,4 +239,5 @@ export interface FavoriteActionResponse {
     success: boolean;
     message: string;
 }
+
     

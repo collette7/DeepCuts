@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import LoginForm from './LoginForm'
 import SignupForm from './SignupForm'
+import './AuthModal.css'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -20,10 +21,13 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'login' }: Au
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>
-          ×
+    <div className="auth-modal-overlay" onClick={onClose}>
+      <div className="auth-modal-content" onClick={(e) => e.stopPropagation()}>
+        <button className="auth-modal-close" onClick={onClose}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="m18 6-12 12"/>
+            <path d="m6 6 12 12"/>
+          </svg>
         </button>
         
         {currentView === 'login' ? (

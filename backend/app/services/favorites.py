@@ -2,16 +2,27 @@ import os
 from typing import Optional, List, Dict, Any
 from supabase import create_client, Client
 from ..models.favorites import AddToFavoritesRequest, FavoriteActionResponse, UserFavoritesList
+from ..config import settings
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class FavoritesService:
     def __init__(self):
-        self.url: str = os.environ.get("SUPABASE_URL")
-        self.anon_key: str = os.environ.get("SUPABASE_ANON_KEY")
-        self.supabase: Client = create_client(self.url, self.anon_key)
+        self.url = os.getenv("SUPABASE_URL")
+        self.service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        if not self.url or not self.service_key:
+            raise ValueError("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
+        self.supabase = create_client(self.url, self.service_key)
     
     def _get_authenticated_client(self, user_token: str) -> Client:
         """Get a Supabase client with user's access token for RLS"""
+        if not self.url or not user_token:
+            return self.supabase
+        # For now, we'll just use the service role client since we're handling auth differently
+        # In the future, this could be updated to use user tokens with RLS
+        return self.supabase
     
     async def ensure_user_exists(self, user_id: str, user_email: str) -> bool:
         """Ensure user exists in the users table"""
@@ -57,7 +68,7 @@ class FavoritesService:
             if album_data.get('discogs_id'):
                 album_insert_data['discogs_id'] = album_data['discogs_id']
             if album_data.get('cover_url'):
-                album_insert_data['album_art'] = album_data['cover_url']
+                album_insert_data['cover_url'] = album_data['cover_url']
             if album_data.get('spotify_preview_url'):
                 album_insert_data['spotify_preview_url'] = album_data['spotify_preview_url']
             
@@ -165,17 +176,21 @@ class FavoritesService:
 
     async def get_favorites_with_album_details(self, user_email: str, user_token: str = None):
         """Get favorites with details method for authenticated endpoints"""
-        favorites_result = await self.get_user_favorites(user_email, user_token)
-        return {
-            "success": favorites_result.success,
-            "favorites": favorites_result.favorites if favorites_result.success else [],
-            "total": favorites_result.total
-        }
+        try:
+            favorites_result = await self.get_user_favorites(user_email, user_token)
+            return {
+                "success": favorites_result.success,
+                "favorites": favorites_result.favorites if favorites_result.success else [],
+                "total": favorites_result.total
+            }
+        except Exception as e:
+            print(f"Error in get_favorites_with_album_details: {e}")
+            return {
+                "success": False,
+                "favorites": [],
+                "total": 0
+            }
 
-    def is_album_favorited(self, user_id: str, album_id: str) -> bool:
-        """Check if album is favorited - placeholder for now"""
-
-        return False
 
 
 # Create a global instance

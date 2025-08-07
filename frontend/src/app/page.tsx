@@ -13,83 +13,11 @@ import Navigation from './components/Navigation';
 import './page.css';
 
 
-// Example search results
-const exampleSearchResults: AlbumData[] = [
-  {
-    id: '1',
-    title: 'Live-Evil',
-    artist: 'Miles Davis',
-    year: 1971,
-    genre: 'Electric Jazz'
-  },
-  {
-    id: '2',
-    title: 'I Sing the Body Electric',
-    artist: 'Weather Report',
-    year: 1972,
-    genre: 'Jazz Fusion'
-  },
-  {
-    id: '3',
-    title: 'Emergency!',
-    artist: 'Tony Williams Lifetime',
-    year: 1969,
-    genre: 'Jazz Rock'
-  },
-  {
-    id: '4',
-    title: 'Mwandishi',
-    artist: 'Herbie Hancock',
-    year: 1971,
-    genre: 'Electric Jazz'
-  },
-  {
-    id: '5',
-    title: 'Turn It Over',
-    artist: 'Tony Williams Lifetime',
-    year: 1970,
-    genre: 'Jazz Rock'
-  },
-  {
-    id: '6',
-    title: 'Crossings',
-    artist: 'Herbie Hancock',
-    year: 1972,
-    genre: 'Electric Jazz'
-  },
-  {
-    id: '7',
-    title: 'The Inner Mounting Flame',
-    artist: 'Mahavishnu Orchestra',
-    year: 1971,
-    genre: 'Jazz Fusion'
-  },
-  {
-    id: '8',
-    title: 'Third',
-    artist: 'Soft Machine',
-    year: 1970,
-    genre: 'Canterbury Scene'
-  },
-  {
-    id: '9',
-    title: 'Waka/Jawaka',
-    artist: 'Frank Zappa',
-    year: 1972,
-    genre: 'Jazz Rock'
-  },
-  {
-    id: '10',
-    title: 'Lawrence of Newark',
-    artist: 'Larry Young',
-    year: 1973,
-    genre: 'Electric Jazz'
-  }
-];
+// This will be replaced by dynamic loading from Sessions database
 
 export default function Home() {
   const { user } = useAuth();
-  const [albums, setAlbums] = useState<AlbumData[]>(exampleSearchResults);
+  const [albums, setAlbums] = useState<AlbumData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -100,14 +28,28 @@ export default function Home() {
 
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Load user favorites when user changes
+  // Load initial albums and user favorites
   useEffect(() => {
+    loadInitialAlbums();
     if (user) {
       loadUserFavorites();
     } else {
       setFavoriteAlbums(new Set());
     }
   }, [user]);
+
+  const loadInitialAlbums = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.getRandomAlbums(10);
+      setAlbums(response.albums);
+    } catch (error) {
+      console.error('Error loading initial albums:', error);
+      setError('Failed to load albums');
+    } finally {
+      setLoading(false);
+    }
+  };
 
 const handleSearchSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -222,7 +164,7 @@ const handleToggleFavorite = async (album: AlbumData) => {
         
         {!loading && !error && albums.length > 0 && (
           <div className="albums-section">
-            <h2 className="albums-title">{albums.length} deep cut albums for {searchQuery || 'music'} lovers</h2>
+            <h2 className="albums-title">{searchQuery ? `${albums.length} deep cut albums for ${searchQuery} lovers` : "Today's top favorites"}</h2>
             <div className="albums-grid">
               {albums.map((album) => (
                 <AlbumCard 

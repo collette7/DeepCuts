@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 from typing import List, Dict, Any, Optional
 import time
 import httpx
-from pydantic import BaseModel
 from app.models.albums import AlbumData, SearchRequest, SearchResponse
 from app.models.searchSuggestions import SuggestionRequest, SuggestionResult, SuggestionResponse
 from app.models.favorites import AddToFavoritesRequest, FavoriteActionResponse, UserFavoritesList
@@ -21,7 +20,6 @@ from app.services.claude import claude_service
 from app.services.favorites import favorites_service
 from app.services.recommendations import recommendation_service
 from app.database import supabase_admin
-import asyncio
 import logging
 
 load_dotenv()
@@ -47,22 +45,76 @@ if not supabase_url or not supabase_key:
     logger.error("Missing required environment variables: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
     raise Exception("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables")
 
+# Log key info for debugging (first/last few chars only for security)
+if supabase_key:
+    key_preview = f"{supabase_key[:10]}...{supabase_key[-10:]}" if len(supabase_key) > 20 else "KEY_TOO_SHORT"
+    logger.info(f"Using Supabase service role key: {key_preview}")
+
 supabase: Client = create_client(supabase_url, supabase_key)
 
 
 @app.get("/")
 async def root():
     """Health check."""
+    # Test Supabase connection
+    supabase_status = "unknown"
+    try:
+        # Try a simple query to test the connection
+        test = supabase_admin.table('users').select('id').limit(1).execute()
+        supabase_status = "connected"
+    except Exception as e:
+        supabase_status = f"error: {str(e)[:50]}"
+    
     return {
         "message": f"Welcome to {settings.PROJECT_NAME}",
         "version": settings.PROJECT_VERSION,
         "status": "healthy",
+        "supabase_status": supabase_status,
         "features": {
             "ai_search": "enabled",
             "spotify_integration": "NULL",
             "playlist_sync": "NULL"
         }
     }
+
+
+@app.get("/api/v1/albums/random")
+async def get_random_albums(limit: int = 10):
+    """Get random albums from the Sessions database."""
+    try:
+        # Get all albums then randomly sample them
+        result = supabase_admin.table('albums').select('*').execute()
+        
+        if not result.data:
+            return {"albums": [], "total": 0}
+        
+        # Randomly sample albums
+        import random
+        random_albums = random.sample(result.data, min(limit, len(result.data)))
+        
+        # Convert to AlbumData format
+        albums = []
+        for album in random_albums:
+            album_data = {
+                "id": str(album.get('id', '')),
+                "title": album.get('title', ''),
+                "artist": album.get('artist', ''),
+                "year": album.get('release_year'),
+                "genre": album.get('genre', ''),
+                "cover_url": album.get('cover_url'),
+                "spotify_preview_url": album.get('spotify_preview_url'),
+                "discogs_url": album.get('discogs_id')
+            }
+            albums.append(album_data)
+        
+        return {
+            "albums": albums,
+            "total": len(albums)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching random albums: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch albums")
 
 
 async def get_spotify_album_data(title: str, artist: str) -> Dict[str, Optional[str]]:
@@ -241,7 +293,7 @@ async def search_albums(
             session_id = await recommendation_service.create_recommendation_session(
                 query=request.query,
                 user_email=user_email,
-                source_album_id=getattr(request, 'source_album_id', None),
+                source_album=getattr(request, 'source_album', None),
                 enhancer_settings={}
             )
         except Exception as e:
@@ -286,12 +338,12 @@ async def search_albums(
             
             recommendations = enriched_recommendations
         
-        # Save recommendations to the session
+        # Save recommended albums to the session
         if session_id and recommendations:
             try:
                 await recommendation_service.save_recommendations(session_id, recommendations)
             except Exception as e:
-                logger.error(f"Failed to save recommendations: {e}")
+                logger.error(f"Failed to save recommended albums: {e}")
         
         # Limit results
         limited_recommendations = recommendations[:request.max_results]
@@ -434,30 +486,8 @@ async def get_favorites_with_details(
     return await favorites_service.get_favorites_with_album_details(user_email, token)
 
 
-@app.get("/api/v1/favorites/check/{album_id}")
-async def check_if_favorited(
-    album_id: str,
-    user_id: str = Depends(get_current_user)
-) -> Dict[str, bool]:
-    """Check if an album is in user favorites"""
-    is_favorited = favorites_service.is_album_favorited(user_id, album_id)
-    return {"is_favorited": is_favorited}
 
 
-@app.get("/api/v1/recommendations/sessions")
-async def get_user_recommendation_sessions(
-    user_email: str = Depends(get_current_user),
-    limit: int = 20
-) -> RecommendationSessionsList:
-    """Get all recommendation sessions for the current user"""
-    return await recommendation_service.get_user_sessions(user_email, limit)
 
 
-@app.get("/api/v1/recommendations/sessions/{session_id}")
-async def get_recommendation_session(
-    session_id: str,
-    user_email: str = Depends(get_current_user)
-) -> RecommendationSessionResponse:
-    """Get a specific recommendation session"""
-    return await recommendation_service.get_session_by_id(session_id, user_email)
 

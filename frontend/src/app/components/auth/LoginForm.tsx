@@ -21,12 +21,16 @@ export default function LoginForm({ onSuccess, onSwitchToSignup }: LoginFormProp
     setLoading(true)
     setError(null)
 
-    const { error } = await signIn(email, password)
-    
-    if (error) {
-      setError(error instanceof Error ? error.message : 'Login failed')
-    } else {
-      onSuccess?.()
+    try {
+      const { error } = await signIn(email, password)
+      
+      if (error) {
+        setError(error instanceof Error ? error.message : 'Invalid email or password')
+      } else {
+        onSuccess?.()
+      }
+    } catch {
+      setError('Login failed')
     }
     
     setLoading(false)
@@ -34,19 +38,21 @@ export default function LoginForm({ onSuccess, onSwitchToSignup }: LoginFormProp
 
   return (
     <form onSubmit={handleSubmit} className="auth-form">
-      <h2>Sign In</h2>
+      <h2>Log in</h2>
       
       {error && (
-        <div className="error-message">
+        <div className="auth-error-message">
           {error}
         </div>
       )}
 
-      <div className="form-group">
-        <label htmlFor="email">Email</label>
+      <div className="auth-form-group">
+        <label htmlFor="email">Email address</label>
         <input
           type="email"
           id="email"
+          className="auth-form-input"
+          placeholder="Enter your email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -54,11 +60,13 @@ export default function LoginForm({ onSuccess, onSwitchToSignup }: LoginFormProp
         />
       </div>
 
-      <div className="form-group">
+      <div className="auth-form-group">
         <label htmlFor="password">Password</label>
         <input
           type="password"
           id="password"
+          className="auth-form-input"
+          placeholder="Enter your password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -66,18 +74,21 @@ export default function LoginForm({ onSuccess, onSwitchToSignup }: LoginFormProp
         />
       </div>
 
-      <button type="submit" disabled={loading}>
-        {loading ? 'Signing in...' : 'Sign In'}
+      <button type="submit" className="auth-submit-btn" disabled={loading}>
+        {loading ? 'Logging in...' : 'Log in'}
       </button>
+
+      <div className="auth-divider"></div>
 
       {onSwitchToSignup && (
         <p className="auth-switch">
-          Don&apos;t have an account?{' '}
-          <button type="button" onClick={onSwitchToSignup}>
-            Sign up
-          </button>
+          Don&apos;t have an account? <button type="button" className="auth-switch-btn" onClick={onSwitchToSignup}>Register here</button>
         </p>
       )}
+      
+      <div className="auth-help-links">
+        <p>Trouble logging in? <button type="button" className="auth-help-link">Get help</button></p>
+      </div>
     </form>
   )
 }
