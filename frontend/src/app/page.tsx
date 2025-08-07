@@ -93,8 +93,8 @@ export default function Home() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumData | null>(null);
-  const [userFavorites, setUserFavorites] = useState<Set<string>>(new Set());
-  const [currentSourceAlbum, setCurrentSourceAlbum] = useState<AlbumData | null>(null);
+  const [favoriteAlbums, setFavoriteAlbums] = useState<Set<string>>(new Set());
+  const [sourceAlbum, setSourceAlbum] = useState<AlbumData | null>(null);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -104,7 +104,7 @@ export default function Home() {
     if (user) {
       loadUserFavorites();
     } else {
-      setUserFavorites(new Set());
+      setFavoriteAlbums(new Set());
     }
   }, [user]);
 
@@ -153,7 +153,7 @@ const loadUserFavorites = async () => {
     if (response.success && response.favorites) {
       // Extract album IDs from the favorites response
       const favoriteIds = new Set(response.favorites.map((fav: any) => fav.album?.id || fav.id).filter(Boolean));
-      setUserFavorites(favoriteIds);
+      setFavoriteAlbums(favoriteIds);
     }
   } catch (error) {
     console.error('Error loading user favorites:', error);
@@ -168,19 +168,19 @@ const handleToggleFavorite = async (album: AlbumData) => {
     return;
   }
 
-  const isFavorited = userFavorites.has(album.id);
+  const isFavorited = favoriteAlbums.has(album.id);
   
   try {
     if (isFavorited) {
       await apiClient.removeFromFavorites(album.id);
-      setUserFavorites(prev => {
+      setFavoriteAlbums(prev => {
         const newSet = new Set(prev);
         newSet.delete(album.id);
         return newSet;
       });
     } else {
-      await apiClient.addToFavorites(album, currentSourceAlbum);
-      setUserFavorites(prev => new Set(prev).add(album.id));
+      await apiClient.addToFavorites(album, sourceAlbum);
+      setFavoriteAlbums(prev => new Set(prev).add(album.id));
     }
   } catch (error) {
     console.error('Error toggling favorite:', error);
@@ -238,7 +238,7 @@ const handleToggleFavorite = async (album: AlbumData) => {
                   album={album} 
                   onListenNow={handleListenNow}
                   onToggleFavorite={handleToggleFavorite}
-                  isFavorited={userFavorites.has(album.id)}
+                  isFavorited={favoriteAlbums.has(album.id)}
                 />
               ))}
             </div>
