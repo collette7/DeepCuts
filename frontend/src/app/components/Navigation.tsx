@@ -1,28 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+// No React hooks needed for simplified nav
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Separator from '@radix-ui/react-separator';
 import './Navigation.css';
 
-interface NavigationProps {
-  onSearch?: (query: string) => void | Promise<void>;
-  searchQuery?: string;
-}
+// No props needed for simplified navigation
 
-export default function Navigation({ onSearch, searchQuery }: NavigationProps) {
+export default function Navigation() {
   const { user, signOut } = useAuth();
   const router = useRouter();
-  const [currentSearch, setCurrentSearch] = useState(searchQuery || '');
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (onSearch && currentSearch.trim()) {
-      await onSearch(currentSearch.trim());
-    }
-  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -40,57 +30,9 @@ export default function Navigation({ onSearch, searchQuery }: NavigationProps) {
           <span className="nav-logo-text">DeepCuts</span>
         </div>
 
-        {/* Search Bar */}
-        <div className="nav-search">
-          <form onSubmit={handleSearch} className="search-form">
-            <button type="button" className="search-section search-where">
-              <div className="search-section-content">
-                <span className="search-label">Discover</span>
-                <input 
-                  type="text"
-                  placeholder="Albums, artists, genres..."
-                  value={currentSearch}
-                  onChange={(e) => setCurrentSearch(e.target.value)}
-                  className="search-input"
-                />
-              </div>
-            </button>
-            
-            <div className="search-divider" />
-            
-            <button type="button" className="search-section search-when">
-              <div className="search-section-content">
-                <span className="search-label">Era</span>
-                <span className="search-placeholder">Any decade</span>
-              </div>
-            </button>
-            
-            <div className="search-divider" />
-            
-            <button type="button" className="search-section search-who">
-              <div className="search-section-content">
-                <span className="search-label">Vibe</span>
-                <span className="search-placeholder">Any mood</span>
-              </div>
-            </button>
-
-            <button type="submit" className="search-button">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path 
-                  d="M7.5 2.75C5.01472 2.75 3 4.76472 3 7.25C3 9.73528 5.01472 11.75 7.5 11.75C8.45278 11.75 9.33139 11.4653 10.0625 10.9844L12.5391 13.4609C12.832 13.7539 13.3068 13.7539 13.5998 13.4609C13.8927 13.168 13.8927 12.6932 13.5998 12.4002L11.1233 9.92366C11.6042 9.19252 11.8889 8.31391 11.8889 7.36111H12V7.25C12 4.76472 9.98528 2.75 7.5 2.75ZM7.5 4.25C9.15685 4.25 10.5 5.59315 10.5 7.25C10.5 8.90685 9.15685 10.25 7.5 10.25C5.84315 10.25 4.5 8.90685 4.5 7.25C4.5 5.59315 5.84315 4.25 7.5 4.25Z" 
-                  fill="white"
-                />
-              </svg>
-            </button>
-          </form>
-        </div>
 
         {/* Right Menu */}
         <div className="nav-right">
-          <button className="nav-host-link">
-            Suggest an artist
-          </button>
-          
           <div className="nav-user-menu">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger asChild>
