@@ -1,0 +1,24 @@
+@import '../../../styles/variables';
+
+/* Error Message Component Styles */
+
+.error-container {
+  min-height: 100vh;
+  background-color: color(background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.error-content {
+  text-align: center;
+}
+
+.error-message {
+  color: color(error);
+  margin-bottom: spacing(4);
+}
+
+.error-description {
+  color: color(foreground);
+}

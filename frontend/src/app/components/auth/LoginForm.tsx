@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/app/contexts/AuthContext'
+import './LoginForm.scss'
 
 interface LoginFormProps {
   onSuccess?: () => void

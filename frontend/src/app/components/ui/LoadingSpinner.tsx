@@ -1,3 +1,5 @@
+import './LoadingSpinner.scss';
+
 interface LoadingSpinnerProps {
   fullPage?: boolean;
 }

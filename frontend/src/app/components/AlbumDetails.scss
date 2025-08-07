@@ -1,0 +1,221 @@
+@import '../../styles/variables';
+
+/* Album Details Component Styles */
+
+.details-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: z(dropdown);
+  animation: fadeIn transition(base);
+}
+
+.album-details-flyout {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 400px;
+  background: color(background);
+  border-left: 1px solid color(gray-200);
+  box-shadow: shadow(xl);
+  z-index: z(modal);
+  animation: slideInRight 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+.details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: spacing(5);
+  border-bottom: 1px solid color(gray-200);
+
+  h3 {
+    font-size: font-size(xl);
+    font-weight: font-weight(semibold);
+    color: color(foreground);
+    margin: 0;
+  }
+}
+
+.details-close-btn {
+  background: none;
+  border: none;
+  padding: spacing(2);
+  cursor: pointer;
+  border-radius: radius(sm);
+  color: color(foreground);
+  opacity: 0.7;
+  transition: transition(base);
+
+  &:hover {
+    opacity: 1;
+    background: color(gray-100);
+  }
+}
+
+.details-content {
+  padding: spacing(5);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: spacing(6);
+}
+
+.details-album-info {
+  display: flex;
+  gap: spacing(4);
+  align-items: flex-start;
+}
+
+.details-album-cover {
+  width: 120px;
+  height: 120px;
+  border-radius: radius(base);
+  overflow: hidden;
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.details-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, color(gray-100), color(gray-200));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: color(gray-400);
+  font-size: font-size(4xl);
+}
+
+.details-album-text {
+  flex: 1;
+  min-width: 0;
+
+  h4 {
+    font-size: font-size(lg);
+    font-weight: font-weight(semibold);
+    color: color(foreground);
+    margin: 0 0 spacing(1) 0;
+    line-height: 1.3;
+  }
+
+  p {
+    font-size: font-size(base);
+    color: color(foreground);
+    opacity: 0.8;
+    margin: 0 0 spacing(2) 0;
+  }
+}
+
+.details-year {
+  display: inline-block;
+  background: color(gray-100);
+  color: color(foreground);
+  opacity: 0.7;
+  padding: spacing(1) spacing(2);
+  border-radius: radius(sm);
+  font-size: font-size(xs);
+  font-weight: font-weight(medium);
+}
+
+.recommendation-section {
+  background: color(gray-50);
+  border-radius: radius(md);
+  padding: spacing(5);
+  border: 1px solid color(gray-200);
+}
+
+.recommendation-header {
+  display: flex;
+  align-items: center;
+  gap: spacing(2);
+  margin-bottom: spacing(3);
+
+  h5 {
+    font-size: font-size(base);
+    font-weight: font-weight(semibold);
+    color: color(foreground);
+    margin: 0;
+  }
+}
+
+.recommendation-icon {
+  width: 18px;
+  height: 18px;
+  color: color(primary);
+}
+
+.reasoning-content {
+  p {
+    font-size: font-size(sm);
+    line-height: 1.6;
+    color: color(foreground);
+    opacity: 0.8;
+    margin: 0;
+    font-style: italic;
+  }
+}
+
+.details-actions {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(3);
+  margin-top: auto;
+}
+
+.spotify-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: spacing(2);
+  padding: spacing(3) spacing(4);
+  border-radius: radius(base);
+  text-decoration: none;
+  font-weight: font-weight(medium);
+  font-size: font-size(sm);
+  transition: transition(base);
+  background: color(spotify);
+  color: white;
+
+  &:hover {
+    background: color(spotify-hover);
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: breakpoint(sm)) {
+  .album-details-flyout {
+    width: 100vw;
+    left: 0;
+    right: 0;
+    border-left: none;
+    border-top: 1px solid color(gray-200);
+  }
+}

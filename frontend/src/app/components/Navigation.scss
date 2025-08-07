@@ -1,16 +1,18 @@
+@import '../../styles/variables';
+
 .airbnb-nav {
   background: white;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid color(gray-200);
   position: sticky;
   top: 0;
-  z-index: 1000;
-  padding: 12px 0;
+  z-index: z(modal);
+  padding: spacing(3) 0;
 }
 
 .nav-container {
-  max-width: 1280px;
+  max-width: breakpoint(xl);
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 spacing(6);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -20,20 +22,20 @@
 .nav-logo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: spacing(2);
   cursor: pointer;
-  padding: 8px 12px;
+  padding: spacing(2) spacing(3);
   border-radius: 22px;
-  transition: background-color 0.2s;
-}
+  transition: transition(base);
 
-.nav-logo:hover {
-  background-color: #f7f7f7;
+  &:hover {
+    background-color: color(gray-50);
+  }
 }
 
 .nav-logo-text {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: font-size(xl);
+  font-weight: font-weight(bold);
   color: #FF5A5F;
   letter-spacing: -0.5px;
 }
@@ -42,25 +44,25 @@
 .nav-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: spacing(4);
   justify-content: flex-end;
 }
 
 .nav-host-link {
   background: none;
   border: none;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: font-size(sm);
+  font-weight: font-weight(semibold);
   color: #222;
-  padding: 8px 12px;
+  padding: spacing(2) spacing(3);
   border-radius: 22px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: transition(base);
   white-space: nowrap;
-}
 
-.nav-host-link:hover {
-  background-color: #f7f7f7;
+  &:hover {
+    background-color: color(gray-50);
+  }
 }
 
 /* User Menu */
@@ -71,46 +73,46 @@
 .nav-user-button {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: spacing(2);
+  padding: spacing(2) spacing(3);
   border: 1px solid #ddd;
   border-radius: 21px;
   background: white;
   cursor: pointer;
-  transition: box-shadow 0.2s;
-}
+  transition: transition(base);
 
-.nav-user-button:hover {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  &:hover {
+    box-shadow: shadow(sm);
+  }
 }
 
 .user-avatar {
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: radius(full);
   background: #FF5A5F;
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: font-size(xs);
+  font-weight: font-weight(semibold);
 }
 
 .user-menu-dropdown {
   min-width: 240px;
   background: white;
   border: 1px solid #ddd;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-radius: radius(md);
+  box-shadow: shadow(xl);
   overflow: hidden;
-  z-index: 1001;
+  z-index: z(tooltip);
   animation-duration: 200ms;
   animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-}
 
-.user-menu-dropdown[data-state='open'] {
-  animation-name: slideDownAndFade;
+  &[data-state='open'] {
+    animation-name: slideDownAndFade;
+  }
 }
 
 @keyframes slideDownAndFade {
@@ -128,47 +130,47 @@
   display: flex;
   align-items: center;
   width: 100%;
-  padding: 12px 16px;
+  padding: spacing(3) spacing(4);
   text-align: left;
   background: none;
   border: none;
   cursor: pointer;
-  transition: background-color 0.2s;
-  font-size: 14px;
+  transition: transition(base);
+  font-size: font-size(sm);
   color: #222;
   outline: none;
   border-radius: 0;
-}
 
-.menu-item:hover,
-.menu-item[data-highlighted] {
-  background-color: #f7f7f7;
-}
+  &:hover,
+  &[data-highlighted] {
+    background-color: color(gray-50);
+  }
 
-.menu-item:focus {
-  outline: 2px solid #FF5A5F;
-  outline-offset: -2px;
-}
+  &:focus {
+    outline: 2px solid #FF5A5F;
+    outline-offset: -2px;
+  }
 
-.menu-item.user-info {
-  font-weight: 600;
-  cursor: default;
-}
+  &.user-info {
+    font-weight: font-weight(semibold);
+    cursor: default;
 
-.menu-item.user-info:hover {
-  background: none;
+    &:hover {
+      background: none;
+    }
+  }
 }
 
 .menu-divider {
   height: 1px;
-  background: #e5e7eb;
-  margin: 4px 0;
+  background: color(gray-200);
+  margin: spacing(1) 0;
 }
 
 /* Mobile Responsive */
-@media (max-width: 768px) {
+@media (max-width: breakpoint(md)) {
   .nav-container {
-    padding: 0 16px;
+    padding: 0 spacing(4);
   }
   
   .nav-logo-text {
@@ -193,10 +195,10 @@
   
   .nav-host-link {
     color: #fff;
-  }
-  
-  .nav-host-link:hover {
-    background-color: #333;
+
+    &:hover {
+      background-color: #333;
+    }
   }
   
   .nav-user-button {
@@ -215,9 +217,9 @@
   
   .menu-item {
     color: #fff;
-  }
-  
-  .menu-item:hover {
-    background-color: #333;
+
+    &:hover {
+      background-color: #333;
+    }
   }
 }
