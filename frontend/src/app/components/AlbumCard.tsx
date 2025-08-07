@@ -1,5 +1,5 @@
 import * as Avatar from '@radix-ui/react-avatar';
-import { DiscIcon, PlayIcon, HeartIcon, HeartFilledIcon } from '@radix-ui/react-icons';
+import { DiscIcon, HeartIcon, HeartFilledIcon } from '@radix-ui/react-icons';
 import { AlbumData } from '@/lib/api';
 
 interface AlbumCardProps {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient, AlbumData, FavoriteItem } from '@/lib/api';
@@ -8,6 +8,7 @@ import AlbumCard from '../components/AlbumCard';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import AlbumDetails from '../components/AlbumDetails';
+import Navigation from '../components/Navigation';
 
 
 export default function FavoritesPage() {
@@ -27,9 +28,9 @@ export default function FavoritesPage() {
       // Redirect to home if not logged in
       router.push('/');
     }
-  }, [user]);
+  }, [user, router]);
 
-  const loadFavorites = async () => {
+  const loadFavorites = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -47,7 +48,7 @@ export default function FavoritesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleListenNow = (album: AlbumData) => {
     setSelectedAlbum(album);
@@ -96,7 +97,9 @@ export default function FavoritesPage() {
   if (!user) return null;
 
   return (
-    <div className="page-container">
+    <>
+      <Navigation />
+      <div className="page-container">
       <div className="container">
         <header className="header">
           <div>
@@ -151,7 +154,8 @@ export default function FavoritesPage() {
           isOpen={detailsOpen}
           onClose={handleCloseDetails}
         />
+        </div>
       </div>
-    </div>
+    </>
   );
 }

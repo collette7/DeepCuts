@@ -1,6 +1,6 @@
 'use client';
 
-import { Cross2Icon, ExternalLinkIcon, SpeakerLoudIcon } from '@radix-ui/react-icons';
+import { Cross2Icon, ExternalLinkIcon } from '@radix-ui/react-icons';
 import { AlbumData } from '@/lib/api';
 
 interface AlbumDetailsProps {
