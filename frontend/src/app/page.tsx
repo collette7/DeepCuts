@@ -198,7 +198,7 @@ const handleToggleFavorite = async (album: AlbumData) => {
   // Albums
   return (
     <>
-      <Navigation onSearch={handleSearch} searchQuery={searchQuery} />
+      <Navigation />
       <div className="page-container">
         <div className="container">
         {/* Welcome Section */}
