@@ -1,13 +1,23 @@
 import * as Avatar from '@radix-ui/react-avatar';
-import { DiscIcon, PlayIcon } from '@radix-ui/react-icons';
+import { DiscIcon, PlayIcon, HeartIcon, HeartFilledIcon } from '@radix-ui/react-icons';
 import { AlbumData } from '@/lib/api';
 
 interface AlbumCardProps {
   album: AlbumData;
   onListenNow: (album: AlbumData) => void;
+  onToggleFavorite?: (album: AlbumData) => void;
+  isFavorited?: boolean;
+  isLoading?: boolean;
 }
 
-export default function AlbumCard({ album, onListenNow }: AlbumCardProps) {
+export default function AlbumCard({ album, onListenNow, onToggleFavorite, isFavorited = false, isLoading = false }: AlbumCardProps) {
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); 
+    if (onToggleFavorite && !isLoading) {
+      onToggleFavorite(album);
+    }
+  };
+
   return (
     <div className="album-card" onClick={() => onListenNow(album)}>
       <div className="album-cover">
@@ -22,6 +32,24 @@ export default function AlbumCard({ album, onListenNow }: AlbumCardProps) {
             <span className="cover-placeholder-text">Album Cover</span>
           </Avatar.Fallback>
         </Avatar.Root>
+        
+        {/* Favorite Button */}
+        {onToggleFavorite && (
+          <button 
+            onClick={handleFavoriteClick}
+            disabled={isLoading}
+            className={`favorite-btn ${isFavorited ? 'favorited' : ''} ${isLoading ? 'loading' : ''}`}
+            aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            {isLoading ? (
+              <div className="spinner" />
+            ) : isFavorited ? (
+              <HeartFilledIcon />
+            ) : (
+              <HeartIcon />
+            )}
+          </button>
+        )}
       </div>
       <div className="album-content">
         <div className="album-header">

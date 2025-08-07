@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient, AlbumData, SearchResponse } from '@/lib/api';
 import { useAuth } from './contexts/AuthContext';
 import AlbumCard from './components/AlbumCard';
@@ -93,8 +93,20 @@ export default function Home() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumData | null>(null);
+  const [userFavorites, setUserFavorites] = useState<Set<string>>(new Set());
+  const [currentSourceAlbum, setCurrentSourceAlbum] = useState<AlbumData | null>(null);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Load user favorites when user changes
+  useEffect(() => {
+    if (user) {
+      loadUserFavorites();
+    } else {
+      setUserFavorites(new Set());
+    }
+  }, [user]);
 
 const handleSearch = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -129,6 +141,51 @@ const handleListenNow = (album: AlbumData) => {
 const handleCloseDetails = () => {
   setDetailsOpen(false);
   setSelectedAlbum(null);
+};
+
+const loadUserFavorites = async () => {
+  if (!user || favoritesLoading) return;
+  
+  try {
+    setFavoritesLoading(true);
+    const response = await apiClient.getFavoritesWithDetails();
+    
+    if (response.success && response.favorites) {
+      // Extract album IDs from the favorites response
+      const favoriteIds = new Set(response.favorites.map((fav: any) => fav.album?.id || fav.id).filter(Boolean));
+      setUserFavorites(favoriteIds);
+    }
+  } catch (error) {
+    console.error('Error loading user favorites:', error);
+  } finally {
+    setFavoritesLoading(false);
+  }
+};
+
+const handleToggleFavorite = async (album: AlbumData) => {
+  if (!user) {
+    setAuthModalOpen(true);
+    return;
+  }
+
+  const isFavorited = userFavorites.has(album.id);
+  
+  try {
+    if (isFavorited) {
+      await apiClient.removeFromFavorites(album.id);
+      setUserFavorites(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(album.id);
+        return newSet;
+      });
+    } else {
+      await apiClient.addToFavorites(album, currentSourceAlbum);
+      setUserFavorites(prev => new Set(prev).add(album.id));
+    }
+  } catch (error) {
+    console.error('Error toggling favorite:', error);
+    // Could show a toast notification here
+  }
 };
 
 
@@ -180,6 +237,8 @@ const handleCloseDetails = () => {
                   key={album.id} 
                   album={album} 
                   onListenNow={handleListenNow}
+                  onToggleFavorite={handleToggleFavorite}
+                  isFavorited={userFavorites.has(album.id)}
                 />
               ))}
             </div>

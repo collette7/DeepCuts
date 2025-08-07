@@ -4,10 +4,33 @@ class ApiClient {
     // client for FastAPI 
     // source of truth for all comms with backend
 
+    private async getAuthHeaders(): Promise<HeadersInit> {
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json'
+        };
+
+        try {
+            const { supabase } = await import('@/lib/supabase');
+            const { data: { session }, error } = await supabase.auth.getSession();
+            
+            if (error) {
+                console.warn('Auth session error:', error);
+                return headers;
+            }
+            
+            if (session?.access_token) {
+                headers['Authorization'] = `Bearer ${session.access_token}`;
+            }
+        } catch (error) {
+            console.error('Error getting auth headers:', error);
+        }
+        
+        return headers;
+    }
+
     async getWelcome() {
         //Get welcome message
-        const response = await
-        fetch(`${API_BASE_URL}/`);
+        const response = await fetch(`${API_BASE_URL}/`);
         return response.json();
     }
     async searchAlbums(query: string = 'Miles Davis') {
@@ -63,6 +86,92 @@ class ApiClient {
             throw error;
         }
     }
+
+    async addToFavorites(albumData: AlbumData, sourceAlbumData?: AlbumData): Promise<FavoriteActionResponse> {
+        if (!albumData || !albumData.id) {
+            throw new Error('Album data is required');
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/v1/favorites`, {
+                method: 'POST',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify({ 
+                    album_data: albumData,
+                    source_album_data: sourceAlbumData 
+                })
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    throw new Error('Please sign in to save favorites');
+                }
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.detail || `Failed to add favorite (${response.status})`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('Add to favorites error:', error);
+            throw error;
+        }
+    }
+
+    async removeFromFavorites(albumId: string): Promise<FavoriteActionResponse> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/v1/favorites/${albumId}`, {
+                method: 'DELETE',
+                headers: await this.getAuthHeaders()
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('Remove from favorites error:', error);
+            throw error;
+        }
+    }
+
+    async getFavoritesWithDetails(): Promise<FavoritesWithDetailsResponse> {
+        try {
+            const headers = await this.getAuthHeaders();
+            
+            const response = await fetch(`${API_BASE_URL}/api/v1/favorites`, {
+                method: 'GET',
+                headers: headers
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('Get favorites with details error:', error);
+            throw error;
+        }
+    }
+
+    async ensureUserExists() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/v1/auth/ensure-user`, {
+                method: 'POST',
+                headers: await this.getAuthHeaders()
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('Ensure user exists error:', error);
+            return { success: false, message: error.message };
+        }
+    }
 }
 
 export const apiClient = new ApiClient();
@@ -109,5 +218,24 @@ export interface SuggestionResponse {
         page: number;
         items: number;
     };
+}
+
+export interface FavoritedAlbumWithDetails {
+    favorite_id: string;
+    saved_at: string;
+    source_album: string | null;
+    album: AlbumData;
+}
+
+export interface FavoritesWithDetailsResponse {
+    favorited_albums: FavoritedAlbumWithDetails[];
+    favorites_by_source: { [key: string]: FavoritedAlbumWithDetails[] };
+    total_count: number;
+    error?: string;
+}
+
+export interface FavoriteActionResponse {
+    success: boolean;
+    message: string;
 }
     
