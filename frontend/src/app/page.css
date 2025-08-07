@@ -153,6 +153,64 @@
   opacity: 0.8;
 }
 
+/* Favorite Button */
+.favorite-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 2;
+}
+
+.favorite-btn:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.favorite-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+.favorite-btn svg {
+  width: 16px;
+  height: 16px;
+  color: #6b7280;
+  transition: color 0.2s ease;
+}
+
+.favorite-btn.favorited svg {
+  color: #ef4444;
+}
+
+.favorite-btn:hover:not(:disabled) svg {
+  color: #ef4444;
+}
+
+.favorite-btn .spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid #ef4444;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+
+
 .album-content {
   padding: 16px;
   display: flex;

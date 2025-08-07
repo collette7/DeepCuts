@@ -9,8 +9,10 @@ import httpx
 from pydantic import BaseModel
 from app.models.albums import AlbumData, SearchRequest, SearchResponse
 from app.models.searchSuggestions import SuggestionRequest, SuggestionResult, SuggestionResponse
+from app.models.favorites import AddToFavoritesRequest, FavoriteActionResponse
 from app.config import settings
 from app.services.claude import claude_service
+from app.services.favorites import favorites_service
 import asyncio
 
 load_dotenv()
@@ -307,4 +309,38 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
             results=[],
             pagination={"per_page": request.per_page, "pages": 0, "page": 1, "items": 0}
         )
+
+
+@app.post("/api/v1/favorites")
+async def add_to_favorites(request: AddToFavoritesRequest) -> FavoriteActionResponse:
+    """Add an album to user's favorites."""
+    # In a real app, you'd extract user info from JWT token
+    # For now, using dummy user data
+    user_email = "temp@example.com"
+    
+    return await favorites_service.add_to_favorites(user_email, user_email, request)
+
+
+@app.delete("/api/v1/favorites/{album_id}")
+async def remove_from_favorites(album_id: str) -> FavoriteActionResponse:
+    """Remove an album from user's favorites."""
+    # In a real app, you'd extract user info from JWT token
+    user_email = "temp@example.com"
+    
+    return await favorites_service.remove_from_favorites(user_email, album_id)
+
+
+@app.get("/api/v1/favorites")
+async def get_user_favorites():
+    """Get all favorited albums for the current user."""
+    # In a real app, you'd extract user info from JWT token
+    user_email = "temp@example.com"
+    
+    favorites = await favorites_service.get_user_favorites(user_email)
+    
+    return {
+        "success": True,
+        "favorites": favorites,
+        "total": len(favorites)
+    }
 
