@@ -1,11 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Separator from '@radix-ui/react-separator';
-import AuthModal from './auth/AuthModal';
 import './Navigation.css';
 
 
@@ -13,8 +11,6 @@ import './Navigation.css';
 export default function Navigation() {
   const { user, signOut } = useAuth();
   const router = useRouter();
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authView, setAuthView] = useState<'login' | 'signup'>('login');
 
 
   const handleSignOut = async () => {
@@ -85,6 +81,12 @@ export default function Navigation() {
                       >
                         My Favorites
                       </DropdownMenu.Item>
+                      <DropdownMenu.Item 
+                        className="menu-item"
+                        onSelect={() => router.push('/recommendations')}
+                      >
+                        Recommendation History
+                      </DropdownMenu.Item>
                       <Separator.Root className="menu-divider" />
                       <DropdownMenu.Item 
                         className="menu-item"
@@ -97,19 +99,13 @@ export default function Navigation() {
                     <>
                       <DropdownMenu.Item 
                         className="menu-item"
-                        onSelect={() => {
-                          setAuthView('signup');
-                          setAuthModalOpen(true);
-                        }}
+                        onSelect={() => console.log('Sign up clicked')}
                       >
                         Sign up
                       </DropdownMenu.Item>
                       <DropdownMenu.Item 
                         className="menu-item"
-                        onSelect={() => {
-                          setAuthView('login');
-                          setAuthModalOpen(true);
-                        }}
+                        onSelect={() => console.log('Log in clicked')}
                       >
                         Log in
                       </DropdownMenu.Item>
@@ -121,12 +117,6 @@ export default function Navigation() {
           </div>
         </div>
       </div>
-      
-      <AuthModal 
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        defaultView={authView}
-      />
     </nav>
   );
 }
