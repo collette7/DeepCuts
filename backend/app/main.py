@@ -13,7 +13,7 @@ from app.models.favorites import AddToFavoritesRequest, FavoriteActionResponse, 
 from app.config import settings
 from app.services.claude import claude_service
 from app.services.favorites import favorites_service
-from app.database import supabase as db_client
+from app.database import supabase_admin
 import asyncio
 import logging
 
@@ -329,11 +329,11 @@ def get_current_user(authorization: str = Header(None)) -> str:
     
     try:
         # Verify token with Supabase and get user
-        user_response = db_client.auth.get_user(token)
+        user_response = supabase_admin.auth.get_user(token)
         if not user_response.user:
             raise HTTPException(status_code=401, detail="Invalid token")
         
-        return user_response.user.id
+        return user_response.user.email
     except Exception as e:
         logger.error(f"Authentication failed: {e}")
         raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
@@ -352,7 +352,7 @@ async def add_favorite(
     
     try:
         # Verify token with Supabase and get user
-        user_response = supabase.auth.get_user(token)
+        user_response = supabase_admin.auth.get_user(token)
         if not user_response.user:
             raise HTTPException(status_code=401, detail="Invalid token")
         
@@ -370,23 +370,23 @@ async def remove_favorite(
     user_id: str = Depends(get_current_user)
 ) -> FavoriteActionResponse:
     """Remove an album"""
-    return favorites_service.remove_album(user_id, album_id)
+    return await favorites_service.remove_album(user_id, album_id)
 
 
 @app.get("/api/v1/favorites")
 async def get_user_favorites(
-    user_id: str = Depends(get_current_user)
+    user_email: str = Depends(get_current_user)
 ) -> UserFavoritesList:
     """Get all of a user's favorite albums"""
-    return favorites_service.get_user_favorites(user_id)
+    return await favorites_service.get_user_favorites(user_email)
 
 
 @app.get("/api/v1/favorites/with-details")
 async def get_favorites_with_details(
-    user_id: str = Depends(get_current_user)
+    user_email: str = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """Get user's favorites"""
-    return favorites_service.get_favorites_with_album_details(user_id)
+    return await favorites_service.get_favorites_with_album_details(user_email)
 
 
 @app.get("/api/v1/favorites/check/{album_id}")
