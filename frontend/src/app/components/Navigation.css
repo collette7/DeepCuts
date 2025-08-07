@@ -1,0 +1,386 @@
+.airbnb-nav {
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  padding: 12px 0;
+}
+
+.nav-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+/* Logo */
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  min-width: 140px;
+}
+
+.nav-logo-text {
+  font-size: 20px;
+  font-weight: 700;
+  color: #FF5A5F;
+  letter-spacing: -0.5px;
+}
+
+/* Search Bar */
+.nav-search {
+  flex: 1;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.search-form {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ddd;
+  border-radius: 32px;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  height: 48px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.search-form:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+.search-form:focus-within {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.search-section {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  flex: 1;
+  height: 100%;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.search-section:hover {
+  background-color: #f7f7f7;
+}
+
+.search-section:first-child {
+  border-radius: 32px 0 0 32px;
+}
+
+.search-section-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.search-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 2px;
+}
+
+.search-placeholder {
+  font-size: 14px;
+  color: #717171;
+}
+
+.search-input {
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: #222;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.search-input::placeholder {
+  color: #717171;
+}
+
+.search-divider {
+  width: 1px;
+  height: 24px;
+  background-color: #ddd;
+}
+
+.search-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FF5A5F;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  margin-right: 8px;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.search-button:hover {
+  transform: scale(1.05);
+}
+
+.search-button:active {
+  transform: scale(0.95);
+}
+
+/* Right Menu */
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 140px;
+  justify-content: flex-end;
+}
+
+.nav-host-link {
+  background: none;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: #222;
+  padding: 8px 12px;
+  border-radius: 22px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.nav-host-link:hover {
+  background-color: #f7f7f7;
+}
+
+/* User Menu */
+.nav-user-menu {
+  position: relative;
+}
+
+.nav-user-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 21px;
+  background: white;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+
+.nav-user-button:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #FF5A5F;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.user-menu-dropdown {
+  min-width: 240px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  z-index: 1001;
+  animation-duration: 200ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.user-menu-dropdown[data-state='open'] {
+  animation-name: slideDownAndFade;
+}
+
+@keyframes slideDownAndFade {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 12px 16px;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 14px;
+  color: #222;
+  outline: none;
+  border-radius: 0;
+}
+
+.menu-item:hover,
+.menu-item[data-highlighted] {
+  background-color: #f7f7f7;
+}
+
+.menu-item:focus {
+  outline: 2px solid #FF5A5F;
+  outline-offset: -2px;
+}
+
+.menu-item.user-info {
+  font-weight: 600;
+  cursor: default;
+}
+
+.menu-item.user-info:hover {
+  background: none;
+}
+
+.menu-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 4px 0;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .nav-container {
+    padding: 0 16px;
+    gap: 16px;
+  }
+  
+  .nav-logo-text {
+    display: none;
+  }
+  
+  .nav-search {
+    max-width: none;
+  }
+  
+  .search-form {
+    height: 40px;
+  }
+  
+  .search-section {
+    padding: 8px 12px;
+  }
+  
+  .search-label {
+    font-size: 11px;
+  }
+  
+  .search-placeholder,
+  .search-input {
+    font-size: 13px;
+  }
+  
+  .nav-host-link {
+    display: none;
+  }
+  
+  .search-section.search-when,
+  .search-section.search-who {
+    display: none;
+  }
+  
+  .search-divider {
+    display: none;
+  }
+  
+  .search-section:first-child {
+    border-radius: 32px 0 0 32px;
+    flex: 1;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .airbnb-nav {
+    background: #1a1a1a;
+    border-bottom: 1px solid #333;
+  }
+  
+  .search-form {
+    background: #2a2a2a;
+    border-color: #444;
+  }
+  
+  .search-section:hover {
+    background-color: #333;
+  }
+  
+  .search-label {
+    color: #fff;
+  }
+  
+  .search-placeholder {
+    color: #999;
+  }
+  
+  .search-input {
+    color: #fff;
+  }
+  
+  .search-input::placeholder {
+    color: #999;
+  }
+  
+  .nav-host-link {
+    color: #fff;
+  }
+  
+  .nav-host-link:hover {
+    background-color: #333;
+  }
+  
+  .nav-user-button {
+    background: #2a2a2a;
+    border-color: #444;
+  }
+  
+  .user-menu-dropdown {
+    background: #2a2a2a;
+    border-color: #444;
+  }
+  
+  .menu-divider {
+    background: #444;
+  }
+  
+  .menu-item {
+    color: #fff;
+  }
+  
+  .menu-item:hover {
+    background-color: #333;
+  }
+}

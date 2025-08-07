@@ -6,7 +6,7 @@
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 32px 16px;
+  padding: 48px 16px 32px;
 }
 
 .loading-container {
@@ -57,37 +57,39 @@
   color: var(--foreground);
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 32px;
+.welcome-section {
+  text-align: center;
+  margin-bottom: 48px;
+  padding: 32px 0;
 }
 
-.header h1 {
-  font-size: 2.5rem;
-  font-weight: bold;
+.welcome-section h1 {
+  font-size: 3rem;
+  font-weight: 700;
   color: var(--foreground);
-  margin-bottom: 8px;
+  margin-bottom: 16px;
+  line-height: 1.1;
 }
 
-.header p {
+.welcome-section p {
   font-size: 1.25rem;
   color: var(--foreground);
-  opacity: 0.8;
-}
-
-.albums-section {
-  max-width: 1024px;
+  opacity: 0.7;
+  max-width: 600px;
   margin: 0 auto;
 }
 
+.albums-section {
+  max-width: 1200px;
+  margin: 48px auto 0;
+}
+
 .albums-title {
-  font-size: 1rem;
+  font-size: 1.25rem;
   font-weight: 600;
-  
   color: var(--foreground);
-  margin-bottom: 1rem;
+  margin-bottom: 24px;
+  text-align: center;
 }
 
 

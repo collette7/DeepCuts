@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient, AlbumData, SearchResponse, FavoriteItem } from '@/lib/api';
 import { useAuth } from './contexts/AuthContext';
 import AlbumCard from './components/AlbumCard';
@@ -10,6 +9,7 @@ import LoadingSpinner from './components/ui/LoadingSpinner';
 import ErrorMessage from './components/ui/ErrorMessage';
 import AuthModal from './components/auth/AuthModal';
 import AlbumDetails from './components/AlbumDetails';
+import Navigation from './components/Navigation';
 import './page.css';
 
 
@@ -88,8 +88,7 @@ const exampleSearchResults: AlbumData[] = [
 ];
 
 export default function Home() {
-  const { user, signOut } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
   const [albums, setAlbums] = useState<AlbumData[]>(exampleSearchResults);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +96,6 @@ export default function Home() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumData | null>(null);
   const [favoriteAlbums, setFavoriteAlbums] = useState<Set<string>>(new Set());
-  const [sourceAlbum, setSourceAlbum] = useState<AlbumData | null>(null);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,14 +109,18 @@ export default function Home() {
     }
   }, [user]);
 
-const handleSearch = async (e: React.FormEvent) => {
+const handleSearchSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  
+  await handleSearch(searchQuery);
+};
+
+const handleSearch = async (query: string) => {
   try {
+    setSearchQuery(query);
     setLoading(true);
     setError(null);
     
-    const searchData: SearchResponse = await apiClient.searchAlbums(searchQuery);
+    const searchData: SearchResponse = await apiClient.searchAlbums(query);
     
     if (searchData.recommendations && searchData.recommendations.length > 0) {
       setAlbums(searchData.recommendations);
@@ -146,7 +148,7 @@ const handleCloseDetails = () => {
   setSelectedAlbum(null);
 };
 
-const loadUserFavorites = async () => {
+const loadUserFavorites = useCallback(async () => {
   if (!user || favoritesLoading) return;
   
   try {
@@ -163,7 +165,7 @@ const loadUserFavorites = async () => {
   } finally {
     setFavoritesLoading(false);
   }
-};
+}, [user, favoritesLoading]);
 
 const handleToggleFavorite = async (album: AlbumData) => {
   if (!user) {
@@ -182,7 +184,7 @@ const handleToggleFavorite = async (album: AlbumData) => {
         return newSet;
       });
     } else {
-      await apiClient.addToFavorites(album, sourceAlbum || undefined);
+      await apiClient.addToFavorites(album);
       setFavoriteAlbums(prev => new Set(prev).add(album.id));
     }
   } catch (error) {
@@ -195,35 +197,21 @@ const handleToggleFavorite = async (album: AlbumData) => {
 
   // Albums
   return (
-    <div className="page-container">
-      <div className="container">
-        
-        {/* Header */}
-        <header className="header">
-          <div>
-            <h1>DeepCuts</h1>
-            <p>Album Discovery</p>
-          </div>
-          <div className="auth-controls">
-            {user ? (
-              <div className="user-menu">
-                <span>Welcome, {user.email}</span>
-                <button onClick={() => router.push('/favorites')}>Favorites</button>
-                <button onClick={signOut}>Sign Out</button>
-              </div>
-            ) : (
-              <div className="auth-buttons">
-                <button onClick={() => setAuthModalOpen(true)}>Sign In</button>
-              </div>
-            )}
-          </div>
-        </header>
+    <>
+      <Navigation onSearch={handleSearch} searchQuery={searchQuery} />
+      <div className="page-container">
+        <div className="container">
+        {/* Welcome Section */}
+        <div className="welcome-section">
+          <h1>Find your next favorite album</h1>
+          <p>Discover deep cuts and hidden gems tailored to your unique taste</p>
+        </div>
 
         {/* Search */}
         <SearchForm 
           searchQuery={searchQuery}
           onSearchQueryChange={setSearchQuery}
-          onSubmit={handleSearch}
+          onSubmit={handleSearchSubmit}
           loading={loading}
         />
 
@@ -259,7 +247,8 @@ const handleToggleFavorite = async (album: AlbumData) => {
           isOpen={detailsOpen}
           onClose={handleCloseDetails}
         />
+        </div>
       </div>
-    </div>
+    </>
   );
 }
