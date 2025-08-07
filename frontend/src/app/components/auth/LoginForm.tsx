@@ -24,7 +24,7 @@ export default function LoginForm({ onSuccess, onSwitchToSignup }: LoginFormProp
     const { error } = await signIn(email, password)
     
     if (error) {
-      setError(error.message)
+      setError(error instanceof Error ? error.message : 'Login failed')
     } else {
       onSuccess?.()
     }
@@ -72,7 +72,7 @@ export default function LoginForm({ onSuccess, onSwitchToSignup }: LoginFormProp
 
       {onSwitchToSignup && (
         <p className="auth-switch">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <button type="button" onClick={onSwitchToSignup}>
             Sign up
           </button>

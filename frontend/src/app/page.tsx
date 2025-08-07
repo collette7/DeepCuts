@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { apiClient, AlbumData, SearchResponse } from '@/lib/api';
+import { apiClient, AlbumData, SearchResponse, FavoriteItem } from '@/lib/api';
 import { useAuth } from './contexts/AuthContext';
 import AlbumCard from './components/AlbumCard';
 import SearchForm from './components/SearchForm';
@@ -11,6 +11,7 @@ import ErrorMessage from './components/ui/ErrorMessage';
 import AuthModal from './components/auth/AuthModal';
 import AlbumDetails from './components/AlbumDetails';
 import './page.css';
+
 
 // Example search results
 const exampleSearchResults: AlbumData[] = [
@@ -154,7 +155,7 @@ const loadUserFavorites = async () => {
     
     if (response.success && response.favorites) {
       // Extract album IDs from the favorites response
-      const favoriteIds = new Set(response.favorites.map((fav: any) => fav.album?.id || fav.id).filter(Boolean));
+      const favoriteIds = new Set(response.favorites.map((fav: FavoriteItem) => fav.albums?.id || fav.album?.id || fav.id).filter(Boolean));
       setFavoriteAlbums(favoriteIds);
     }
   } catch (error) {
@@ -181,7 +182,7 @@ const handleToggleFavorite = async (album: AlbumData) => {
         return newSet;
       });
     } else {
-      await apiClient.addToFavorites(album, sourceAlbum);
+      await apiClient.addToFavorites(album, sourceAlbum || undefined);
       setFavoriteAlbums(prev => new Set(prev).add(album.id));
     }
   } catch (error) {

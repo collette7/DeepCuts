@@ -39,7 +39,7 @@ export default function SignupForm({ onSuccess, onSwitchToLogin }: SignupFormPro
     const { error } = await signUp(email, password)
     
     if (error) {
-      setError(error.message)
+      setError(error instanceof Error ? error.message : 'Signup failed')
     } else {
       setMessage('Check your email for verification link!')
       onSuccess?.()

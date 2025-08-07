@@ -179,9 +179,6 @@ export default function SearchForm({
                 <div className="result-title">{result.title}</div>
                 <div className="result-metadata">
                   {result.year && <span>{result.year}</span>}
-                  {result.format && result.format.length > 0 && (
-                    <span> • {result.format[0]}</span>
-                  )}
                 </div>
               </div>
             </div>
