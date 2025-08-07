@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -9,16 +9,20 @@ import httpx
 from pydantic import BaseModel
 from app.models.albums import AlbumData, SearchRequest, SearchResponse
 from app.models.searchSuggestions import SuggestionRequest, SuggestionResult, SuggestionResponse
-from app.models.favorites import AddToFavoritesRequest, FavoriteActionResponse
+from app.models.favorites import AddToFavoritesRequest, FavoriteActionResponse, UserFavoritesList
 from app.config import settings
 from app.services.claude import claude_service
 from app.services.favorites import favorites_service
+from app.database import supabase as db_client
 import asyncio
+import logging
 
 load_dotenv()
 
-app = FastAPI(title=settings.PROJECT_NAME, version=settings.PROJECT_VERSION)
+# FastAPI's logging
+logger = logging.getLogger("uvicorn")
 
+app = FastAPI(title=settings.PROJECT_NAME, version=settings.PROJECT_VERSION)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000", "http://127.0.0.1:3001"],
@@ -33,6 +37,7 @@ supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 # Validate env
 if not supabase_url or not supabase_key:
+    logger.error("Missing required environment variables: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
     raise Exception("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables")
 
 supabase: Client = create_client(supabase_url, supabase_key)
@@ -99,7 +104,7 @@ async def get_spotify_album_data(title: str, artist: str) -> Dict[str, Optional[
                     album_artists = [artist.get("name", "").lower() for artist in album.get("artists", [])]
                     
                     if (title.lower() in album_name or album_name in title.lower()) and \
-                       any(artist.lower() in album_artist for album_artist in album_artists):
+                        any(artist.lower() in album_artist for album_artist in album_artists):
                         
                         # Get album tracks for preview URL
                         album_id = album.get("id")
@@ -129,7 +134,7 @@ async def get_spotify_album_data(title: str, artist: str) -> Dict[str, Optional[
                         }
                 
     except Exception as e:
-        print(f"Error fetching Spotify data: {e}")
+        logger.error(f"Spotify API error for {title} by {artist}: {e}")
     
     return {"preview_url": None, "external_url": None}
 
@@ -197,7 +202,7 @@ async def get_album_cover_from_discogs(title: str, artist: str) -> Optional[str]
                     return best_match.get("cover_image") or best_match.get("thumb")
                     
     except Exception as e:
-        print(f"Error fetching cover from Discogs: {e}")
+        logger.error(f"Discogs API error for {title} by {artist}: {e}")
     
     return None
 
@@ -213,10 +218,10 @@ async def search_albums(request: SearchRequest) -> SearchResponse:
         
         # Return empty results if claude returns no recommendations
         if not recommendations or len(recommendations) == 0:
-            print("No recommendations from Claude")
+            logger.warning(f"No recommendations from Claude for query: {request.query}")
             recommendations = []
         
-        # Enrich recommendations with cover images and Spotify data
+        # Add cover images and Spotify data
         if recommendations:
             enriched_recommendations = []
             for album in recommendations:
@@ -251,7 +256,7 @@ async def search_albums(request: SearchRequest) -> SearchResponse:
         limited_recommendations = recommendations[:request.max_results]
         
     except Exception as e:
-        print(f"Recommendations Error: {e}")
+        logger.error(f"Search error for query '{request.query}': {e}")
         limited_recommendations = []
     
     processing_time = int((time.time() - start_time) * 1000)
@@ -304,43 +309,76 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
                 raise HTTPException(status_code=response.status_code, detail="Discogs API error")
                 
     except Exception as e:
-        print(f"Discogs API Error: {e}")
+        logger.error(f"Discogs search error for '{request.query}': {e}")
         return SuggestionResponse(
             results=[],
             pagination={"per_page": request.per_page, "pages": 0, "page": 1, "items": 0}
         )
 
 
-@app.post("/api/v1/favorites")
-async def add_to_favorites(request: AddToFavoritesRequest) -> FavoriteActionResponse:
-    """Add an album to user's favorites."""
-    # In a real app, you'd extract user info from JWT token
-    # For now, using dummy user data
-    user_email = "temp@example.com"
+def get_current_user(authorization: str = Header(None)) -> str:
+    """Get current user"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header required")
     
-    return await favorites_service.add_to_favorites(user_email, user_email, request)
+    # Extract token 
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authorization format")
+    
+    token = authorization.replace("Bearer ", "")
+    
+    try:
+        # Verify token with Supabase and get user
+        user_response = db_client.auth.get_user(token)
+        if not user_response.user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        return user_response.user.id
+    except Exception as e:
+        logger.error(f"Authentication failed: {e}")
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
 
-@app.delete("/api/v1/favorites/{album_id}")
-async def remove_from_favorites(album_id: str) -> FavoriteActionResponse:
-    """Remove an album from user's favorites."""
-    # In a real app, you'd extract user info from JWT token
-    user_email = "temp@example.com"
-    
-    return await favorites_service.remove_from_favorites(user_email, album_id)
+@app.post("/api/v1/favorites/add")
+async def add_favorite(
+    request: AddToFavoritesRequest,
+    user_id: str = Depends(get_current_user)
+) -> FavoriteActionResponse:
+    """Save album to user favorites"""
+    return favorites_service.save_album(user_id, request.album_data)
+
+
+@app.delete("/api/v1/favorites/remove/{album_id}")
+async def remove_favorite(
+    album_id: str,
+    user_id: str = Depends(get_current_user)
+) -> FavoriteActionResponse:
+    """Remove an album"""
+    return favorites_service.remove_album(user_id, album_id)
 
 
 @app.get("/api/v1/favorites")
-async def get_user_favorites():
-    """Get all favorited albums for the current user."""
-    # In a real app, you'd extract user info from JWT token
-    user_email = "temp@example.com"
-    
-    favorites = await favorites_service.get_user_favorites(user_email)
-    
-    return {
-        "success": True,
-        "favorites": favorites,
-        "total": len(favorites)
-    }
+async def get_user_favorites(
+    user_id: str = Depends(get_current_user)
+) -> UserFavoritesList:
+    """Get all of a user's favorite albums"""
+    return favorites_service.get_user_favorites(user_id)
+
+
+@app.get("/api/v1/favorites/with-details")
+async def get_favorites_with_details(
+    user_id: str = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get user's favorites"""
+    return favorites_service.get_favorites_with_album_details(user_id)
+
+
+@app.get("/api/v1/favorites/check/{album_id}")
+async def check_if_favorited(
+    album_id: str,
+    user_id: str = Depends(get_current_user)
+) -> Dict[str, bool]:
+    """Check if an album is in user favorites"""
+    is_favorited = favorites_service.is_album_favorited(user_id, album_id)
+    return {"is_favorited": is_favorited}
 

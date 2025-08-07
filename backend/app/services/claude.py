@@ -111,7 +111,9 @@ class ClaudeService:
                 recommendations.append(album)
                 
             except Exception as e:
-                print(f"Error parsing album: {e}")
+                import logging
+                logger = logging.getLogger('deepcuts')
+                logger.error(f"Error parsing album: {e}")
                 continue
                 
         return recommendations
@@ -138,7 +140,10 @@ class ClaudeService:
             return recommendations
             
         except Exception as e:
-            print(f"Error getting recommendations from Claude: {e}")
+            # Import logger here to avoid circular imports
+            import logging
+            logger = logging.getLogger('deepcuts')
+            logger.error(f"Error getting recommendations from Claude: {e}", exc_info=True)
             return []
 
 
