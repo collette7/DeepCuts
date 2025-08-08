@@ -19,6 +19,7 @@ export default function Home() {
   const { user } = useAuth();
   const [albums, setAlbums] = useState<AlbumData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -27,6 +28,7 @@ export default function Home() {
   const [favoritesLoading, setFavoritesLoading] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchCache, setSearchCache] = useState<Map<string, AlbumData[]>>(new Map());
 
   // Load initial albums and user favorites
   useEffect(() => {
@@ -59,25 +61,93 @@ const handleSearchSubmit = async (e: React.FormEvent) => {
 const handleSearch = async (query: string) => {
   try {
     setSearchQuery(query);
-    setLoading(true);
     setError(null);
+    
+    // Check cache first
+    const cacheKey = query.toLowerCase().trim();
+    if (searchCache.has(cacheKey)) {
+      console.log('Using cached results for:', query);
+      setAlbums(searchCache.get(cacheKey) || []);
+      return;
+    }
+    
+    setLoading(true);
+    setLoadingMessage('🤖 AI is analyzing your taste...');
     
     const searchData: SearchResponse = await apiClient.searchAlbums(query);
     
     if (searchData.recommendations && searchData.recommendations.length > 0) {
+      // Show AI results immediately
       setAlbums(searchData.recommendations);
+      setLoading(false);
+      setLoadingMessage('');
+      
+      // Now load Spotify data progressively in the background
+      loadSpotifyDataProgressively(searchData.recommendations, cacheKey);
     } else {
       setAlbums([]);
       setError('No results found, try again later');
+      setLoading(false);
+      setLoadingMessage('');
     }
     
   } catch (error) {
     console.error('Error searching albums:', error);
     setAlbums([]);
     setError('Bad connection, try again later');
-  } finally {
     setLoading(false);
+    setLoadingMessage('');
   }
+};
+
+const loadSpotifyDataProgressively = async (initialAlbums: AlbumData[], cacheKey: string) => {
+  console.log('Loading Spotify data for', initialAlbums.length, 'albums...');
+  
+  // Load Spotify data for each album in parallel
+  const promises = initialAlbums.map(async (album, index) => {
+    try {
+      const spotifyData = await apiClient.getAlbumSpotifyData(album.id, album.title, album.artist);
+      
+      // Update this specific album with Spotify data
+      setAlbums(currentAlbums => 
+        currentAlbums.map(a => 
+          a.id === album.id 
+            ? {
+                ...a,
+                spotify_preview_url: spotifyData.spotify_preview_url,
+                spotify_url: spotifyData.spotify_url,
+                cover_url: spotifyData.cover_url || a.cover_url
+              }
+            : a
+        )
+      );
+      
+      // Also update selected album if it's currently being viewed
+      setSelectedAlbum(current => 
+        current && current.id === album.id 
+          ? {
+              ...current,
+              spotify_preview_url: spotifyData.spotify_preview_url,
+              spotify_url: spotifyData.spotify_url,
+              cover_url: spotifyData.cover_url || current.cover_url
+            }
+          : current
+      );
+    } catch (error) {
+      console.error(`Failed to load Spotify data for ${album.title}:`, error);
+    }
+  });
+  
+  // Wait for all to complete, then cache the final results
+  await Promise.all(promises);
+  
+  // Update cache with enriched results
+  setAlbums(currentAlbums => {
+    setSearchCache(prev => new Map(prev.set(cacheKey, currentAlbums)));
+    return currentAlbums;
+  });
+  
+  console.log('Finished loading Spotify data progressively');
 };
 
 const handleListenNow = (album: AlbumData) => {
@@ -158,7 +228,19 @@ const handleToggleFavorite = async (album: AlbumData) => {
         />
 
         {/* Results Area */}
-        {loading && <LoadingSpinner />}
+        {loading && (
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <LoadingSpinner />
+            {loadingMessage && (
+              <p style={{ marginTop: '1rem', fontSize: '1.1rem', color: '#666', fontWeight: '500' }}>
+                {loadingMessage}
+              </p>
+            )}
+            <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#999' }}>
+              This may take 15-30 seconds for the best recommendations
+            </p>
+          </div>
+        )}
         
         {error && <ErrorMessage error={error} />}
         
@@ -188,6 +270,11 @@ const handleToggleFavorite = async (album: AlbumData) => {
           album={selectedAlbum}
           isOpen={detailsOpen}
           onClose={handleCloseDetails}
+          user={user}
+          onAuthRequired={() => {
+            handleCloseDetails();
+            setAuthModalOpen(true);
+          }}
         />
         </div>
       </div>

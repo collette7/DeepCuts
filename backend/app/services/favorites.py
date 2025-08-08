@@ -71,6 +71,8 @@ class FavoritesService:
                 album_insert_data['cover_url'] = album_data['cover_url']
             if album_data.get('spotify_preview_url'):
                 album_insert_data['spotify_preview_url'] = album_data['spotify_preview_url']
+            if album_data.get('reasoning'):
+                album_insert_data['reasoning'] = album_data['reasoning']
             
             # Use upsert to handle duplicates - let Supabase generate the UUID
             album_result = self.supabase.table('albums').upsert(album_insert_data).execute()
@@ -92,13 +94,25 @@ class FavoritesService:
             if existing.data:
                 return FavoriteActionResponse(success=True, message="Album already in favorites")
             
-            # Add to favorites
+            # Add to favorites with reasoning if provided
             favorite_data = {
                 'user_id': user_uuid,
                 'album_id': album_uuid
             }
             
-            self.supabase.table('favorites').insert(favorite_data).execute()
+            # Store reasoning in the favorites record since each user might have different reasoning for the same album
+            # Try to add reasoning if provided, but don't fail if column doesn't exist
+            if album_data.get('reasoning'):
+                try:
+                    favorite_data['reasoning'] = album_data['reasoning']
+                    self.supabase.table('favorites').insert(favorite_data).execute()
+                except Exception as e:
+                    print(f"Failed to insert with reasoning, trying without: {e}")
+                    # Remove reasoning and try again
+                    favorite_data.pop('reasoning', None)
+                    self.supabase.table('favorites').insert(favorite_data).execute()
+            else:
+                self.supabase.table('favorites').insert(favorite_data).execute()
             
             return FavoriteActionResponse(success=True, message="Album added to favorites")
             
@@ -150,9 +164,17 @@ class FavoritesService:
             
             user_uuid = user_result.data[0]['id']
             
-            result = client.table('favorites').select(
-                'id, saved_at, albums!favorites_album_id_fkey(*)'
-            ).eq('user_id', user_uuid).order('saved_at', desc=True).execute()
+            # Try to select with reasoning first, fall back without it if column doesn't exist
+            try:
+                result = client.table('favorites').select(
+                    'id, saved_at, reasoning, albums!favorites_album_id_fkey(*)'
+                ).eq('user_id', user_uuid).order('saved_at', desc=True).execute()
+            except Exception as e:
+                # If reasoning column doesn't exist, select without it
+                print(f"Reasoning column might not exist, falling back: {e}")
+                result = client.table('favorites').select(
+                    'id, saved_at, albums!favorites_album_id_fkey(*)'
+                ).eq('user_id', user_uuid).order('saved_at', desc=True).execute()
             
             favorites = result.data or []
             return UserFavoritesList(success=True, favorites=favorites, total=len(favorites))
@@ -178,6 +200,48 @@ class FavoritesService:
         """Get favorites with details method for authenticated endpoints"""
         try:
             favorites_result = await self.get_user_favorites(user_email, user_token)
+            
+            if favorites_result.success and favorites_result.favorites:
+                # Enrich album data with Spotify information
+                enriched_favorites = []
+                for favorite in favorites_result.favorites:
+                    album = favorite.get('albums') or favorite.get('album')
+                    if album:
+                        # Try to get Spotify data for this album
+                        try:
+                            from ..main import get_spotify_album_data
+                            spotify_data = await get_spotify_album_data(
+                                album.get('title', ''), 
+                                album.get('artist', '')
+                            )
+                            
+                            # Update album with Spotify data
+                            enriched_album = {
+                                **album,
+                                'spotify_preview_url': spotify_data.get('preview_url') or album.get('spotify_preview_url'),
+                                'spotify_url': spotify_data.get('external_url') or album.get('spotify_url')
+                            }
+                            
+                            # Update the favorite record with enriched album
+                            favorite_copy = favorite.copy()
+                            if 'albums' in favorite:
+                                favorite_copy['albums'] = enriched_album
+                            else:
+                                favorite_copy['album'] = enriched_album
+                                
+                            enriched_favorites.append(favorite_copy)
+                        except Exception as e:
+                            print(f"Failed to enrich album {album.get('title', 'Unknown')}: {e}")
+                            enriched_favorites.append(favorite)
+                    else:
+                        enriched_favorites.append(favorite)
+                
+                return {
+                    "success": True,
+                    "favorites": enriched_favorites,
+                    "total": len(enriched_favorites)
+                }
+            
             return {
                 "success": favorites_result.success,
                 "favorites": favorites_result.favorites if favorites_result.success else [],

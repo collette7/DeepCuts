@@ -1,13 +1,13 @@
-@import '../../styles/variables';
+@use '../../styles/variables' as v;
 
 /* Album Card Component Styles */
 
 .album-card {
-  background-color: color(background);
-  border: 1px solid color(gray-200);
-  border-radius: radius(md);
-  box-shadow: shadow(base);
-  transition: transition(base);
+  background-color: v.color(background);
+  border: 1px solid v.color(gray-200);
+  border-radius: v.radius(md);
+  box-shadow: v.shadow(base);
+  transition: v.transition(base);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -15,9 +15,9 @@
   overflow: hidden;
 
   &:hover {
-    box-shadow: shadow(lg);
+    box-shadow: v.shadow(lg);
     transform: translateY(-2px);
-    border-color: color(primary);
+    border-color: v.color(primary);
   }
 }
 
@@ -25,7 +25,7 @@
   width: 100%;
   aspect-ratio: 1;
   position: relative;
-  background: linear-gradient(135deg, color(gray-100), color(gray-200));
+  background: linear-gradient(135deg, v.color(gray-100), v.color(gray-200));
 }
 
 .cover-image {
@@ -42,45 +42,45 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: color(gray-400);
-  background: linear-gradient(135deg, color(gray-50), color(gray-100));
+  color: v.color(gray-400);
+  background: linear-gradient(135deg, v.color(gray-50), v.color(gray-100));
 }
 
 .cover-placeholder-icon {
-  font-size: font-size(4xl);
-  margin-bottom: spacing(2);
+  font-size: v.font-size(4xl);
+  margin-bottom: v.spacing(2);
   opacity: 0.6;
 }
 
 .cover-placeholder-text {
-  font-size: font-size(sm);
-  font-weight: font-weight(medium);
+  font-size: v.font-size(sm);
+  font-weight: v.font-weight(medium);
   opacity: 0.8;
 }
 
 /* Favorite Button */
 .favorite-btn {
   position: absolute;
-  top: spacing(2);
-  right: spacing(2);
+  top: v.spacing(2);
+  right: v.spacing(2);
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: radius(full);
+  border-radius: v.radius(full);
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transition(base);
-  box-shadow: shadow(md);
-  z-index: z(dropdown);
+  transition: v.transition(base);
+  box-shadow: v.shadow(md);
+  z-index: v.z(dropdown);
 
   &:hover {
     background: rgba(255, 255, 255, 1);
     transform: scale(1.05);
-    box-shadow: shadow(lg);
+    box-shadow: v.shadow(lg);
   }
 
   &:disabled {
@@ -92,33 +92,33 @@
   svg {
     width: 16px;
     height: 16px;
-    color: color(gray-500);
-    transition: transition(base);
+    color: v.color(gray-500);
+    transition: v.transition(base);
   }
 
   &.favorited svg {
-    color: color(error);
+    color: v.color(error);
   }
 
   &:hover:not(:disabled) svg {
-    color: color(error);
+    color: v.color(error);
   }
 
   .spinner {
     width: 14px;
     height: 14px;
-    border: 2px solid color(gray-200);
-    border-top: 2px solid color(error);
-    border-radius: radius(full);
+    border: 2px solid v.color(gray-200);
+    border-top: 2px solid v.color(error);
+    border-radius: v.radius(full);
     animation: spin 1s linear infinite;
   }
 }
 
 .album-content {
-  padding: spacing(4);
+  padding: v.spacing(4);
   display: flex;
   flex-direction: column;
-  gap: spacing(3);
+  gap: v.spacing(3);
   flex-grow: 1;
 }
 
@@ -127,44 +127,44 @@
 }
 
 .album-title {
-  font-size: font-size(lg);
-  font-weight: font-weight(bold);
-  color: color(foreground);
-  margin-bottom: spacing(2);
+  font-size: v.font-size(lg);
+  font-weight: v.font-weight(bold);
+  color: v.color(foreground);
+  margin-bottom: v.spacing(2);
   line-height: 1.3;
 }
 
 .album-artist {
-  color: color(foreground);
+  color: v.color(foreground);
   opacity: 0.8;
-  font-size: font-size(sm);
-  font-weight: font-weight(medium);
+  font-size: v.font-size(sm);
+  font-weight: v.font-weight(medium);
 }
 
 .album-details {
   display: flex;
-  gap: spacing(3);
+  gap: v.spacing(3);
   align-items: center;
   flex-wrap: wrap;
 }
 
 .album-year {
-  color: color(foreground);
+  color: v.color(foreground);
   opacity: 0.6;
-  font-size: font-size(sm);
-  background-color: color(gray-100);
-  padding: spacing(1) spacing(2);
-  border-radius: radius(sm);
-  font-weight: font-weight(medium);
+  font-size: v.font-size(sm);
+  background-color: v.color(gray-100);
+  padding: v.spacing(1) v.spacing(2);
+  border-radius: v.radius(sm);
+  font-weight: v.font-weight(medium);
 }
 
 .album-genre {
-  color: color(primary);
-  font-size: font-size(sm);
+  color: v.color(primary);
+  font-size: v.font-size(sm);
   background-color: #eff6ff;
-  padding: spacing(1) spacing(2);
-  border-radius: radius(sm);
-  font-weight: font-weight(medium);
+  padding: v.spacing(1) v.spacing(2);
+  border-radius: v.radius(sm);
+  font-weight: v.font-weight(medium);
 }
 
 .album-actions {
@@ -175,20 +175,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: spacing(2);
+  gap: v.spacing(2);
   width: 100%;
-  padding: spacing(2) spacing(3);
-  background: color(spotify);
+  padding: v.spacing(2) v.spacing(3);
+  background: v.color(spotify);
   color: white;
   border: none;
-  border-radius: spacing(2);
-  font-size: font-size(sm);
-  font-weight: font-weight(medium);
+  border-radius: v.spacing(2);
+  font-size: v.font-size(sm);
+  font-weight: v.font-weight(medium);
   cursor: pointer;
-  transition: transition(base);
+  transition: v.transition(base);
 
   &:hover {
-    background: color(spotify-hover);
+    background: v.color(spotify-hover);
     transform: translateY(-1px);
   }
 

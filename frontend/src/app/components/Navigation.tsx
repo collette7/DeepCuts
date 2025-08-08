@@ -1,9 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import * as Separator from '@radix-ui/react-separator';
+import AuthModal from './auth/AuthModal';
 import './Navigation.scss';
 
 
@@ -11,10 +11,13 @@ import './Navigation.scss';
 export default function Navigation() {
   const { user, signOut } = useAuth();
   const router = useRouter();
-
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authView, setAuthView] = useState<'login' | 'signup'>('login');
 
   const handleSignOut = async () => {
     await signOut();
+    setIsMenuOpen(false);
   };
 
   return (
@@ -33,84 +36,106 @@ export default function Navigation() {
         {/* Right Menu */}
         <div className="nav-right">
           <div className="nav-user-menu">
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
-                <button className="nav-user-button">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path 
-                      d="M2 4.75C2 4.33579 2.33579 4 2.75 4H13.25C13.6642 4 14 4.33579 14 4.75C14 5.16421 13.6642 5.5 13.25 5.5H2.75C2.33579 5.5 2 5.16421 2 4.75Z" 
-                      fill="currentColor"
-                    />
-                    <path 
-                      d="M2 8C2 7.58579 2.33579 7.25 2.75 7.25H13.25C13.6642 7.25 14 7.58579 14 8C14 8.41421 13.6642 8.75 13.25 8.75H2.75C2.33579 8.75 2 8.41421 2 8Z" 
-                      fill="currentColor"
-                    />
-                    <path 
-                      d="M2.75 10.5C2.33579 10.5 2 10.8358 2 11.25C2 11.6642 2.33579 12 2.75 12H13.25C13.6642 12 14 11.6642 14 11.25C14 10.8358 13.6642 10.5 13.25 10.5H2.75Z" 
-                      fill="currentColor"
-                    />
-                  </svg>
-                  
-                  {user ? (
-                    <div className="user-avatar">
-                      {user.email?.charAt(0).toUpperCase()}
-                    </div>
-                  ) : (
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                      <circle cx="10" cy="8" r="3" fill="currentColor"/>
-                      <path 
-                        d="M4 18c0-3.314 2.686-6 6-6s6 2.686 6 6v1H4v-1z" 
-                        fill="currentColor"
-                      />
-                    </svg>
-                  )}
-                </button>
-              </DropdownMenu.Trigger>
+            <button 
+              className="nav-user-button"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path 
+                  d="M2 4.75C2 4.33579 2.33579 4 2.75 4H13.25C13.6642 4 14 4.33579 14 4.75C14 5.16421 13.6642 5.5 13.25 5.5H2.75C2.33579 5.5 2 5.16421 2 4.75Z" 
+                  fill="currentColor"
+                />
+                <path 
+                  d="M2 8C2 7.58579 2.33579 7.25 2.75 7.25H13.25C13.6642 7.25 14 7.58579 14 8C14 8.41421 13.6642 8.75 13.25 8.75H2.75C2.33579 8.75 2 8.41421 2 8Z" 
+                  fill="currentColor"
+/>
+                <path 
+                  d="M2.75 10.5C2.33579 10.5 2 10.8358 2 11.25C2 11.6642 2.33579 12 2.75 12H13.25C13.6642 12 14 11.6642 14 11.25C14 10.8358 13.6642 10.5 13.25 10.5H2.75Z" 
+                  fill="currentColor"
+                />
+              </svg>
+              
+              {user ? (
+                <div className="user-avatar">
+                  {user.email?.charAt(0).toUpperCase()}
+                </div>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <circle cx="10" cy="8" r="3" fill="currentColor"/>
+                  <path 
+                    d="M4 18c0-3.314 2.686-6 6-6s6 2.686 6 6v1H4v-1z" 
+                    fill="currentColor"
+                  />
+                </svg>
+              )}
+            </button>
 
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content className="user-menu-dropdown" sideOffset={8} align="end">
+            {isMenuOpen && (
+              <>
+                <div 
+                  className="menu-backdrop" 
+                  onClick={() => setIsMenuOpen(false)}
+                />
+                <div className="user-menu-dropdown">
                   {user ? (
                     <>
-                      <DropdownMenu.Item className="menu-item user-info" onSelect={(e) => e.preventDefault()}>
+                      <div className="menu-item user-info">
                         <strong>{user.email}</strong>
-                      </DropdownMenu.Item>
-                      <Separator.Root className="menu-divider" />
-                      <DropdownMenu.Item 
+                      </div>
+                      <div className="menu-divider" />
+                      <button 
                         className="menu-item"
-                        onSelect={() => router.push('/favorites')}
+                        onClick={() => {
+                          router.push('/favorites');
+                          setIsMenuOpen(false);
+                        }}
                       >
                         My Favorites
-                      </DropdownMenu.Item>
-                      <Separator.Root className="menu-divider" />
-                      <DropdownMenu.Item 
+                      </button>
+                      <div className="menu-divider" />
+                      <button 
                         className="menu-item"
-                        onSelect={handleSignOut}
+                        onClick={handleSignOut}
                       >
                         Sign out
-                      </DropdownMenu.Item>
+                      </button>
                     </>
                   ) : (
                     <>
-                      <DropdownMenu.Item 
+                      <button 
                         className="menu-item"
-                        onSelect={() => console.log('Sign up clicked')}
+                        onClick={() => {
+                          setAuthView('signup');
+                          setAuthModalOpen(true);
+                          setIsMenuOpen(false);
+                        }}
                       >
                         Sign up
-                      </DropdownMenu.Item>
-                      <DropdownMenu.Item 
+                      </button>
+                      <button 
                         className="menu-item"
-                        onSelect={() => console.log('Log in clicked')}
+                        onClick={() => {
+                          setAuthView('login');
+                          setAuthModalOpen(true);
+                          setIsMenuOpen(false);
+                        }}
                       >
                         Log in
-                      </DropdownMenu.Item>
+                      </button>
                     </>
                   )}
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
+      
+      <AuthModal 
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        defaultView={authView}
+      />
     </nav>
   );
 }

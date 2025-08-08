@@ -170,6 +170,31 @@ class ApiClient {
         }
     }
 
+    async getAlbumSpotifyData(albumId: string, title: string, artist: string): Promise<{
+        album_id: string;
+        spotify_preview_url?: string;
+        spotify_url?: string;
+        cover_url?: string;
+    }> {
+        try {
+            const params = new URLSearchParams({
+                title: title,
+                artist: artist
+            });
+            
+            const response = await fetch(`${API_BASE_URL}/api/v1/albums/${albumId}/spotify?${params}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('Get album Spotify data error:', error);
+            throw error;
+        }
+    }
+
 
 }
 
