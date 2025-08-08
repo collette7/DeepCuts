@@ -6,7 +6,6 @@ $colors: (
   // Brand Colors
   primary: #3b82f6,
   primary-hover: #2563eb,
-  secondary: #6b7280,
   
   // Semantic Colors
   success: #10b981,
@@ -18,7 +17,8 @@ $colors: (
   spotify: #1db954,
   spotify-hover: #1ed760,
   
-  // Neutral Grays
+  // Neutral Scale
+  white: #ffffff,
   gray-50: #f9fafb,
   gray-100: #f3f4f6,
   gray-200: #e5e7eb,
@@ -29,8 +29,9 @@ $colors: (
   gray-700: #374151,
   gray-800: #1f2937,
   gray-900: #111827,
+  black: #000000,
   
-  // Background & Foreground (CSS Custom Properties)
+  // Background & Foreground 
   background: var(--background),
   foreground: var(--foreground),
 );
@@ -40,7 +41,7 @@ $colors: (
   @return map.get($colors, $name);
 }
 
-// Spacing Scale (based on Tailwind)
+// Spacing Scale
 $spacing: (
   0: 0,
   1: 0.25rem,   // 4px

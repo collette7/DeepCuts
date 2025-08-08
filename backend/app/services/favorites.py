@@ -71,11 +71,21 @@ class FavoritesService:
                 album_insert_data['cover_url'] = album_data['cover_url']
             if album_data.get('spotify_preview_url'):
                 album_insert_data['spotify_preview_url'] = album_data['spotify_preview_url']
-            if album_data.get('reasoning'):
-                album_insert_data['reasoning'] = album_data['reasoning']
+            # Don't try to store reasoning in albums table for now - it should go in favorites table
+            # if album_data.get('reasoning'):
+            #     album_insert_data['reasoning'] = album_data['reasoning']
             
             # Use upsert to handle duplicates - let Supabase generate the UUID
-            album_result = self.supabase.table('albums').upsert(album_insert_data).execute()
+            try:
+                album_result = self.supabase.table('albums').upsert(album_insert_data).execute()
+            except Exception as e:
+                print(f"Error upserting album, trying without optional fields: {e}")
+                # Try with just required fields if there are schema issues
+                minimal_data = {
+                    'title': album_data['title'],
+                    'artist': album_data['artist']
+                }
+                album_result = self.supabase.table('albums').upsert(minimal_data).execute()
             
             # Get the album ID from the result
             if album_result.data:

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { AlbumData } from '@/lib/api';
+import { X, Pause, Play, Volume2 } from 'lucide-react';
 
 interface SpotifyPreviewProps {
   album: AlbumData | null;
@@ -77,10 +78,7 @@ export default function SpotifyPreview({ album, isOpen, onClose }: SpotifyPrevie
         <div className="preview-header">
           <h3>Album Details</h3>
           <button onClick={onClose} className="preview-close-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
+            <X size={16} />
           </button>
         </div>
         
@@ -116,14 +114,9 @@ export default function SpotifyPreview({ album, isOpen, onClose }: SpotifyPrevie
                   className="play-pause-btn"
                 >
                   {isPlaying ? (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="6" y="4" width="4" height="16"/>
-                      <rect x="14" y="4" width="4" height="16"/>
-                    </svg>
+                    <Pause size={20} fill="currentColor" />
                   ) : (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                      <polygon points="5,3 19,12 5,21"/>
-                    </svg>
+                    <Play size={20} fill="currentColor" />
                   )}
                 </button>
                 
@@ -138,20 +131,14 @@ export default function SpotifyPreview({ album, isOpen, onClose }: SpotifyPrevie
                   <span className="time-display">{formatTime(duration)}</span>
                 </div>
                 
-                <svg className="volume-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/>
-                  <path d="M19.07,4.93a10,10,0,0,1,0,14.14M15.54,8.46a5,5,0,0,1,0,7.07"/>
-                </svg>
+                <Volume2 className="volume-icon" size={16} />
               </div>
               
               <p className="preview-note">30-second preview from Spotify</p>
             </div>
           ) : (
             <div className="no-preview">
-              <svg className="no-preview-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/>
-                <path d="M19.07,4.93a10,10,0,0,1,0,14.14M15.54,8.46a5,5,0,0,1,0,7.07"/>
-              </svg>
+              <Volume2 className="no-preview-icon" size={24} />
               <p>Why this album?</p>
               {album.reasoning ? (
                 <div className="reasoning-text">

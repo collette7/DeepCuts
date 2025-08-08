@@ -145,13 +145,18 @@ class ApiClient {
             });
             
             if (!response.ok) {
+                if (response.status === 401) {
+                    // Return empty favorites for unauthorized users
+                    return { success: false, favorites: [], total: 0 };
+                }
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
             return await response.json();
         } catch (error) {
             console.error('Get favorites with details error:', error);
-            throw error;
+            // Return empty favorites on error instead of throwing
+            return { success: false, favorites: [], total: 0 };
         }
     }
 
@@ -258,6 +263,7 @@ export interface FavoriteItem {
     saved_at: string;
     albums?: AlbumData;
     album?: AlbumData;
+    reasoning?: string;
 }
 
 export interface FavoriteActionResponse {

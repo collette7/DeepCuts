@@ -9,10 +9,11 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import AlbumDetails from '../components/AlbumDetails';
 import Navigation from '../components/Navigation';
+import '../components/RecommendationsSection.scss';
 
 
 export default function FavoritesPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,15 +21,6 @@ export default function FavoritesPage() {
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumData | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (user) {
-      loadFavorites();
-    } else {
-      // Redirect to home if not logged in
-      router.push('/');
-    }
-  }, [user, router]);
 
   const loadFavorites = useCallback(async () => {
     try {
@@ -50,6 +42,20 @@ export default function FavoritesPage() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (authLoading) {
+      // Still loading auth state, don't do anything yet
+      return;
+    }
+    
+    if (user) {
+      loadFavorites();
+    } else {
+      // User is not authenticated, redirect to home
+      router.push('/');
+    }
+  }, [user, authLoading, router, loadFavorites]);
 
   const handleListenNow = (album: AlbumData) => {
     setSelectedAlbum(album);
@@ -85,13 +91,16 @@ export default function FavoritesPage() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
-      <div className="page-container">
-        <div className="container">
-          <LoadingSpinner />
+      <>
+        <Navigation />
+        <div className="page-container">
+          <div className="container">
+            <LoadingSpinner />
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -122,8 +131,8 @@ export default function FavoritesPage() {
         )}
 
         {!error && favorites.length > 0 && (
-          <div className="favorites-section">
-            <div className="albums-grid">
+          <div className="recommendations-section">
+            <div className="recommendations-grid">
               {favorites.map((favorite) => {
                 // Handle different response formats
                 const album = favorite.albums || favorite.album;

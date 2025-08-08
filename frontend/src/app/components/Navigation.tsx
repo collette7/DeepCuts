@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import AuthModal from './auth/AuthModal';
+import { Menu, User, Music } from 'lucide-react';
 import './Navigation.scss';
 
 
@@ -21,14 +22,11 @@ export default function Navigation() {
   };
 
   return (
-    <nav className="airbnb-nav">
+    <nav className="main-nav">
       <div className="nav-container">
         {/* Logo */}
         <div className="nav-logo" onClick={() => router.push('/')}>
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="16" r="16" fill="#FF5A5F"/>
-            <path d="M16 8L20 12H18V20H14V12H12L16 8Z" fill="white"/>
-          </svg>
+          <Music className="nav-logo-icon" size={32} color="#FF5A5F" />
           <span className="nav-logo-text">DeepCuts</span>
         </div>
 
@@ -40,33 +38,14 @@ export default function Navigation() {
               className="nav-user-button"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path 
-                  d="M2 4.75C2 4.33579 2.33579 4 2.75 4H13.25C13.6642 4 14 4.33579 14 4.75C14 5.16421 13.6642 5.5 13.25 5.5H2.75C2.33579 5.5 2 5.16421 2 4.75Z" 
-                  fill="currentColor"
-                />
-                <path 
-                  d="M2 8C2 7.58579 2.33579 7.25 2.75 7.25H13.25C13.6642 7.25 14 7.58579 14 8C14 8.41421 13.6642 8.75 13.25 8.75H2.75C2.33579 8.75 2 8.41421 2 8Z" 
-                  fill="currentColor"
-/>
-                <path 
-                  d="M2.75 10.5C2.33579 10.5 2 10.8358 2 11.25C2 11.6642 2.33579 12 2.75 12H13.25C13.6642 12 14 11.6642 14 11.25C14 10.8358 13.6642 10.5 13.25 10.5H2.75Z" 
-                  fill="currentColor"
-                />
-              </svg>
+              <Menu size={16} />
               
               {user ? (
                 <div className="user-avatar">
                   {user.email?.charAt(0).toUpperCase()}
                 </div>
               ) : (
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <circle cx="10" cy="8" r="3" fill="currentColor"/>
-                  <path 
-                    d="M4 18c0-3.314 2.686-6 6-6s6 2.686 6 6v1H4v-1z" 
-                    fill="currentColor"
-                  />
-                </svg>
+                <User size={20} />
               )}
             </button>
 

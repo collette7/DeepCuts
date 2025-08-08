@@ -1,0 +1,46 @@
+@use '../../styles/variables' as *;
+
+// Recommendations Section Layout
+.recommendations-section {
+  max-width: 1200px;
+  margin: spacing(12) auto 0;
+}
+
+.recommendations-title {
+  font-size: font-size(xl);
+  font-weight: font-weight(semibold);
+  color: color(foreground);
+  margin-bottom: spacing(6);
+  text-align: left;
+  line-height: 1.4;
+}
+
+.recommendations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, 233px);
+  gap: spacing(6);
+  justify-content: left;
+  
+  @media (max-width: breakpoint(sm)) {
+    grid-template-columns: repeat(auto-fit, minmax(233px, 1fr));
+    gap: spacing(4);
+    padding: 0 spacing(4);
+  }
+  
+  @media (max-width: breakpoint(md)) {
+    padding: 0 spacing(4);
+  }
+}
+
+// Responsive improvements
+@media (max-width: breakpoint(sm)) {
+  .recommendations-section {
+    margin: spacing(8) auto 0;
+  }
+  
+  .recommendations-title {
+    font-size: font-size(lg);
+    margin-bottom: spacing(4);
+    padding: 0 spacing(4);
+  }
+}

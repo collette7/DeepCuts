@@ -1,31 +1,28 @@
 @use '../../styles/variables' as v;
 
-/* Album Card Component Styles */
-
+/* Album Card Component - Figma Design */
 .album-card {
-  background-color: v.color(background);
-  border: 1px solid v.color(gray-200);
-  border-radius: v.radius(md);
-  box-shadow: v.shadow(base);
-  transition: v.transition(base);
-  cursor: pointer;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+  gap: 16px;
+  width: 233px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 
   &:hover {
-    box-shadow: v.shadow(lg);
-    transform: translateY(-2px);
-    border-color: v.color(primary);
+    .img-container {
+      transform: scale(1.02);
+    }
   }
 }
 
-.album-cover {
+.img-container {
   width: 100%;
-  aspect-ratio: 1;
+  height: 220px;
   position: relative;
+  overflow: hidden;
   background: linear-gradient(135deg, v.color(gray-100), v.color(gray-200));
+  transition: transform 0.2s ease;
 }
 
 .cover-image {
@@ -58,29 +55,27 @@
   opacity: 0.8;
 }
 
-/* Favorite Button */
+/* Favorite Button - Dark overlay style from Figma */
 .favorite-btn {
   position: absolute;
-  top: v.spacing(2);
-  right: v.spacing(2);
-  width: 32px;
-  height: 32px;
+  top: 7.25px;
+  right: 9px;
+  width: 36px;
+  height: 36px;
   border: none;
-  border-radius: v.radius(full);
-  background: rgba(255, 255, 255, 0.9);
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: v.transition(base);
-  box-shadow: v.shadow(md);
-  z-index: v.z(dropdown);
+  transition: all 0.2s ease;
+  z-index: 2;
 
   &:hover {
-    background: rgba(255, 255, 255, 1);
+    background: rgba(0, 0, 0, 0.85);
     transform: scale(1.05);
-    box-shadow: v.shadow(lg);
   }
 
   &:disabled {
@@ -90,119 +85,127 @@
   }
 
   svg {
-    width: 16px;
-    height: 16px;
-    color: v.color(gray-500);
-    transition: v.transition(base);
+    width: 18px;
+    height: 18px;
+    color: white;
+    transition: color 0.2s ease;
   }
 
   &.favorited svg {
-    color: v.color(error);
+    color: #ef4444;
+    fill: #ef4444;
   }
 
   &:hover:not(:disabled) svg {
-    color: v.color(error);
+    color: #ef4444;
   }
 
   .spinner {
-    width: 14px;
-    height: 14px;
-    border: 2px solid v.color(gray-200);
-    border-top: 2px solid v.color(error);
-    border-radius: v.radius(full);
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
     animation: spin 1s linear infinite;
   }
 }
 
-.album-content {
-  padding: v.spacing(4);
+/* Album Information Container */
+.album-info {
   display: flex;
   flex-direction: column;
-  gap: v.spacing(3);
-  flex-grow: 1;
+  gap: 16px;
+  width: 100%;
 }
 
-.album-header {
-  flex-grow: 1;
+.album-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .album-title {
-  font-size: v.font-size(lg);
-  font-weight: v.font-weight(bold);
-  color: v.color(foreground);
-  margin-bottom: v.spacing(2);
-  line-height: 1.3;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-weight: 600; /* Semi Bold */
+  font-size: 18px;
+  line-height: 24px;
+  letter-spacing: -0.36px;
+  color: #000000;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .album-artist {
-  color: v.color(foreground);
-  opacity: 0.8;
-  font-size: v.font-size(sm);
-  font-weight: v.font-weight(medium);
+  font-family: 'Saans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-weight: 300; /* Light */
+  font-size: 16px;
+  line-height: normal;
+  letter-spacing: -0.32px;
+  color: #000000;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.album-details {
-  display: flex;
-  gap: v.spacing(3);
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.album-year {
-  color: v.color(foreground);
-  opacity: 0.6;
-  font-size: v.font-size(sm);
-  background-color: v.color(gray-100);
-  padding: v.spacing(1) v.spacing(2);
-  border-radius: v.radius(sm);
-  font-weight: v.font-weight(medium);
-}
-
-.album-genre {
-  color: v.color(primary);
-  font-size: v.font-size(sm);
-  background-color: #eff6ff;
-  padding: v.spacing(1) v.spacing(2);
-  border-radius: v.radius(sm);
-  font-weight: v.font-weight(medium);
-}
-
-.album-actions {
-  margin-top: auto;
-}
-
-.listen-now-btn {
+/* Metadata Row */
+.album-metadata {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: v.spacing(2);
-  width: 100%;
-  padding: v.spacing(2) v.spacing(3);
-  background: v.color(spotify);
-  color: white;
-  border: none;
-  border-radius: v.spacing(2);
-  font-size: v.font-size(sm);
-  font-weight: v.font-weight(medium);
-  cursor: pointer;
-  transition: v.transition(base);
+  gap: 8px;
+  flex-wrap: nowrap;
+}
 
-  &:hover {
-    background: v.color(spotify-hover);
-    transform: translateY(-1px);
-  }
+.metadata-item {
+  font-family: 'DM Mono', 'Monaco', 'Menlo', monospace;
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 20px;
+  color: rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-  &:active {
-    transform: translateY(0);
-  }
-
-  svg {
-    width: 14px;
-    height: 14px;
-  }
+.metadata-separator {
+  font-family: 'DM Mono', 'Monaco', 'Menlo', monospace;
+  font-weight: 400;
+  font-size: 6px;
+  line-height: 20px;
+  color: rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 640px) {
+  .album-card {
+    width: 100%;
+    max-width: 280px;
+  }
+  
+  .img-container {
+    height: 200px;
+  }
+  
+  .album-title {
+    font-size: 16px;
+    line-height: 22px;
+  }
+  
+  .album-artist {
+    font-size: 14px;
+  }
+  
+  .metadata-item {
+    font-size: 12px;
+  }
 }

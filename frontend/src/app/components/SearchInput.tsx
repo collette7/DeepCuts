@@ -1,21 +1,29 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Search, ArrowRight } from 'lucide-react';
 import { apiClient, SuggestionResponse, SuggestionResult } from '@/lib/api';
-import { Search } from 'lucide-react';
-import './SearchForm.scss';
+import './SearchInput.scss';
 
-interface SearchFormProps {
-  searchQuery: string;
-  onSearchQueryChange: (query: string) => void;
+interface SearchInputProps {
+  value: string;
+  onChange: (value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
-  loading: boolean;
+  loading?: boolean;
+  placeholder?: string;
+  variant?: 'default' | 'hero';
+  showButton?: boolean;
+  className?: string;
 }
 
-export default function SearchForm({ 
-  searchQuery, 
-  onSearchQueryChange, 
-  onSubmit, 
-  loading 
-}: SearchFormProps) {
+export default function SearchInput({
+  value,
+  onChange,
+  onSubmit,
+  loading = false,
+  placeholder = "Search for albums",
+  variant = 'default',
+  showButton = true,
+  className = ''
+}: SearchInputProps) {
   const [results, setResults] = useState<SuggestionResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [cache, setCache] = useState(new Map<string, SuggestionResult[]>());
@@ -35,7 +43,6 @@ export default function SearchForm({
         return;
       }
 
-      
       const cacheKey = searchQuery.toLowerCase();
       if (cache.has(cacheKey)) {
         const cachedResults = cache.get(cacheKey) || [];
@@ -48,7 +55,7 @@ export default function SearchForm({
         const data: SuggestionResponse = await apiClient.searchDiscogs(searchQuery);
         
         if (data.results && data.results.length > 0) {
-          // Deduplicate by normalizing titles (remove extra info, case insensitive)
+          // Deduplicate by normalizing titles
           const deduplicatedResults = data.results.reduce((acc: SuggestionResult[], current) => {
             const normalizeTitle = (title: string) => {
               return title
@@ -87,8 +94,8 @@ export default function SearchForm({
   }, [cache]);
 
   useEffect(() => {
-    delaySearch(searchQuery);
-  }, [searchQuery, delaySearch]);
+    delaySearch(value);
+  }, [value, delaySearch]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -109,35 +116,41 @@ export default function SearchForm({
   }, [showResults]); 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    onSearchQueryChange(value);
-    if (value.length >= 2) {
+    const newValue = e.target.value;
+    onChange(newValue);
+    if (newValue.length >= 2) {
       setShowResults(true);
     }
   };
 
   const handleInputFocus = () => {
-    if (results.length > 0 && searchQuery.length >= 2) {
+    if (results.length > 0 && value.length >= 2) {
       setShowResults(true);
     }
   };
 
   const handleResultClick = (result: SuggestionResult) => {
-    onSearchQueryChange(result.title);
+    onChange(result.title);
     setShowResults(false);
-    
   };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setShowResults(false);
+    onSubmit(e);
+  };
+
   return (
-    <div className="search-section">
-      <div className="search-form-wrapper">
-        <form onSubmit={onSubmit} className="search-form">
-          <div className="search-input-container">
-            <Search className="search-icon" size={20} />
+    <div className={`search-input-container ${variant} ${className}`}>
+      <form onSubmit={handleFormSubmit} className="search-input-form">
+        <div className="search-field">
+          <div className="search-input-wrapper">
+            <Search className="search-icon" size={variant === 'hero' ? 24 : 20} />
             <input
               ref={inputRef}
               type="text"
-              placeholder="Search for albums"
-              value={searchQuery}
+              placeholder={placeholder}
+              value={value}
               onChange={handleInputChange}
               onFocus={handleInputFocus}
               className="search-input"
@@ -145,17 +158,29 @@ export default function SearchForm({
               required
             />
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="search-button"
-          >
-            {loading ? 'Searching...' : 'Search'}
-          </button>
-        </form>
-
-        {showResults && results.length > 0 && (
-          <div ref={resultsRef} className="search-results-dropdown">
+          {showButton && (
+            <button
+              type="submit"
+              disabled={loading}
+              className="search-submit-btn"
+              aria-label="Search"
+            >
+              <div className="search-btn-icon">
+                {loading ? (
+                  <div className="loading-spinner" />
+                ) : variant === 'hero' ? (
+                  <ArrowRight size={20} color="white" />
+                ) : (
+                  'Search'
+                )}
+              </div>
+            </button>
+          )}
+        </div>
+      </form>
+      
+      {showResults && results.length > 0 && (
+        <div ref={resultsRef} className="search-results-dropdown">
           {results.map((result) => (
             <div 
               key={result.id} 
@@ -184,9 +209,8 @@ export default function SearchForm({
               </div>
             </div>
           ))}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
