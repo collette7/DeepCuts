@@ -2,6 +2,7 @@
 
 import { AlbumData } from '@/lib/api';
 import { User } from '@supabase/supabase-js';
+import { X, ExternalLink, UserPlus } from 'lucide-react';
 import './AlbumDetails.scss';
 
 interface AlbumDetailsProps {
@@ -25,10 +26,7 @@ export default function AlbumDetails({ album, isOpen, onClose, user, onAuthRequi
         <div className="details-header">
           <h3>Album Details</h3>
           <button onClick={onClose} className="details-close-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
+            <X size={16} />
           </button>
         </div>
         
@@ -75,11 +73,7 @@ export default function AlbumDetails({ album, isOpen, onClose, user, onAuthRequi
                   rel="noopener noreferrer"
                   className="spotify-action-btn"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M18 13V6A2 2 0 0 0 16 4H4A2 2 0 0 0 2 6V18A2 2 0 0 0 4 20H16A2 2 0 0 0 18 18V13Z"/>
-                    <polyline points="15,3 21,3 21,9"/>
-                    <line x1="10" y1="14" x2="21" y2="3"/>
-                  </svg>
+                  <ExternalLink size={16} />
                   Listen on Spotify
                 </a>
               ) : (
@@ -93,10 +87,7 @@ export default function AlbumDetails({ album, isOpen, onClose, user, onAuthRequi
                     cursor: 'pointer'
                   }}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M9 11L12 14L22 4"/>
-                    <path d="M21 12V18A2 2 0 0 1 19 20H5A2 2 0 0 1 3 18V6A2 2 0 0 1 5 4H16"/>
-                  </svg>
+                  <UserPlus size={16} />
                   Sign up to Listen on Spotify
                 </button>
               )

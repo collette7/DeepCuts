@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import LoginForm from './LoginForm'
 import SignupForm from './SignupForm'
 import './AuthModal.scss'
@@ -24,10 +25,7 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'login' }: Au
     <div className="auth-modal-overlay" onClick={onClose}>
       <div className="auth-modal-content" onClick={(e) => e.stopPropagation()}>
         <button className="auth-modal-close" onClick={onClose}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="m18 6-12 12"/>
-            <path d="m6 6 12 12"/>
-          </svg>
+          <X size={16} />
         </button>
         
         {currentView === 'login' ? (

@@ -4,13 +4,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { apiClient, AlbumData, SearchResponse, FavoriteItem } from '@/lib/api';
 import { useAuth } from './contexts/AuthContext';
 import AlbumCard from './components/AlbumCard';
-import SearchForm from './components/SearchForm';
+import HeroHeader from './components/HeroHeader';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import ErrorMessage from './components/ui/ErrorMessage';
 import AuthModal from './components/auth/AuthModal';
 import AlbumDetails from './components/AlbumDetails';
 import Navigation from './components/Navigation';
 import './page.css';
+import './components/RecommendationsSection.scss';
 
 
 // Dynamic loading from Sessions database
@@ -72,7 +73,7 @@ const handleSearch = async (query: string) => {
     }
     
     setLoading(true);
-    setLoadingMessage('🤖 AI is analyzing your taste...');
+    //setLoadingMessage('Searching for deep cuts...');
     
     const searchData: SearchResponse = await apiClient.searchAlbums(query);
     
@@ -212,30 +213,19 @@ const handleToggleFavorite = async (album: AlbumData) => {
     <>
       <Navigation />
       <div className="page-container">
-        <div className="container">
-        {/* Welcome Section */}
-        <div className="welcome-section">
-          <h1>Find your next favorite album</h1>
-          <p>Discover deep cuts and hidden gems tailored to your unique taste</p>
-        </div>
-
-        {/* Search */}
-        <SearchForm 
+        {/* Hero Header with Search */}
+        <HeroHeader 
           searchQuery={searchQuery}
           onSearchQueryChange={setSearchQuery}
           onSubmit={handleSearchSubmit}
           loading={loading}
         />
+        
+        <div className="container">
 
         {/* Results Area */}
         {loading && (
           <div style={{ textAlign: 'center', padding: '2rem' }}>
-            <LoadingSpinner />
-            {loadingMessage && (
-              <p style={{ marginTop: '1rem', fontSize: '1.1rem', color: '#666', fontWeight: '500' }}>
-                {loadingMessage}
-              </p>
-            )}
             <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#999' }}>
               This may take 15-30 seconds for the best recommendations
             </p>
@@ -245,9 +235,9 @@ const handleToggleFavorite = async (album: AlbumData) => {
         {error && <ErrorMessage error={error} />}
         
         {!loading && !error && albums.length > 0 && (
-          <div className="albums-section">
-            <h2 className="albums-title">{searchQuery ? `${albums.length} deep cut albums for ${searchQuery} lovers` : "Today's top favorites"}</h2>
-            <div className="albums-grid">
+          <div className="recommendations-section">
+            <h2 className="recommendations-title">{searchQuery ? `${albums.length} deep cut albums for ${searchQuery} lovers` : "Today's top favorites"}</h2>
+            <div className="recommendations-grid">
               {albums.map((album) => (
                 <AlbumCard 
                   key={album.id} 

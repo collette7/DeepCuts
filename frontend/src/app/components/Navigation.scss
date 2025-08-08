@@ -1,6 +1,6 @@
 @use '../../styles/variables' as v;
 
-.airbnb-nav {
+.main-nav {
   background: white;
   border-bottom: 1px solid v.color(gray-200);
   position: sticky;
@@ -191,7 +191,7 @@
 
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
-  .airbnb-nav {
+  .main-nav {
     background: #1a1a1a;
     border-bottom: 1px solid #333;
   }
