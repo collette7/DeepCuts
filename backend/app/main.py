@@ -103,7 +103,8 @@ async def get_random_albums(limit: int = 10):
                 "genre": album.get('genre', ''),
                 "cover_url": album.get('cover_url'),
                 "spotify_preview_url": album.get('spotify_preview_url'),
-                "discogs_url": album.get('discogs_id')
+                "discogs_url": album.get('discogs_id'),
+                "reasoning": album.get('reasoning')
             }
             albums.append(album_data)
         
@@ -307,36 +308,27 @@ async def search_albums(
             logger.warning(f"No recommendations from Claude for query: {request.query}")
             recommendations = []
         
-        # Add cover images and Spotify data
+        # Return AI recommendations immediately without waiting for external API calls
+        # External data will be loaded progressively on the frontend
         if recommendations:
-            enriched_recommendations = []
+            # Just convert to proper AlbumData format without external API calls
+            quick_recommendations = []
             for album in recommendations:
-                # Get cover image from Discogs
-                cover_url = None
-                if request.include_discogs:
-                    cover_url = await get_album_cover_from_discogs(album.title, album.artist)
-                
-                # Get Spotify data
-                spotify_data = {"preview_url": None, "external_url": None}
-                if request.include_spotify:
-                    spotify_data = await get_spotify_album_data(album.title, album.artist)
-                
-                # Create new album 
-                enriched_album = AlbumData(
+                quick_album = AlbumData(
                     id=album.id,
                     title=album.title,
                     artist=album.artist,
                     year=album.year,
                     genre=album.genre,
-                    spotify_preview_url=spotify_data["preview_url"],
-                    spotify_url=spotify_data["external_url"],
+                    spotify_preview_url=None,  # Will be loaded progressively
+                    spotify_url=None,  # Will be loaded progressively
                     discogs_url=album.discogs_url,
-                    cover_url=cover_url,
+                    cover_url=None,  # Will be loaded progressively
                     reasoning=album.reasoning
                 )
-                enriched_recommendations.append(enriched_album)
+                quick_recommendations.append(quick_album)
             
-            recommendations = enriched_recommendations
+            recommendations = quick_recommendations
         
         # Save recommended albums to the session
         if session_id and recommendations:
@@ -360,6 +352,29 @@ async def search_albums(
         total_found=len(limited_recommendations),
         processing_time_ms=processing_time 
     )
+
+
+@app.get("/api/v1/albums/{album_id}/spotify")
+async def get_album_spotify_data(album_id: str, title: str, artist: str):
+    """Get Spotify data for a specific album"""
+    try:
+        spotify_data = await get_spotify_album_data(title, artist)
+        cover_url = await get_album_cover_from_discogs(title, artist)
+        
+        return {
+            "album_id": album_id,
+            "spotify_preview_url": spotify_data.get("preview_url"),
+            "spotify_url": spotify_data.get("external_url"), 
+            "cover_url": cover_url
+        }
+    except Exception as e:
+        logger.error(f"Error getting Spotify data for {title} by {artist}: {e}")
+        return {
+            "album_id": album_id,
+            "spotify_preview_url": None,
+            "spotify_url": None,
+            "cover_url": None
+        }
 
 
 @app.post("/api/v1/discogs/search")

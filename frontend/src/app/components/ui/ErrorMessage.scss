@@ -1,10 +1,10 @@
-@import '../../../styles/variables';
+@use '../../../styles/variables' as v;
 
 /* Error Message Component Styles */
 
 .error-container {
   min-height: 100vh;
-  background-color: color(background);
+  background-color: v.color(background);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -15,10 +15,10 @@
 }
 
 .error-message {
-  color: color(error);
-  margin-bottom: spacing(4);
+  color: v.color(error);
+  margin-bottom: v.spacing(4);
 }
 
 .error-description {
-  color: color(foreground);
+  color: v.color(foreground);
 }

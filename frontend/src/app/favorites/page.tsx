@@ -130,10 +130,16 @@ export default function FavoritesPage() {
                 
                 if (!album) return null; // Skip if no album data
                 
+                // Merge reasoning from favorites record into album data (if available)
+                const albumWithReasoning = {
+                  ...album,
+                  reasoning: favorite?.reasoning || album?.reasoning
+                };
+                
                 return (
                   <AlbumCard 
                     key={favorite.id || album.id}
-                    album={album}
+                    album={albumWithReasoning}
                     onListenNow={handleListenNow}
                     onToggleFavorite={handleRemoveFavorite}
                     isFavorited={true}
@@ -149,6 +155,11 @@ export default function FavoritesPage() {
           album={selectedAlbum}
           isOpen={detailsOpen}
           onClose={handleCloseDetails}
+          user={user}
+          onAuthRequired={() => {
+            // Favorites page already requires login, but just in case
+            router.push('/');
+          }}
         />
         </div>
       </div>

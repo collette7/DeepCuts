@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MagnifyingGlassIcon } from '@radix-ui/react-icons';
 import { apiClient, SuggestionResponse, SuggestionResult } from '@/lib/api';
 import './SearchForm.scss';
 
@@ -132,7 +131,10 @@ export default function SearchForm({
       <div className="search-form-wrapper">
         <form onSubmit={onSubmit} className="search-form">
           <div className="search-input-container">
-            <MagnifyingGlassIcon className="search-icon" />
+            <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
             <input
               ref={inputRef}
               type="text"

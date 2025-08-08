@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Cross2Icon, PlayIcon, PauseIcon, SpeakerLoudIcon } from '@radix-ui/react-icons';
 import { AlbumData } from '@/lib/api';
 
 interface SpotifyPreviewProps {
@@ -78,7 +77,10 @@ export default function SpotifyPreview({ album, isOpen, onClose }: SpotifyPrevie
         <div className="preview-header">
           <h3>Album Details</h3>
           <button onClick={onClose} className="preview-close-btn">
-            <Cross2Icon />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
           </button>
         </div>
         
@@ -113,7 +115,16 @@ export default function SpotifyPreview({ album, isOpen, onClose }: SpotifyPrevie
                   onClick={togglePlayPause}
                   className="play-pause-btn"
                 >
-                  {isPlaying ? <PauseIcon /> : <PlayIcon />}
+                  {isPlaying ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="4" width="4" height="16"/>
+                      <rect x="14" y="4" width="4" height="16"/>
+                    </svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5,3 19,12 5,21"/>
+                    </svg>
+                  )}
                 </button>
                 
                 <div className="progress-section">
@@ -127,21 +138,31 @@ export default function SpotifyPreview({ album, isOpen, onClose }: SpotifyPrevie
                   <span className="time-display">{formatTime(duration)}</span>
                 </div>
                 
-                <SpeakerLoudIcon className="volume-icon" />
+                <svg className="volume-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/>
+                  <path d="M19.07,4.93a10,10,0,0,1,0,14.14M15.54,8.46a5,5,0,0,1,0,7.07"/>
+                </svg>
               </div>
               
               <p className="preview-note">30-second preview from Spotify</p>
             </div>
           ) : (
             <div className="no-preview">
-              <SpeakerLoudIcon className="no-preview-icon" />
+              <svg className="no-preview-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/>
+                <path d="M19.07,4.93a10,10,0,0,1,0,14.14M15.54,8.46a5,5,0,0,1,0,7.07"/>
+              </svg>
               <p>Why this album?</p>
               {album.reasoning ? (
                 <div className="reasoning-text">
                   <p>{album.reasoning}</p>
                 </div>
               ) : (
-                <span>This album doesn&apos;t have a preview on Spotify</span>
+                <div className="reasoning-text">
+                  <p style={{ fontStyle: 'italic', opacity: 0.7 }}>
+                    No preview available. Try searching for AI-powered recommendations with personalized explanations!
+                  </p>
+                </div>
               )}
             </div>
           )}

@@ -1,55 +1,55 @@
-@import '../../../styles/variables';
+@use '../../../styles/variables' as v;
 
 /* Login Form Component Styles */
 
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: spacing(5);
+  gap: v.spacing(5);
 
   h2 {
-    font-size: font-size(2xl);
-    font-weight: font-weight(semibold);
+    font-size: v.font-size(2xl);
+    font-weight: v.font-weight(semibold);
     text-align: center;
-    margin-bottom: spacing(2);
-    color: color(foreground);
+    margin-bottom: v.spacing(2);
+    color: v.color(foreground);
   }
 }
 
 .auth-error-message {
-  padding: spacing(3) spacing(4);
+  padding: v.spacing(3) v.spacing(4);
   background-color: #fef2f2;
   border: 1px solid #fecaca;
-  border-radius: radius(base);
-  color: color(error);
-  font-size: font-size(sm);
+  border-radius: v.radius(base);
+  color: v.color(error);
+  font-size: v.font-size(sm);
 }
 
 .auth-form-group {
   display: flex;
   flex-direction: column;
-  gap: spacing(2);
+  gap: v.spacing(2);
 
   label {
-    font-size: font-size(sm);
-    font-weight: font-weight(medium);
-    color: color(foreground);
+    font-size: v.font-size(sm);
+    font-weight: v.font-weight(medium);
+    color: v.color(foreground);
   }
 }
 
 .auth-form-input {
   width: 100%;
-  padding: spacing(3) spacing(4);
-  border: 1px solid color(gray-300);
-  border-radius: radius(base);
-  font-size: font-size(base);
-  color: color(foreground);
-  background-color: color(background);
-  transition: transition(base);
+  padding: v.spacing(3) v.spacing(4);
+  border: 1px solid v.color(gray-300);
+  border-radius: v.radius(base);
+  font-size: v.font-size(base);
+  color: v.color(foreground);
+  background-color: v.color(background);
+  transition: v.transition(base);
 
   &:focus {
     outline: none;
-    border-color: color(primary);
+    border-color: v.color(primary);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 
@@ -61,23 +61,23 @@
 
 .auth-submit-btn {
   width: 100%;
-  padding: spacing(3) spacing(4);
-  background-color: color(primary);
+  padding: v.spacing(3) v.spacing(4);
+  background-color: v.color(primary);
   color: white;
   border: none;
-  border-radius: radius(base);
-  font-size: font-size(base);
-  font-weight: font-weight(medium);
+  border-radius: v.radius(base);
+  font-size: v.font-size(base);
+  font-weight: v.font-weight(medium);
   cursor: pointer;
-  transition: transition(base);
+  transition: v.transition(base);
 
   &:hover:not(:disabled) {
-    background-color: color(primary-hover);
+    background-color: v.color(primary-hover);
     transform: translateY(-1px);
   }
 
   &:disabled {
-    background-color: color(gray-400);
+    background-color: v.color(gray-400);
     cursor: not-allowed;
     transform: none;
   }
@@ -85,52 +85,52 @@
 
 .auth-divider {
   height: 1px;
-  background-color: color(gray-200);
-  margin: spacing(2) 0;
+  background-color: v.color(gray-200);
+  margin: v.spacing(2) 0;
 }
 
 .auth-switch {
   text-align: center;
-  font-size: font-size(sm);
-  color: color(foreground);
+  font-size: v.font-size(sm);
+  color: v.color(foreground);
 }
 
 .auth-switch-btn {
-  color: color(primary);
+  color: v.color(primary);
   background: none;
   border: none;
   cursor: pointer;
-  font-size: font-size(sm);
+  font-size: v.font-size(sm);
   text-decoration: underline;
 
   &:hover {
-    color: color(primary-hover);
+    color: v.color(primary-hover);
   }
 }
 
 .auth-help-links {
   display: flex;
   flex-direction: column;
-  gap: spacing(2);
-  font-size: font-size(sm);
+  gap: v.spacing(2);
+  font-size: v.font-size(sm);
 
   p {
     text-align: center;
     margin: 0;
-    color: color(foreground);
+    color: v.color(foreground);
     opacity: 0.8;
   }
 }
 
 .auth-help-link {
-  color: color(primary);
+  color: v.color(primary);
   background: none;
   border: none;
   cursor: pointer;
-  font-size: font-size(sm);
+  font-size: v.font-size(sm);
   text-decoration: underline;
 
   &:hover {
-    color: color(primary-hover);
+    color: v.color(primary-hover);
   }
 }

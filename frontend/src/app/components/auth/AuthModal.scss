@@ -1,4 +1,4 @@
-@import '../../../styles/variables';
+@use '../../../styles/variables' as v;
 
 /* Auth Modal Styles - Clean Design */
 .auth-modal-overlay {
@@ -11,64 +11,64 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: z(overlay);
-  padding: spacing(6);
+  z-index: v.z(overlay);
+  padding: v.spacing(6);
 }
 
 .auth-modal-content {
   background: white;
-  border-radius: radius(md);
+  border-radius: v.radius(md);
   width: 100%;
   max-width: 568px;
   max-height: 90vh;
   overflow-y: auto;
   position: relative;
-  box-shadow: shadow(2xl);
+  box-shadow: v.shadow(2xl);
 }
 
 .auth-modal-close {
   position: absolute;
-  top: spacing(6);
-  right: spacing(6);
+  top: v.spacing(6);
+  right: v.spacing(6);
   background: none;
   border: none;
   cursor: pointer;
-  padding: spacing(2);
-  border-radius: radius(full);
+  padding: v.spacing(2);
+  border-radius: v.radius(full);
   width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: color(gray-600);
-  transition: transition(base);
+  color: v.color(gray-600);
+  transition: v.transition(base);
 
   &:hover {
-    background-color: color(gray-50);
+    background-color: v.color(gray-50);
   }
 }
 
 /* Form Styles */
 .auth-form {
-  padding: spacing(6);
+  padding: v.spacing(6);
 
   h2 {
-    font-size: font-size(2xl);
-    font-weight: font-weight(semibold);
-    margin: 0 0 spacing(6) 0;
+    font-size: v.font-size(2xl);
+    font-weight: v.font-weight(semibold);
+    margin: 0 0 v.spacing(6) 0;
     color: #222;
   }
 }
 
 .auth-form-group {
-  margin-bottom: spacing(4);
+  margin-bottom: v.spacing(4);
 
   label {
     display: block;
-    font-size: font-size(xs);
-    font-weight: font-weight(semibold);
+    font-size: v.font-size(xs);
+    font-weight: v.font-weight(semibold);
     color: #222;
-    margin-bottom: spacing(2);
+    margin-bottom: v.spacing(2);
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
@@ -78,9 +78,9 @@
   width: 100%;
   padding: 11px;
   border: 1px solid #b0b0b0;
-  border-radius: radius(base);
-  font-size: font-size(base);
-  transition: transition(base);
+  border-radius: v.radius(base);
+  font-size: v.font-size(base);
+  transition: v.transition(base);
   background: #fff;
 
   &:focus {
@@ -90,7 +90,7 @@
   }
 
   &::placeholder {
-    color: color(gray-600);
+    color: v.color(gray-600);
   }
 }
 
@@ -100,12 +100,12 @@
   color: white;
   border: none;
   padding: 14px;
-  border-radius: radius(base);
-  font-size: font-size(base);
-  font-weight: font-weight(semibold);
+  border-radius: v.radius(base);
+  font-size: v.font-size(base);
+  font-weight: v.font-weight(semibold);
   cursor: pointer;
-  margin: spacing(6) 0;
-  transition: transition(base);
+  margin: v.spacing(6) 0;
+  transition: v.transition(base);
 
   &:hover:not(:disabled) {
     background: #E00007;
@@ -120,12 +120,12 @@
 .auth-divider {
   height: 1px;
   background: #DDDDDD;
-  margin: spacing(6) 0;
+  margin: v.spacing(6) 0;
 }
 
 .auth-switch {
-  color: color(gray-600);
-  font-size: font-size(sm);
+  color: v.color(gray-600);
+  font-size: v.font-size(sm);
   margin: 0;
   text-align: left;
 }
@@ -134,32 +134,32 @@
   background: none;
   border: none;
   color: #222;
-  font-size: font-size(sm);
-  font-weight: font-weight(semibold);
+  font-size: v.font-size(sm);
+  font-weight: v.font-weight(semibold);
   cursor: pointer;
   text-decoration: underline;
   padding: 0;
-  margin-left: spacing(1);
+  margin-left: v.spacing(1);
 
   &:hover {
-    color: color(gray-600);
+    color: v.color(gray-600);
   }
 }
 
 .auth-error-message {
-  background: color(gray-50);
+  background: v.color(gray-50);
   border: 1px solid #DDDDDD;
-  border-radius: radius(base);
-  padding: spacing(3);
-  margin-bottom: spacing(4);
-  color: color(error);
-  font-size: font-size(sm);
+  border-radius: v.radius(base);
+  padding: v.spacing(3);
+  margin-bottom: v.spacing(4);
+  color: v.color(error);
+  font-size: v.font-size(sm);
 }
 
 .auth-help-links {
-  color: color(gray-600);
-  font-size: font-size(sm);
-  margin-top: spacing(6);
+  color: v.color(gray-600);
+  font-size: v.font-size(sm);
+  margin-top: v.spacing(6);
 }
 
 .auth-help-link {
@@ -168,48 +168,48 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-size: font-size(sm);
+  font-size: v.font-size(sm);
   padding: 0;
 
   &:hover {
-    color: color(gray-600);
+    color: v.color(gray-600);
   }
 }
 
 /* Success State */
 .auth-success {
   text-align: center;
-  padding: spacing(10) spacing(6);
+  padding: v.spacing(10) v.spacing(6);
 
   h2 {
-    font-size: font-size(2xl);
-    font-weight: font-weight(semibold);
-    margin: 0 0 spacing(4) 0;
+    font-size: v.font-size(2xl);
+    font-weight: v.font-weight(semibold);
+    margin: 0 0 v.spacing(4) 0;
     color: #222;
   }
 
   p {
-    color: color(gray-600);
-    font-size: font-size(base);
+    color: v.color(gray-600);
+    font-size: v.font-size(base);
     line-height: 1.5;
-    margin: 0 0 spacing(6) 0;
+    margin: 0 0 v.spacing(6) 0;
   }
 }
 
 .auth-success-icon {
   width: 48px;
   height: 48px;
-  margin: 0 auto spacing(6);
+  margin: 0 auto v.spacing(6);
   color: #00A699;
 }
 
 .auth-success-email {
-  font-weight: font-weight(semibold);
+  font-weight: v.font-weight(semibold);
   color: #222;
 }
 
 /* Mobile responsiveness */
-@media (max-width: breakpoint(md)) {
+@media (max-width: v.breakpoint(md)) {
   .auth-modal-overlay {
     padding: 0;
   }
@@ -221,6 +221,6 @@
   }
   
   .auth-form {
-    padding: spacing(6) spacing(5);
+    padding: v.spacing(6) v.spacing(5);
   }
 }

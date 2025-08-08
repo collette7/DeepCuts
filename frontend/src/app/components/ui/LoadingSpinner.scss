@@ -1,10 +1,10 @@
-@import '../../../styles/variables';
+@use '../../../styles/variables' as v;
 
 /* Loading Spinner Component Styles */
 
 .loading-container {
   min-height: 100vh;
-  background-color: color(background);
+  background-color: v.color(background);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -18,15 +18,15 @@
   width: 48px;
   height: 48px;
   border: 2px solid transparent;
-  border-top: 2px solid color(primary);
-  border-radius: radius(full);
+  border-top: 2px solid v.color(primary);
+  border-radius: v.radius(full);
   animation: spin 1s linear infinite;
   margin: 0 auto;
 }
 
 .loading-text {
-  margin-top: spacing(4);
-  color: color(foreground);
+  margin-top: v.spacing(4);
+  color: v.color(foreground);
 }
 
 @keyframes spin {
