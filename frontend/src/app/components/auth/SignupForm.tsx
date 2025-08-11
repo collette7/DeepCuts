@@ -102,7 +102,7 @@ export default function SignupForm({ onSuccess, onSwitchToLogin }: SignupFormPro
         />
       </div>
 
-      <button type="submit" className="auth-submit-btn" disabled={loading}>
+      <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
         {loading ? 'Creating account...' : 'Sign up'}
       </button>
 

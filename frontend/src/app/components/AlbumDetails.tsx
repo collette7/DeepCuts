@@ -62,27 +62,41 @@ export default function AlbumDetails({ album, isOpen, onClose, user, onAuthRequi
 
           {/* Actions */}
           <div className="details-actions">
-            {album.spotify_url ? (
-              user ? (
-                <a 
-                  href={album.spotify_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="spotify-action-btn"
-                >
-                  <ExternalLink size={16} />
-                  Listen on Spotify
-                </a>
-              ) : (
-                <button
-                  onClick={onAuthRequired}
-                  className="spotify-action-btn signup-cta-btn"
-                >
-                  <UserPlus size={16} />
-                  Sign up to Listen on Spotify
-                </button>
-              )
-            ) : null}
+            {user ? (
+              <>
+                {album.spotify_url && (
+                  <a 
+                    href={album.spotify_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="btn btn-spotify btn-full"
+                  >
+                    <ExternalLink size={16} />
+                    Listen on Spotify
+                  </a>
+                )}
+                
+                {album.discogs_url && (
+                  <a 
+                    href={album.discogs_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="btn btn-discogs btn-full"
+                  >
+                    <ExternalLink size={16} />
+                    View on Discogs
+                  </a>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={onAuthRequired}
+                className="btn btn-primary btn-full btn-pulse"
+              >
+                <UserPlus size={16} />
+                Sign up to listen
+              </button>
+            )}
           </div>
         </div>
       </div>

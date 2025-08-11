@@ -199,6 +199,13 @@ async def get_spotify_album_data(title: str, artist: str) -> Dict[str, Optional[
     return {"preview_url": None, "external_url": None}
 
 
+async def get_discogs_url(title: str, artist: str) -> Optional[str]:
+    """Generate Discogs marketplace search URL for an album."""
+    import urllib.parse
+    search_query = f"{artist} {title}"
+    return f"https://www.discogs.com/search/?q={urllib.parse.quote(search_query)}&type=all"
+
+
 async def get_album_cover_from_discogs(title: str, artist: str) -> Optional[str]:
     """Get album cover URL from Discogs API."""
     discogs_key = os.getenv("DISCOGS_KEY")
@@ -356,16 +363,18 @@ async def search_albums(
 
 @app.get("/api/v1/albums/{album_id}/spotify")
 async def get_album_spotify_data(album_id: str, title: str, artist: str):
-    """Get Spotify data for a specific album"""
+    """Get Spotify and Discogs data for a specific album"""
     try:
         spotify_data = await get_spotify_album_data(title, artist)
         cover_url = await get_album_cover_from_discogs(title, artist)
+        discogs_url = await get_discogs_url(title, artist)
         
         return {
             "album_id": album_id,
             "spotify_preview_url": spotify_data.get("preview_url"),
             "spotify_url": spotify_data.get("external_url"), 
-            "cover_url": cover_url
+            "cover_url": cover_url,
+            "discogs_url": discogs_url
         }
     except Exception as e:
         logger.error(f"Error getting Spotify data for {title} by {artist}: {e}")

@@ -30,11 +30,25 @@ export default function Home() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCache, setSearchCache] = useState<Map<string, AlbumData[]>>(new Map());
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
-  // Load initial albums and user favorites
+  // Initial load on mount
   useEffect(() => {
-    loadInitialAlbums();
+    if (!initialLoadDone && !searchQuery) {
+      loadInitialAlbums();
+      setInitialLoadDone(true);
+    }
+  }, []);
+
+  // Handle user auth changes
+  useEffect(() => {
     if (user) {
+      // Check for pending search query after login
+      const pendingQuery = sessionStorage.getItem('pendingSearchQuery');
+      if (pendingQuery) {
+        sessionStorage.removeItem('pendingSearchQuery');
+        handleSearch(pendingQuery);
+      }
       loadUserFavorites();
     } else {
       setFavoriteAlbums(new Set());
@@ -114,7 +128,7 @@ const loadSpotifyDataProgressively = async (initialAlbums: AlbumData[], cacheKey
     try {
       const spotifyData = await apiClient.getAlbumSpotifyData(album.id, album.title, album.artist);
       
-      // Update this specific album with Spotify data
+      // Update this specific album with Spotify and Discogs data
       setAlbums(currentAlbums => 
         currentAlbums.map(a => 
           a.id === album.id 
@@ -122,7 +136,8 @@ const loadSpotifyDataProgressively = async (initialAlbums: AlbumData[], cacheKey
                 ...a,
                 spotify_preview_url: spotifyData.spotify_preview_url,
                 spotify_url: spotifyData.spotify_url,
-                cover_url: spotifyData.cover_url || a.cover_url
+                cover_url: spotifyData.cover_url || a.cover_url,
+                discogs_url: spotifyData.discogs_url || a.discogs_url
               }
             : a
         )
@@ -135,7 +150,8 @@ const loadSpotifyDataProgressively = async (initialAlbums: AlbumData[], cacheKey
               ...current,
               spotify_preview_url: spotifyData.spotify_preview_url,
               spotify_url: spotifyData.spotify_url,
-              cover_url: spotifyData.cover_url || current.cover_url
+              cover_url: spotifyData.cover_url || current.cover_url,
+              discogs_url: spotifyData.discogs_url || current.discogs_url
             }
           : current
       );
@@ -169,7 +185,8 @@ const handleListenNow = async (album: AlbumData) => {
         ...album,
         spotify_url: spotifyData.spotify_url,
         spotify_preview_url: spotifyData.spotify_preview_url,
-        cover_url: spotifyData.cover_url || album.cover_url
+        cover_url: spotifyData.cover_url || album.cover_url,
+        discogs_url: spotifyData.discogs_url || album.discogs_url
       };
       setSelectedAlbum(enrichedAlbum);
       
@@ -209,6 +226,10 @@ const loadUserFavorites = useCallback(async () => {
 
 const handleToggleFavorite = async (album: AlbumData) => {
   if (!user) {
+    // Store current search query in sessionStorage before opening auth modal
+    if (searchQuery) {
+      sessionStorage.setItem('pendingSearchQuery', searchQuery);
+    }
     setAuthModalOpen(true);
     return;
   }
@@ -289,6 +310,10 @@ const handleToggleFavorite = async (album: AlbumData) => {
           user={user}
           onAuthRequired={() => {
             handleCloseDetails();
+            // Store current search query in sessionStorage before opening auth modal
+            if (searchQuery) {
+              sessionStorage.setItem('pendingSearchQuery', searchQuery);
+            }
             setAuthModalOpen(true);
           }}
         />

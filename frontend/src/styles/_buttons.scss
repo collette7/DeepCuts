@@ -1,0 +1,194 @@
+// Button Design System
+@use 'variables' as v;
+
+// Button Base
+@mixin button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: v.spacing(2);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: v.transition(base);
+  font-family: inherit;
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Button Sizes
+@mixin button-sm {
+  padding: v.spacing(2) v.spacing(3);
+  font-size: v.font-size(sm);
+  font-weight: v.font-weight(medium);
+  border-radius: 1000px;
+  
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+@mixin button-md {
+  padding: v.spacing(3) v.spacing(4);
+  font-size: v.font-size(base);
+  font-weight: v.font-weight(medium);
+  border-radius: 1000px;
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@mixin button-lg {
+  padding: v.spacing(3) v.spacing(5);
+  font-size: v.font-size(lg);
+  font-weight: v.font-weight(semibold);
+  border-radius: 1000px;
+  
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@mixin button-xl {
+  padding: v.spacing(4) v.spacing(6);
+  font-size: v.font-size(xl);
+  font-weight: v.font-weight(semibold);
+  border-radius: 1000px;
+  
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+// Button Variants
+@mixin button-primary {
+  background: v.color(primary);
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: v.color(primary-hover);
+    transform: translateY(-1px);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+@mixin button-secondary {
+  background: v.color(gray-100);
+  color: v.color(gray-800);
+  
+  &:hover:not(:disabled) {
+    background: v.color(gray-200);
+    transform: translateY(-1px);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+@mixin button-spotify {
+  background: v.color(spotify);
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: v.color(spotify-hover);
+    transform: translateY(-1px);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+@mixin button-discogs {
+  background: #333333;
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: #1a1a1a;
+    transform: translateY(-1px);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+// Button Classes
+.btn {
+  @include button-base;
+  @include button-md; // Default size
+  @include button-primary; // Default variant
+  
+  // Size modifiers
+  &.btn-sm {
+    @include button-sm;
+  }
+  
+  &.btn-md {
+    @include button-md;
+  }
+  
+  &.btn-lg {
+    @include button-lg;
+  }
+  
+  &.btn-xl {
+    @include button-xl;
+  }
+  
+  // Variant modifiers
+  &.btn-primary {
+    @include button-primary;
+  }
+  
+  &.btn-secondary {
+    @include button-secondary;
+  }
+  
+  &.btn-spotify {
+    @include button-spotify;
+  }
+  
+  &.btn-discogs {
+    @include button-discogs;
+  }
+  
+  // Full width modifier
+  &.btn-full {
+    width: 100%;
+  }
+  
+  // Pulse animation modifier
+  &.btn-pulse {
+    animation: pulse 2s infinite;
+    
+    &:hover {
+      animation: none;
+    }
+  }
+}
+
+// Pulse animation
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(0, 0, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 255, 0);
+  }
+}

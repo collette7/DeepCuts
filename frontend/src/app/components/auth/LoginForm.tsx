@@ -75,7 +75,7 @@ export default function LoginForm({ onSuccess, onSwitchToSignup }: LoginFormProp
         />
       </div>
 
-      <button type="submit" className="auth-submit-btn" disabled={loading}>
+      <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
         {loading ? 'Logging in...' : 'Log in'}
       </button>
 
