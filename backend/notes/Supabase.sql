@@ -29,6 +29,8 @@ CREATE TABLE albums (
     release_year INT,
     album_art TEXT,
     spotify_preview_url TEXT,
+    spotify_url TEXT,
+    cover_url TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -38,6 +40,7 @@ CREATE TABLE favorites (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     album_id UUID NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
+    reasoning TEXT,
     saved_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id, album_id)
 );

@@ -46,6 +46,11 @@ export default function Home() {
       setLoading(true);
       const response = await apiClient.getRandomAlbums(10);
       setAlbums(response.albums);
+      
+      // Load Spotify data for initial albums in the background
+      if (response.albums && response.albums.length > 0) {
+        loadSpotifyDataProgressively(response.albums, 'initial-load');
+      }
     } catch (error) {
       console.error('Error loading initial albums:', error);
       setError('Failed to load albums');
@@ -151,9 +156,31 @@ const loadSpotifyDataProgressively = async (initialAlbums: AlbumData[], cacheKey
   console.log('Finished loading Spotify data progressively');
 };
 
-const handleListenNow = (album: AlbumData) => {
+const handleListenNow = async (album: AlbumData) => {
+  // Open the details immediately
   setSelectedAlbum(album);
   setDetailsOpen(true);
+  
+  // If no Spotify URL, try to fetch it in the background
+  if (!album.spotify_url && album.title && album.artist) {
+    try {
+      const spotifyData = await apiClient.getAlbumSpotifyData(album.id, album.title, album.artist);
+      const enrichedAlbum = {
+        ...album,
+        spotify_url: spotifyData.spotify_url,
+        spotify_preview_url: spotifyData.spotify_preview_url,
+        cover_url: spotifyData.cover_url || album.cover_url
+      };
+      setSelectedAlbum(enrichedAlbum);
+      
+      // Also update the album in the main list
+      setAlbums(current => 
+        current.map(a => a.id === album.id ? enrichedAlbum : a)
+      );
+    } catch (error) {
+      console.error('Failed to fetch Spotify data for album:', error);
+    }
+  }
 };
 
 const handleCloseDetails = () => {
@@ -213,15 +240,14 @@ const handleToggleFavorite = async (album: AlbumData) => {
     <>
       <Navigation />
       <div className="page-container">
-        {/* Hero Header with Search */}
-        <HeroHeader 
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          onSubmit={handleSearchSubmit}
-          loading={loading}
-        />
-        
         <div className="container">
+          {/* Hero Header with Search */}
+          <HeroHeader 
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            onSubmit={handleSearchSubmit}
+            loading={loading}
+          />
 
         {/* Results Area */}
         {loading && (

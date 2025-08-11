@@ -8,9 +8,10 @@ interface AlbumCardProps {
   onToggleFavorite?: (album: AlbumData) => void;
   isFavorited?: boolean;
   isLoading?: boolean;
+  isLoggedIn?: boolean;
 }
 
-export default function AlbumCard({ album, onListenNow, onToggleFavorite, isFavorited = false, isLoading = false }: AlbumCardProps) {
+export default function AlbumCard({ album, onListenNow, onToggleFavorite, isFavorited = false, isLoading = false, isLoggedIn }: AlbumCardProps) {
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation(); 
     if (onToggleFavorite && !isLoading) {

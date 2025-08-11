@@ -11,9 +11,10 @@ interface AlbumDetailsProps {
   onClose: () => void;
   user?: User | null;
   onAuthRequired?: () => void;
+  hiderecommendationReason?: boolean;
 }
 
-export default function AlbumDetails({ album, isOpen, onClose, user, onAuthRequired }: AlbumDetailsProps) {
+export default function AlbumDetails({ album, isOpen, onClose, user, onAuthRequired, hiderecommendationReason = false }: AlbumDetailsProps) {
   if (!isOpen || !album) return null;
 
   return (
@@ -48,24 +49,20 @@ export default function AlbumDetails({ album, isOpen, onClose, user, onAuthRequi
           </div>
 
           {/* Recommendation Reasoning */}
-          <div className="recommendation-section">
-            <div className="recommendation-header">
-              <h5>Why this album?</h5>
-            </div>
-            <div className="reasoning-content">
-              {album.reasoning ? (
+          {!hiderecommendationReason && album.reasoning && (
+            <div className="recommendation-section">
+              <div className="recommendation-header">
+                <h5>Why this album?</h5>
+              </div>
+              <div className="reasoning-content">
                 <p>{album.reasoning}</p>
-              ) : (
-                <p style={{ fontStyle: 'italic', opacity: 0.7 }}>
-                  Discover new music through search to see AI-powered recommendations with personalized explanations!
-                </p>
-              )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Actions */}
           <div className="details-actions">
-            {album.spotify_url && (
+            {album.spotify_url ? (
               user ? (
                 <a 
                   href={album.spotify_url} 
@@ -79,19 +76,13 @@ export default function AlbumDetails({ album, isOpen, onClose, user, onAuthRequi
               ) : (
                 <button
                   onClick={onAuthRequired}
-                  className="spotify-action-btn"
-                  style={{ 
-                    background: '#1db954',
-                    border: 'none',
-                    width: '100%',
-                    cursor: 'pointer'
-                  }}
+                  className="spotify-action-btn signup-cta-btn"
                 >
                   <UserPlus size={16} />
                   Sign up to Listen on Spotify
                 </button>
               )
-            )}
+            ) : null}
           </div>
         </div>
       </div>
