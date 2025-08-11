@@ -71,11 +71,12 @@ class FavoritesService:
                 album_insert_data['cover_url'] = album_data['cover_url']
             if album_data.get('spotify_preview_url'):
                 album_insert_data['spotify_preview_url'] = album_data['spotify_preview_url']
+            if album_data.get('spotify_url'):
+                album_insert_data['spotify_url'] = album_data['spotify_url']
             # Don't try to store reasoning in albums table for now - it should go in favorites table
             # if album_data.get('reasoning'):
             #     album_insert_data['reasoning'] = album_data['reasoning']
             
-            # Use upsert to handle duplicates - let Supabase generate the UUID
             try:
                 album_result = self.supabase.table('albums').upsert(album_insert_data).execute()
             except Exception as e:

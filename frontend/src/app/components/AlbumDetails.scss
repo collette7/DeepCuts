@@ -187,10 +187,37 @@
   transition: v.transition(base);
   background: v.color(spotify);
   color: white;
+  border: none;
+  cursor: pointer;
+  width: 100%;
 
   &:hover {
     background: v.color(spotify-hover);
     transform: translateY(-1px);
+  }
+}
+
+.signup-cta-btn {
+  background: linear-gradient(135deg, #1db954, #1ed760);
+  animation: pulse 2s infinite;
+  font-size: v.font-size(base);
+  font-weight: v.font-weight(semibold);
+  
+  &:hover {
+    animation: none;
+    background: linear-gradient(135deg, #1ed760, #1db954);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(29, 185, 84, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(29, 185, 84, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(29, 185, 84, 0);
   }
 }
 

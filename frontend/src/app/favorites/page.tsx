@@ -21,6 +21,7 @@ export default function FavoritesPage() {
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumData | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
+  const [fetchingSpotifyData, setFetchingSpotifyData] = useState(false);
 
   const loadFavorites = useCallback(async () => {
     try {
@@ -29,7 +30,10 @@ export default function FavoritesPage() {
       
       const response = await apiClient.getFavoritesWithDetails();
       
+      console.log('Favorites response:', response);
+      
       if (response.favorites) {
+        console.log('First favorite album data:', response.favorites[0]);
         setFavorites(response.favorites);
       } else {
         // Empty favorites is not an error, just set empty array
@@ -57,9 +61,45 @@ export default function FavoritesPage() {
     }
   }, [user, authLoading, router, loadFavorites]);
 
-  const handleListenNow = (album: AlbumData) => {
+  const handleListenNow = async (album: AlbumData) => {
+    console.log('Selected album for details:', album);
+    console.log('Album has spotify_url:', album.spotify_url);
+    
+    // Open the details immediately with what we have
     setSelectedAlbum(album);
     setDetailsOpen(true);
+    
+    // If no Spotify URL, try to fetch it in the background
+    if (!album.spotify_url && album.title && album.artist) {
+      setFetchingSpotifyData(true);
+      try {
+        const spotifyData = await apiClient.getAlbumSpotifyData(album.id, album.title, album.artist);
+        const enrichedAlbum = {
+          ...album,
+          spotify_url: spotifyData.spotify_url,
+          spotify_preview_url: spotifyData.spotify_preview_url,
+          cover_url: spotifyData.cover_url || album.cover_url
+        };
+        setSelectedAlbum(enrichedAlbum);
+        
+        // Also update the album in the favorites list
+        setFavorites(prev => prev.map(fav => {
+          const favAlbum = fav.albums || fav.album;
+          if (favAlbum?.id === album.id) {
+            return {
+              ...fav,
+              albums: enrichedAlbum,
+              album: enrichedAlbum
+            };
+          }
+          return fav;
+        }));
+      } catch (error) {
+        console.error('Failed to fetch Spotify data:', error);
+      } finally {
+        setFetchingSpotifyData(false);
+      }
+    }
   };
 
   const handleCloseDetails = () => {
@@ -165,6 +205,7 @@ export default function FavoritesPage() {
           isOpen={detailsOpen}
           onClose={handleCloseDetails}
           user={user}
+          hiderecommendationReason={true}
           onAuthRequired={() => {
             // Favorites page already requires login, but just in case
             router.push('/');
