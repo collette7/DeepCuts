@@ -180,6 +180,7 @@ class ApiClient {
         spotify_preview_url?: string;
         spotify_url?: string;
         cover_url?: string;
+        discogs_url?: string;
     }> {
         try {
             const params = new URLSearchParams({
