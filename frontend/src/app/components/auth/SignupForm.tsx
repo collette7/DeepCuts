@@ -7,9 +7,10 @@ import './SignupForm.scss'
 interface SignupFormProps {
   onSuccess?: () => void
   onSwitchToLogin?: () => void
+  onSignupSuccess?: (email: string) => void
 }
 
-export default function SignupForm({ onSuccess, onSwitchToLogin }: SignupFormProps) {
+export default function SignupForm({ onSuccess, onSwitchToLogin, onSignupSuccess }: SignupFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -41,7 +42,8 @@ export default function SignupForm({ onSuccess, onSwitchToLogin }: SignupFormPro
       if (error) {
         setError(error instanceof Error ? error.message : 'Signup failed')
       } else {
-        onSuccess?.()
+        // Call the signup success handler with the email
+        onSignupSuccess?.(email)
       }
     } catch {
       setError('Signup failed')
