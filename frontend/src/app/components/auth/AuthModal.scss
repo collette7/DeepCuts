@@ -1,4 +1,5 @@
 @use '../../../styles/variables' as v;
+@use '../../../styles/buttons';
 
 /* Auth Modal Styles - Clean Design */
 .auth-modal-overlay {
@@ -222,5 +223,79 @@
   
   .auth-form {
     padding: v.spacing(6) v.spacing(5);
+  }
+}
+
+/* Email Verification Screen */
+.email-verification-screen {
+  text-align: center;
+  padding: v.spacing(8) v.spacing(6);
+
+  h2 {
+    font-size: v.font-size(2xl);
+    font-weight: v.font-weight(semibold);
+    color: v.color(foreground);
+    margin-bottom: v.spacing(4);
+  }
+}
+
+.email-verification-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  background: v.color(primary);
+  border-radius: v.radius(full);
+  margin: 0 auto v.spacing(6);
+  color: white;
+}
+
+.email-verification-message {
+  margin-bottom: v.spacing(6);
+  
+  p {
+    color: v.color(gray-600);
+    font-size: v.font-size(base);
+    line-height: 1.6;
+    margin-bottom: v.spacing(3);
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+  
+  strong {
+    display: block;
+    color: v.color(primary);
+    font-weight: v.font-weight(semibold);
+    margin: v.spacing(3) 0;
+    font-size: v.font-size(base);
+    word-break: break-all;
+  }
+}
+
+.email-verification-help {
+  border-top: 1px solid v.color(gray-200);
+  padding-top: v.spacing(4);
+  margin-bottom: v.spacing(6);
+  
+  p {
+    color: v.color(gray-500);
+    font-size: v.font-size(sm);
+    line-height: 1.5;
+  }
+}
+
+.resend-link {
+  background: none;
+  border: none;
+  color: v.color(primary);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: v.font-size(sm);
+  
+  &:hover {
+    color: v.color(primary-hover);
   }
 }

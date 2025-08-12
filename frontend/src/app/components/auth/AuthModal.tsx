@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Mail } from 'lucide-react'
 import LoginForm from './LoginForm'
 import SignupForm from './SignupForm'
 import './AuthModal.scss'
@@ -13,12 +13,67 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ isOpen, onClose, defaultView = 'login' }: AuthModalProps) {
-  const [currentView, setCurrentView] = useState<'login' | 'signup'>(defaultView)
+  const [currentView, setCurrentView] = useState<'login' | 'signup' | 'verify-email'>(defaultView)
+  const [userEmail, setUserEmail] = useState('')
 
   if (!isOpen) return null
 
   const handleSuccess = () => {
     onClose()
+  }
+
+  const handleSignupSuccess = (email: string) => {
+    setUserEmail(email)
+    setCurrentView('verify-email')
+  }
+
+  const renderContent = () => {
+    switch (currentView) {
+      case 'login':
+        return (
+          <LoginForm 
+            onSuccess={handleSuccess}
+            onSwitchToSignup={() => setCurrentView('signup')}
+          />
+        )
+      case 'signup':
+        return (
+          <SignupForm 
+            onSuccess={handleSuccess}
+            onSwitchToLogin={() => setCurrentView('login')}
+            onSignupSuccess={handleSignupSuccess}
+          />
+        )
+      case 'verify-email':
+        return (
+          <div className="email-verification-screen">
+            <div className="email-verification-icon">
+              <Mail size={48} />
+            </div>
+            
+            <h2>Check your email</h2>
+            
+            <div className="email-verification-message">
+              <p>We've sent a verification link to:</p>
+              <strong>{userEmail}</strong>
+              <p>Click the link in the email to verify your account and start discovering music.</p>
+            </div>
+
+            <div className="email-verification-help">
+              <p>Didn't receive the email? Check your spam folder or <button className="resend-link">resend verification</button></p>
+            </div>
+
+            <button 
+              className="btn btn-secondary btn-full"
+              onClick={handleSuccess}
+            >
+              Close
+            </button>
+          </div>
+        )
+      default:
+        return null
+    }
   }
 
   return (
@@ -28,17 +83,7 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'login' }: Au
           <X size={16} />
         </button>
         
-        {currentView === 'login' ? (
-          <LoginForm 
-            onSuccess={handleSuccess}
-            onSwitchToSignup={() => setCurrentView('signup')}
-          />
-        ) : (
-          <SignupForm 
-            onSuccess={handleSuccess}
-            onSwitchToLogin={() => setCurrentView('login')}
-          />
-        )}
+        {renderContent()}
       </div>
     </div>
   )
