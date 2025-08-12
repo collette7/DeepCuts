@@ -1,5 +1,14 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
+// Debug logging for API URL
+if (typeof window !== 'undefined') {
+  console.log('API Configuration:', {
+    API_BASE_URL,
+    hasEnvVar: !!process.env.NEXT_PUBLIC_API_URL,
+    envValue: process.env.NEXT_PUBLIC_API_URL
+  });
+}
+
 class ApiClient {
     // client for FastAPI 
     // source of truth for all comms with backend
@@ -37,13 +46,21 @@ class ApiClient {
         //Search albums
         try {
             console.log('Searching albums from:', `${API_BASE_URL}/api/v1/search`);
+            
+            // Add timeout to prevent infinite loading
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+            
             const response = await fetch(`${API_BASE_URL}/api/v1/search`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ query })
+                body: JSON.stringify({ query }),
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             console.log('Response status:', response.status);
             console.log('Response ok:', response.ok);
 
@@ -55,7 +72,10 @@ class ApiClient {
             console.log('Search data:', data);
             return data;
         } catch (error) {
-            console.error('API Error:', error);
+            console.error('Search API Error:', error);
+            if (error instanceof Error && error.name === 'AbortError') {
+                throw new Error('Search request timed out. Please try again.');
+            }
             throw error;
         }
     }
