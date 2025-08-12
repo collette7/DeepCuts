@@ -54,13 +54,13 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'login' }: Au
             <h2>Check your email</h2>
             
             <div className="email-verification-message">
-              <p>We've sent a verification link to:</p>
+              <p>We&apos;ve sent a verification link to:</p>
               <strong>{userEmail}</strong>
               <p>Click the link in the email to verify your account and start discovering music.</p>
             </div>
 
             <div className="email-verification-help">
-              <p>Didn't receive the email? Check your spam folder or <button className="resend-link">resend verification</button></p>
+              <p>Didn&apos;t receive the email? Check your spam folder or <button className="resend-link">resend verification</button></p>
             </div>
 
             <button 
