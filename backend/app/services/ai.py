@@ -6,7 +6,7 @@ import re
 import xml.etree.ElementTree as ET
 from app.models.albums import AlbumData
 
-class ClaudeService:
+class AIService:
     def __init__(self):
         # ACTIVE MODEL - Just change this variable OR set ACTIVE_MODEL env variable
         # Claude: "claude-3-5-sonnet-20241022", "claude-3-opus-20240229", "claude-3-haiku-20240307"
@@ -174,4 +174,4 @@ class ClaudeService:
             return []
 
 
-claude_service = ClaudeService()
+ai_service = AIService()

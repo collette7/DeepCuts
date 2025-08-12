@@ -16,7 +16,7 @@ from app.models.recommendations import (
     CreateRecommendationSessionResponse
 )
 from app.config import settings
-from app.services.claude import claude_service
+from app.services.ai import ai_service
 from app.services.favorites import favorites_service
 from app.services.recommendations import recommendation_service
 from app.database import supabase_admin
@@ -327,7 +327,7 @@ async def search_albums(
             logger.error(f"Failed to create recommendation session: {e}")
         
         # Get album recommendations from claude
-        recommendations = await claude_service.get_album_recommendations(request.query)
+        recommendations = await ai_service.get_album_recommendations(request.query)
         
         # Return empty results if claude returns no recommendations
         if not recommendations or len(recommendations) == 0:
