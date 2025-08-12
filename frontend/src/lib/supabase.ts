@@ -22,12 +22,21 @@ if (!supabaseAnonKey) {
   throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// Clean the URL to ensure no trailing slashes or extra characters
+const cleanUrl = supabaseUrl.trim().replace(/\/$/, '')
+const cleanKey = supabaseAnonKey.trim()
+
+export const supabase = createClient(cleanUrl, cleanKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
     storageKey: 'supabase.auth.token',
     storage: typeof window !== 'undefined' ? window.localStorage : undefined
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'deepcuts-web'
+    }
   }
 })
