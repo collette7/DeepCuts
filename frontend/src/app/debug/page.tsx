@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 
 export default function DebugPage() {
-  const [envVars, setEnvVars] = useState<any>({})
+  const [envVars, setEnvVars] = useState<Record<string, unknown>>({})
   
   useEffect(() => {
     // Check client-side env vars
