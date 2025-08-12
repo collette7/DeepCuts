@@ -79,10 +79,13 @@ class ClaudeService:
             <title>Album Name</title>
             <artist>Artist Name</artist>
             <year>Year</year>
+            <genre>Primary Genre</genre>
             <explanation>Your explanation here, 2-3 sentences focusing on specific musical qualities and characteristics</explanation>
         </album>
         <!-- Repeat for all 10 recommendations -->
         </recommendations>
+
+        IMPORTANT: Do NOT use placeholder or example data like "Example Album" or "Example Artist". Provide REAL album titles and artist names only. Every recommendation must be an actual released album that exists.
 
         Ensure that your recommendations are diverse while still maintaining a strong connection to the original album's qualities. Focus on albums that share musical similarities rather than just belonging to the same genre. Look for hidden gems and lesser-known releases that true fans of the given album would appreciate."""
 
@@ -97,15 +100,16 @@ class ClaudeService:
         recommendations_xml = recommendations_match.group(1)
         
         # Parse each album rec
-        album_pattern = r'<album>\s*<title>(.*?)</title>\s*<artist>(.*?)</artist>\s*<year>(.*?)</year>\s*<explanation>(.*?)</explanation>\s*</album>'
+        album_pattern = r'<album>\s*<title>(.*?)</title>\s*<artist>(.*?)</artist>\s*<year>(.*?)</year>\s*<genre>(.*?)</genre>\s*<explanation>(.*?)</explanation>\s*</album>'
         album_matches = re.findall(album_pattern, recommendations_xml, re.DOTALL)
         
-        for title, artist, year, explanation in album_matches:
+        for title, artist, year, genre, explanation in album_matches:
             try:
                 # Clean up 
                 title = title.strip()
                 artist = artist.strip()
                 year_str = year.strip()
+                genre = genre.strip()
                 explanation = explanation.strip()
                 
                 # Parse year
@@ -119,7 +123,7 @@ class ClaudeService:
                     title=title,
                     artist=artist,
                     year=parsed_year,
-                    genre="genre",  
+                    genre=genre,  
                     spotify_preview_url=None,
                     spotify_url=None,
                     discogs_url=None,
