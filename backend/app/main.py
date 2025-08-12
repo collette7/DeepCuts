@@ -91,8 +91,8 @@ async def root():
         "supabase_status": supabase_status,
         "features": {
             "ai_search": "enabled",
-            "spotify_integration": "NULL",
-            "playlist_sync": "NULL"
+            "spotify_integration": "enabled",
+            "playlist_sync": "coming_soon"
         }
     }
 
@@ -527,6 +527,8 @@ async def get_favorites_with_details(
     """Get user's favorites"""
     token = authorization.replace("Bearer ", "") if authorization else None
     return await favorites_service.get_favorites_with_album_details(user_email, token)
+
+
 
 
 
