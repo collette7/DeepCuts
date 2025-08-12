@@ -28,9 +28,28 @@ load_dotenv()
 logger = logging.getLogger("uvicorn")
 
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.PROJECT_VERSION)
+# Configure CORS
+allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001", 
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "https://www.deepcuts.casa",
+    "https://deepcuts.casa",
+    "https://deep-cuts-blue.vercel.app",
+    "https://*.vercel.app",  # Allow all Vercel preview deployments
+]
+
+# Add frontend URL if specified
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url and frontend_url not in allowed_origins:
+    allowed_origins.append(frontend_url)
+
+logger.info(f"CORS allowed origins: {allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000", "http://127.0.0.1:3001"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
