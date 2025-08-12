@@ -49,7 +49,7 @@ class ApiClient {
             
             // Add timeout to prevent infinite loading
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for AI processing
             
             const response = await fetch(`${API_BASE_URL}/api/v1/search`, {
                 method: 'POST',
@@ -61,8 +61,12 @@ class ApiClient {
             });
             
             clearTimeout(timeoutId);
-            console.log('Response status:', response.status);
-            console.log('Response ok:', response.ok);
+            console.log('Search response received:', {
+                status: response.status,
+                ok: response.ok,
+                statusText: response.statusText,
+                url: response.url
+            });
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);

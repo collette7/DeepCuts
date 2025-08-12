@@ -42,42 +42,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signUp = async (email: string, password?: string) => {
-    if (password) {
-      // Traditional password signup
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-      })
-      return { error }
-    } else {
-      // Magic link signup
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
+    try {
+      if (password) {
+        // Traditional password signup
+        console.log('Attempting signup with email:', email)
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`
+          }
+        })
+        if (error) {
+          console.error('Signup error:', error)
+        } else {
+          console.log('Signup successful, check email:', data?.user?.email)
         }
-      })
-      return { error }
+        return { error }
+      } else {
+        // Magic link signup
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`
+          }
+        })
+        return { error }
+      }
+    } catch (err) {
+      console.error('Caught signup error:', err)
+      return { error: err }
     }
   }
 
   const signIn = async (email: string, password?: string) => {
-    if (password) {
-      // Traditional password login
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-      return { error }
-    } else {
-      // Magic link login
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
+    try {
+      if (password) {
+        // Traditional password login
+        console.log('Attempting signin with email:', email)
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+        if (error) {
+          console.error('Signin error:', error)
+        } else {
+          console.log('Signin successful:', data?.user?.email)
         }
-      })
-      return { error }
+        return { error }
+      } else {
+        // Magic link login
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`
+          }
+        })
+        return { error }
+      }
+    } catch (err) {
+      console.error('Caught signin error:', err)
+      return { error: err }
     }
   }
 
