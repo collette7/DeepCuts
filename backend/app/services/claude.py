@@ -8,9 +8,27 @@ from app.models.albums import AlbumData
 
 class ClaudeService:
     def __init__(self):
-        self.client = anthropic.Anthropic(
-            api_key=os.getenv("CLAUDE_API_KEY")
-        )
+        # ACTIVE MODEL - Just change this variable OR set ACTIVE_MODEL env variable
+        # Claude: "claude-3-5-sonnet-20241022", "claude-3-opus-20240229", "claude-3-haiku-20240307"
+        # Gemini (FREE): "gemini-1.5-flash", "gemini-pro"
+        self.ACTIVE_MODEL = os.getenv("ACTIVE_MODEL", "gemini-1.5-flash")  # Default to free Gemini Flash
+        
+        # Initialize the appropriate client
+        if "gemini" in self.ACTIVE_MODEL.lower():
+            import google.generativeai as genai
+            genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+            self.client = genai.GenerativeModel(self.ACTIVE_MODEL)
+            self.is_gemini = True
+        else:
+            self.client = anthropic.Anthropic(
+                api_key=os.getenv("CLAUDE_API_KEY")
+            )
+            self.is_gemini = False
+        
+        # Log which model is being used
+        import logging
+        logger = logging.getLogger('deepcuts')
+        logger.info(f"Using active AI model: {self.ACTIVE_MODEL}")
         
     def get_recommendation_prompt(self, album_name: str) -> str:
         """Promp template."""
@@ -119,22 +137,27 @@ class ClaudeService:
         return recommendations
 
     async def get_album_recommendations(self, album_name: str) -> List[AlbumData]:
-        """Get album recommendations from Claude"""
+        """Get album recommendations from AI model"""
         try:
             prompt = self.get_recommendation_prompt(album_name)
             
-            message = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=4000,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-            
-            response_text = message.content[0].text
+            if self.is_gemini:
+                # Use Gemini API
+                response = self.client.generate_content(prompt)
+                response_text = response.text
+            else:
+                # Use Claude API
+                message = self.client.messages.create(
+                    model=self.ACTIVE_MODEL,
+                    max_tokens=4000,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ]
+                )
+                response_text = message.content[0].text
             recommendations = self.parse_recommendations(response_text)
             
             return recommendations
