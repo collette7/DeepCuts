@@ -95,7 +95,7 @@ export default function FavoritesPage() {
         // Convert favorites to albums array for enrichment
         const albums = response.favorites
           .map(fav => fav.albums || fav.album)
-          .filter(Boolean);
+          .filter((album): album is AlbumData => album !== undefined);
         
         setFavorites(response.favorites);
         setLoading(false);
