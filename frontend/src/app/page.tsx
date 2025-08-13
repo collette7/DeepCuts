@@ -5,7 +5,6 @@ import { apiClient, AlbumData, SearchResponse, FavoriteItem } from '@/lib/api';
 import { useAuth } from './contexts/AuthContext';
 import AlbumCard from './components/AlbumCard';
 import HeroHeader from './components/HeroHeader';
-import LoadingSpinner from './components/ui/LoadingSpinner';
 import ErrorMessage from './components/ui/ErrorMessage';
 import AuthModal from './components/auth/AuthModal';
 import AlbumDetails from './components/AlbumDetails';
@@ -20,7 +19,6 @@ export default function Home() {
   const { user } = useAuth();
   const [albums, setAlbums] = useState<AlbumData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -32,30 +30,7 @@ export default function Home() {
   const [searchCache, setSearchCache] = useState<Map<string, AlbumData[]>>(new Map());
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
-  // Initial load on mount
-  useEffect(() => {
-    if (!initialLoadDone && !searchQuery) {
-      loadInitialAlbums();
-      setInitialLoadDone(true);
-    }
-  }, []);
-
-  // Handle user auth changes
-  useEffect(() => {
-    if (user) {
-      // Check for pending search query after login
-      const pendingQuery = sessionStorage.getItem('pendingSearchQuery');
-      if (pendingQuery) {
-        sessionStorage.removeItem('pendingSearchQuery');
-        handleSearch(pendingQuery);
-      }
-      loadUserFavorites();
-    } else {
-      setFavoriteAlbums(new Set());
-    }
-  }, [user]);
-
-  const loadInitialAlbums = async () => {
+  const loadInitialAlbums = useCallback(async () => {
     try {
       setLoading(true);
       const response = await apiClient.getRandomAlbums(10);
@@ -71,14 +46,14 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
 const handleSearchSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   await handleSearch(searchQuery);
 };
 
-const handleSearch = async (query: string) => {
+const handleSearch = useCallback(async (query: string) => {
   try {
     setSearchQuery(query);
     setError(null);
@@ -92,7 +67,6 @@ const handleSearch = async (query: string) => {
     }
     
     setLoading(true);
-    //setLoadingMessage('Searching for deep cuts...');
     
     const searchData: SearchResponse = await apiClient.searchAlbums(query);
     
@@ -100,7 +74,6 @@ const handleSearch = async (query: string) => {
       // Show AI results immediately
       setAlbums(searchData.recommendations);
       setLoading(false);
-      setLoadingMessage('');
       
       // Now load Spotify data progressively in the background
       loadSpotifyDataProgressively(searchData.recommendations, cacheKey);
@@ -108,7 +81,6 @@ const handleSearch = async (query: string) => {
       setAlbums([]);
       setError('No results found, try again later');
       setLoading(false);
-      setLoadingMessage('');
     }
     
   } catch (error) {
@@ -116,15 +88,14 @@ const handleSearch = async (query: string) => {
     setAlbums([]);
     setError('Bad connection, try again later');
     setLoading(false);
-    setLoadingMessage('');
   }
-};
+}, [searchCache]);
 
 const loadSpotifyDataProgressively = async (initialAlbums: AlbumData[], cacheKey: string) => {
   console.log('Loading Spotify data for', initialAlbums.length, 'albums...');
   
   // Load Spotify data for each album in parallel
-  const promises = initialAlbums.map(async (album, index) => {
+  const promises = initialAlbums.map(async (album) => {
     try {
       const spotifyData = await apiClient.getAlbumSpotifyData(album.id, album.title, album.artist);
       
@@ -223,6 +194,29 @@ const loadUserFavorites = useCallback(async () => {
     setFavoritesLoading(false);
   }
 }, [user, favoritesLoading]);
+
+// Initial load on mount
+useEffect(() => {
+  if (!initialLoadDone && !searchQuery) {
+    loadInitialAlbums();
+    setInitialLoadDone(true);
+  }
+}, [initialLoadDone, searchQuery, loadInitialAlbums]);
+
+// Handle user auth changes
+useEffect(() => {
+  if (user) {
+    // Check for pending search query after login
+    const pendingQuery = sessionStorage.getItem('pendingSearchQuery');
+    if (pendingQuery) {
+      sessionStorage.removeItem('pendingSearchQuery');
+      handleSearch(pendingQuery);
+    }
+    loadUserFavorites();
+  } else {
+    setFavoriteAlbums(new Set());
+  }
+}, [user, handleSearch, loadUserFavorites]);
 
 const handleToggleFavorite = async (album: AlbumData) => {
   if (!user) {

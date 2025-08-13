@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.scss";
 import { AuthProvider } from './contexts/AuthContext';
+import AuthErrorHandler from '@/components/AuthErrorHandler';
 
 export const metadata: Metadata = {
   title: "DeepCuts Music Discovery",
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <body suppressHydrationWarning={true}>
         <AuthProvider>
+          <AuthErrorHandler />
           <main>
             {children}
           </main>

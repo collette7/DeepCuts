@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Mail } from 'lucide-react'
 import LoginForm from './LoginForm'
 import SignupForm from './SignupForm'
@@ -15,6 +15,11 @@ interface AuthModalProps {
 export default function AuthModal({ isOpen, onClose, defaultView = 'login' }: AuthModalProps) {
   const [currentView, setCurrentView] = useState<'login' | 'signup' | 'verify-email'>(defaultView)
   const [userEmail, setUserEmail] = useState('')
+
+  // Sync currentView with defaultView when it changes
+  useEffect(() => {
+    setCurrentView(defaultView)
+  }, [defaultView])
 
   if (!isOpen) return null
 
@@ -39,7 +44,6 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'login' }: Au
       case 'signup':
         return (
           <SignupForm 
-            onSuccess={handleSuccess}
             onSwitchToLogin={() => setCurrentView('login')}
             onSignupSuccess={handleSignupSuccess}
           />

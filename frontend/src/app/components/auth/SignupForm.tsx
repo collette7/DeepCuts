@@ -5,12 +5,11 @@ import { useAuth } from '@/app/contexts/AuthContext'
 import './SignupForm.scss'
 
 interface SignupFormProps {
-  onSuccess?: () => void
   onSwitchToLogin?: () => void
   onSignupSuccess?: (email: string) => void
 }
 
-export default function SignupForm({ onSuccess, onSwitchToLogin, onSignupSuccess }: SignupFormProps) {
+export default function SignupForm({ onSwitchToLogin, onSignupSuccess }: SignupFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
