@@ -172,7 +172,7 @@
   font-weight: v.font-weight(normal);
   color: #282828;
   line-height: 1.4;
-  margin-bottom: 2px;
+  margin-bottom: spacing(1);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -221,10 +221,10 @@
   }
   
   .result-title {
-    font-size: 13px;
+    font-size: v.font-size(xs);
   }
   
   .result-metadata {
-    font-size: 11px;
+    font-size: v.font-size(xs);
   }
 }

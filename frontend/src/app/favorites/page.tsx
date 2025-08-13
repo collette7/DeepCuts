@@ -10,6 +10,7 @@ import ErrorMessage from '../components/ui/ErrorMessage';
 import AlbumDetails from '../components/AlbumDetails';
 import Navigation from '../components/Navigation';
 import '../components/RecommendationsSection.scss';
+import './page.scss';
 
 
 export default function FavoritesPage() {
@@ -22,6 +23,57 @@ export default function FavoritesPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
 
+  const loadSpotifyDataForFavorites = useCallback(async (albums: AlbumData[]) => {
+    // Load Spotify data for each album in parallel
+    const promises = albums.map(async (album) => {
+      try {
+        const spotifyData = await apiClient.getAlbumSpotifyData(album.id, album.title, album.artist);
+        
+        // Update the favorites state with enriched album data
+        setFavorites(currentFavorites => 
+          currentFavorites.map(fav => {
+            const favAlbum = fav.albums || fav.album;
+            if (favAlbum && favAlbum.id === album.id) {
+              const enrichedAlbum = {
+                ...favAlbum,
+                spotify_preview_url: spotifyData.spotify_preview_url,
+                spotify_url: spotifyData.spotify_url,
+                cover_url: spotifyData.cover_url || favAlbum.cover_url,
+                discogs_url: spotifyData.discogs_url || favAlbum.discogs_url
+              };
+              
+              // Update the favorite with the enriched album
+              return {
+                ...fav,
+                albums: fav.albums ? enrichedAlbum : fav.albums,
+                album: fav.album ? enrichedAlbum : fav.album
+              };
+            }
+            return fav;
+          })
+        );
+        
+        // Also update selected album if it's currently being viewed
+        setSelectedAlbum(current => 
+          current && current.id === album.id 
+            ? {
+                ...current,
+                spotify_preview_url: spotifyData.spotify_preview_url,
+                spotify_url: spotifyData.spotify_url,
+                cover_url: spotifyData.cover_url || current.cover_url,
+                discogs_url: spotifyData.discogs_url || current.discogs_url
+              }
+            : current
+        );
+      } catch (error) {
+        console.error(`Failed to load Spotify data for ${album.title}:`, error);
+      }
+    });
+    
+    // Wait for all to complete
+    await Promise.all(promises);
+  }, []);
+
   const loadFavorites = useCallback(async () => {
     try {
       setLoading(true);
@@ -29,73 +81,55 @@ export default function FavoritesPage() {
       
       const response = await apiClient.getFavoritesWithDetails();
       
-      console.log('Favorites response:', response);
+      // Handle specific error cases
+      if (response.error === 'Network error') {
+        setError('Unable to connect to server. Please check your internet connection.');
+        return;
+      }
+      if (response.error === 'Request timeout') {
+        setError('Request timed out. The server may be slow. Please try again.');
+        return;
+      }
       
       if (response.favorites) {
-        console.log('First favorite album data:', response.favorites[0]);
+        // Convert favorites to albums array for enrichment
+        const albums = response.favorites
+          .map(fav => fav.albums || fav.album)
+          .filter(Boolean);
+        
         setFavorites(response.favorites);
+        setLoading(false);
+        
+        // Now load Spotify data progressively in the background
+        if (albums.length > 0) {
+          loadSpotifyDataForFavorites(albums);
+        }
       } else {
-        // Empty favorites is not an error, just set empty array
         setFavorites([]);
+        setLoading(false);
       }
     } catch (error) {
       console.error('Error loading favorites:', error);
       setError('Failed to load your favorites. Please try again.');
-    } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadSpotifyDataForFavorites]);
 
   useEffect(() => {
     if (authLoading) {
-      // Still loading auth state, don't do anything yet
       return;
     }
     
     if (user) {
       loadFavorites();
     } else {
-      // User is not authenticated, redirect to home
       router.push('/');
     }
   }, [user, authLoading, router, loadFavorites]);
 
-  const handleListenNow = async (album: AlbumData) => {
-    console.log('Selected album for details:', album);
-    console.log('Album has spotify_url:', album.spotify_url);
-    
-    // Open the details immediately with what we have
+  const handleListenNow = (album: AlbumData) => {
     setSelectedAlbum(album);
     setDetailsOpen(true);
-    
-    // If no Spotify URL, try to fetch it in the background
-    if (!album.spotify_url && album.title && album.artist) {
-      try {
-        const spotifyData = await apiClient.getAlbumSpotifyData(album.id, album.title, album.artist);
-        const enrichedAlbum = {
-          ...album,
-          spotify_url: spotifyData.spotify_url,
-          spotify_preview_url: spotifyData.spotify_preview_url,
-          cover_url: spotifyData.cover_url || album.cover_url
-        };
-        setSelectedAlbum(enrichedAlbum);
-        
-        // Also update the album in the favorites list
-        setFavorites(prev => prev.map(fav => {
-          const favAlbum = fav.albums || fav.album;
-          if (favAlbum?.id === album.id) {
-            return {
-              ...fav,
-              albums: enrichedAlbum,
-              album: enrichedAlbum
-            };
-          }
-          return fav;
-        }));
-      } catch (error) {
-        console.error('Failed to fetch Spotify data:', error);
-      }
-    }
   };
 
   const handleCloseDetails = () => {
@@ -132,7 +166,7 @@ export default function FavoritesPage() {
       <>
         <Navigation />
         <div className="page-container">
-          <div className="container">
+          <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
             <LoadingSpinner />
           </div>
         </div>
@@ -142,11 +176,12 @@ export default function FavoritesPage() {
 
   if (!user) return null;
 
+
   return (
     <>
       <Navigation />
       <div className="page-container">
-      <div className="container">
+        <div className="container">
         <header className="header">
           <div>
             <h1>Your Favorites</h1>
@@ -201,7 +236,7 @@ export default function FavoritesPage() {
           isOpen={detailsOpen}
           onClose={handleCloseDetails}
           user={user}
-          hiderecommendationReason={true}
+          hiderecommendationReason={false}
           onAuthRequired={() => {
             // Favorites page already requires login, but just in case
             router.push('/');

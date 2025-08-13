@@ -95,7 +95,7 @@ export default function SpotifyPreview({ album, isOpen, onClose }: SpotifyPrevie
             <div className="preview-album-details">
               <h4>{album.title}</h4>
               <p>{album.artist}</p>
-              {album.year && <span className="preview-year">{album.year}</span>}
+              {album.year && <time className="preview-year" dateTime={album.year.toString()}>{album.year}</time>}
             </div>
           </div>
 
@@ -121,14 +121,14 @@ export default function SpotifyPreview({ album, isOpen, onClose }: SpotifyPrevie
                 </button>
                 
                 <div className="progress-section">
-                  <span className="time-display">{formatTime(currentTime)}</span>
+                  <time className="time-display">{formatTime(currentTime)}</time>
                   <div className="progress-bar">
                     <div 
                       className="progress-fill"
                       style={{ width: `${progressPercentage}%` }}
                     />
                   </div>
-                  <span className="time-display">{formatTime(duration)}</span>
+                  <time className="time-display">{formatTime(duration)}</time>
                 </div>
                 
                 <Volume2 className="volume-icon" size={16} />

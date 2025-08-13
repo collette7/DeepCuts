@@ -1,12 +1,11 @@
 @use '../../styles/variables' as *;
 
 .hero-header {
-  padding: 32px 0;
+  padding: spacing(8) 0;
   background-color: color(white);
 
-
   @media (max-width: 768px) {
-    padding: 32px 16px;
+    padding: spacing(8) 0;
     min-height: 50vh;
   }
 }
@@ -14,59 +13,55 @@
 .hero-content {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: spacing(4);
   width: 100%;
 }
 
 .hero-text {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: spacing(4);
   align-items: flex-start;
 }
 
 .hero-title {
   font-family: 'PP Acma', 'Helvetica', sans-serif;
   font-weight: 300;
-  font-size: 90px;
-  line-height: 90px;
-  letter-spacing: -2.7px;
-  color: color(neutral-50);
+  font-size: font-size(9xl);
+  line-height: 1;
+  letter-spacing: letter-spacing(hero);
+  color: color(black);
   margin: 0;
 
-  span {
-    display: block;
-  }
-
-  @media (max-width: 768px) {
-    font-size: 48px;
-    line-height: 52px;
-    letter-spacing: -1.4px;
+  @media (max-width: breakpoint(md)) {
+    font-size: font-size(7xl);
+    line-height: 1.08;
+    letter-spacing: letter-spacing(hero-md);
   }
 
   @media (max-width: 480px) {
-    font-size: 36px;
-    line-height: 40px;
-    letter-spacing: -1px;
+    font-size: font-size(5xl);
+    line-height: 1.1;
+    letter-spacing: letter-spacing(hero-sm);
   }
 }
 
 .hero-description {
   font-family: 'Saans', 'Helvetica', sans-serif;
   font-weight: 300;
-  font-size: 24px;
-  line-height: 1.4;
+  font-size: font-size(2xl);
+  line-height: line-height(normal);
   color: rgba(0, 0, 0, 0.5);
   max-width: 771px;
   margin: 0;
 
-  @media (max-width: 768px) {
-    font-size: 18px;
+  @media (max-width: breakpoint(md)) {
+    font-size: font-size(xl);
     max-width: 100%;
   }
 
   @media (max-width: 480px) {
-    font-size: 16px;
+    font-size: font-size(lg);
   }
 }
 

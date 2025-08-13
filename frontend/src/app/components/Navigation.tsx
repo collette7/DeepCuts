@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import AuthModal from './auth/AuthModal';
-import { Menu, User, Music } from 'lucide-react';
+import { Menu, User } from 'lucide-react';
 import './Navigation.scss';
 
 
@@ -25,10 +25,9 @@ export default function Navigation() {
     <nav className="main-nav">
       <div className="nav-container">
         {/* Logo */}
-        <div className="nav-logo" onClick={() => router.push('/')}>
-          <Music className="nav-logo-icon" size={32} color="#FF5A5F" />
-          <span className="nav-logo-text">DeepCuts</span>
-        </div>
+        <button className="nav-logo" onClick={() => router.push('/')} aria-label="DeepCuts Home">
+          <strong className="nav-logo-text">DeepCuts</strong>
+        </button>
 
 
         {/* Right Menu */}

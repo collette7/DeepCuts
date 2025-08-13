@@ -36,7 +36,7 @@ export default function AlbumCard({ album, onListenNow, onToggleFavorite, isFavo
         ) : null}
         <div className="cover-placeholder" style={{ display: album.cover_url ? 'none' : 'flex' }}>
           <Music className="cover-placeholder-icon" size={40} />
-          <span className="cover-placeholder-text">Album Cover</span>
+          <p className="cover-placeholder-text">Album Cover</p>
         </div>
         
         {/* Favorite Button */}
@@ -65,17 +65,23 @@ export default function AlbumCard({ album, onListenNow, onToggleFavorite, isFavo
           <h3 className="album-title">{album.title}</h3>
           <p className="album-artist">{album.artist}</p>
         </div>
-        <div className="album-metadata">
+        <dl className="album-metadata">
           {album.genre && album.genre !== "Unknown" && (
-            <span className="metadata-item">{album.genre.toUpperCase()}</span>
+            <>
+              <dt className="sr-only">Genre</dt>
+              <dd className="metadata-item">{album.genre.toUpperCase()}</dd>
+            </>
           )}
           {album.genre && album.genre !== "Unknown" && album.year && (
-            <span className="metadata-separator">•</span>
+            <dd className="metadata-separator" aria-hidden="true">•</dd>
           )}
           {album.year && (
-            <span className="metadata-item">{album.year}</span>
+            <>
+              <dt className="sr-only">Year</dt>
+              <dd className="metadata-item">{album.year}</dd>
+            </>
           )}
-        </div>
+        </dl>
       </div>
     </div>
   );
