@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DeepCuts Frontend
 
-## Getting Started
+Next.js React application providing the user interface for DeepCuts music recommendations.
 
-First, run the development server:
+## Frontend-Specific Features
 
+- **Responsive Design**: CSS Grid/Flexbox layouts optimized for music browsing
+- **Progressive Loading**: Spotify/Discogs data loads progressively for better UX
+- **Design System**: SCSS variables and consistent component styling
+- **Client-Side Routing**: Next.js App Router for seamless navigation
+- **State Management**: React Context for authentication and app state
+
+## Development Setup
+
+### Prerequisites
+- Node.js 18+
+- Running DeepCuts backend on port 8000
+
+### Quick Start
 ```bash
+npm install
+cp .env.local.example .env.local  # Configure your environment
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment Variables
+```bash
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_SPOTIFY_CLIENT_ID=your_spotify_client_id
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/                    # Next.js app directory
+│   ├── components/         # Reusable UI components
+│   ├── contexts/          # React contexts (Auth, etc.)
+│   ├── favorites/         # Favorites page
+│   └── page.tsx          # Home page
+├── lib/                   # Utility libraries
+│   ├── api.ts            # API client
+│   ├── auth-error-handler.ts
+│   └── supabase.ts       # Supabase configuration
+└── styles/               # Global styles and variables
+    ├── _variables.scss   # Design system variables
+    └── globals.css       # Global CSS
+```
 
-## Learn More
+## Key Components
 
-To learn more about Next.js, take a look at the following resources:
+- **Navigation**: Main navigation with user authentication
+- **AlbumCard**: Displays album information with actions
+- **AlbumDetails**: Detailed album view with Spotify/Discogs links
+- **RecommendationsSection**: Grid layout for album recommendations
+- **AuthModal**: User authentication interface
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API Integration
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The frontend communicates with the FastAPI backend through a centralized API client (`lib/api.ts`) that handles:
 
-## Deploy on Vercel
+- AI-powered album search and recommendations (using Claude, Gemini, or GPT)
+- User favorites management
+- Spotify data enrichment
+- Discogs metadata lookup
+- Authentication token management
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deployment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Environment Setup
+
+Ensure production environment variables are configured:
+- Update `NEXT_PUBLIC_API_URL` to point to production backend
+- Configure Supabase for production environment
+- Set up Spotify app credentials for production domain
+
+### Build and Deploy
+
+```bash
+# Build for production
+npm run build
+
+# Start production server
+npm start
+```
+
