@@ -49,12 +49,18 @@ class ApiClient {
     async searchAlbums(query: string = 'Miles Davis') {
         //Search albums
         try {
+            // Sanitize query input
+            const sanitizedQuery = query.trim().slice(0, 200); // Limit length and trim
+            if (!sanitizedQuery) {
+                throw new Error('Query cannot be empty');
+            }
+            
             const response = await fetch(`${API_BASE_URL}/api/v1/search`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ query })
+                body: JSON.stringify({ query: sanitizedQuery })
             });
 
             if (!response.ok) {
@@ -72,13 +78,19 @@ class ApiClient {
     async searchDiscogs(query: string) {
         //Search Discogs for autocomplete
         try {
+            // Sanitize query input
+            const sanitizedQuery = query.trim().slice(0, 200);
+            if (!sanitizedQuery) {
+                throw new Error('Query cannot be empty');
+            }
+            
             const response = await fetch(`${API_BASE_URL}/api/v1/discogs/search`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ 
-                    query,
+                    query: sanitizedQuery,
                     type: 'release',
                     per_page: 10 
                 })
@@ -128,7 +140,9 @@ class ApiClient {
 
     async removeFromFavorites(albumId: string): Promise<FavoriteActionResponse> {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/favorites/remove/${albumId}`, {
+            // Sanitize albumId to prevent path traversal
+            const sanitizedAlbumId = encodeURIComponent(albumId);
+            const response = await fetch(`${API_BASE_URL}/api/v1/favorites/remove/${sanitizedAlbumId}`, {
                 method: 'DELETE',
                 headers: await this.getAuthHeaders()
             });
@@ -144,18 +158,53 @@ class ApiClient {
         }
     }
 
+    async updateFavorite(albumId: string, albumData: Partial<AlbumData>): Promise<FavoriteActionResponse> {
+        try {
+            // Sanitize albumId to prevent path traversal
+            const sanitizedAlbumId = encodeURIComponent(albumId);
+            const response = await fetch(`${API_BASE_URL}/api/v1/favorites/update/${sanitizedAlbumId}`, {
+                method: 'PATCH',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify({ album_data: albumData })
+            });
+
+            if (!response.ok) {
+                if (response.status === 404) {
+                    // Album not in favorites, ignore silently
+                    return { success: false, message: 'Album not in favorites' };
+                }
+                if (response.status === 405) {
+                    // Method not allowed - endpoint doesn't exist yet, ignore silently
+                    return { success: false, message: 'Update endpoint not available' };
+                }
+                return { success: false, message: `Update failed: ${response.status}` };
+            }
+            
+            return await response.json();
+        } catch (error) {
+            // Silently handle network errors for non-critical update operations
+            return { success: false, message: 'Update failed' };
+        }
+    }
+
     async getFavoritesWithDetails(): Promise<FavoritesWithDetailsResponse> {
         try {
             const headers = await this.getAuthHeaders();
             
+            // Add timeout to prevent hanging requests
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            
             const response = await fetch(`${API_BASE_URL}/api/v1/favorites/with-details`, {
                 method: 'GET',
-                headers: headers
+                headers: headers,
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             if (!response.ok) {
                 if (response.status === 401) {
-                    // Return empty favorites for unauthorized users
                     return { success: false, favorites: [], total: 0 };
                 }
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -163,15 +212,34 @@ class ApiClient {
             
             return await response.json();
         } catch (error) {
+            // Handle different types of errors
+            if (error instanceof Error) {
+                if (error.name === 'AbortError') {
+                    return { success: false, favorites: [], total: 0, error: 'Request timeout' };
+                }
+                if (error.message === 'Failed to fetch') {
+                    return { success: false, favorites: [], total: 0, error: 'Network error' };
+                }
+            }
             console.error('Get favorites with details error:', error);
-            // Return empty favorites on error instead of throwing
             return { success: false, favorites: [], total: 0 };
         }
     }
 
     async getRandomAlbums(limit: number = 10): Promise<{albums: AlbumData[], total: number}> {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/v1/albums/random?limit=${limit}`);
+            // Sanitize and validate limit parameter
+            const sanitizedLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+            
+            // Add timeout to prevent hanging requests
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            
+            const response = await fetch(`${API_BASE_URL}/api/v1/albums/random?limit=${sanitizedLimit}`, {
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -179,8 +247,19 @@ class ApiClient {
             
             return await response.json();
         } catch (error) {
+            // Handle different types of errors gracefully
+            if (error instanceof Error) {
+                if (error.name === 'AbortError') {
+                    console.warn('Random albums request timed out');
+                    return { albums: [], total: 0 };
+                }
+                if (error.message === 'Failed to fetch') {
+                    console.warn('Failed to connect to backend server');
+                    return { albums: [], total: 0 };
+                }
+            }
             console.error('Get random albums error:', error);
-            throw error;
+            return { albums: [], total: 0 };
         }
     }
 
@@ -192,12 +271,14 @@ class ApiClient {
         discogs_url?: string;
     }> {
         try {
+            // Sanitize albumId to prevent path traversal
+            const sanitizedAlbumId = encodeURIComponent(albumId);
             const params = new URLSearchParams({
                 title: title,
                 artist: artist
             });
             
-            const response = await fetch(`${API_BASE_URL}/api/v1/albums/${albumId}/spotify?${params}`);
+            const response = await fetch(`${API_BASE_URL}/api/v1/albums/${sanitizedAlbumId}/spotify?${params}`);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);

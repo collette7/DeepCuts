@@ -44,7 +44,7 @@ export default function AlbumDetails({ album, isOpen, onClose, user, onAuthRequi
             <div className="details-album-text">
               <h4>{album.title}</h4>
               <p>{album.artist}</p>
-              {album.year && <span className="details-year">{album.year}</span>}
+              {album.year && <time className="details-year" dateTime={album.year.toString()}>{album.year}</time>}
             </div>
           </div>
 

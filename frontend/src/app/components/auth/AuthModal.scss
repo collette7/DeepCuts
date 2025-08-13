@@ -71,13 +71,13 @@
     color: #222;
     margin-bottom: v.spacing(2);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: letter-spacing(auth);
   }
 }
 
 .auth-form-input {
   width: 100%;
-  padding: 11px;
+  padding: spacing(3);
   border: 1px solid #b0b0b0;
   border-radius: v.radius(base);
   font-size: v.font-size(base);
@@ -100,7 +100,7 @@
   background: #FF5A5F;
   color: white;
   border: none;
-  padding: 14px;
+  padding: spacing(4);
   border-radius: v.radius(base);
   font-size: v.font-size(base);
   font-weight: v.font-weight(semibold);

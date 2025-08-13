@@ -10,12 +10,16 @@
 }
 
 .nav-container {
-  max-width: v.breakpoint(xl);
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 v.spacing(6);
+  padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  
+  @media (max-width: 640px) {
+    padding: 0 16px;
+  }
 }
 
 /* Logo */
@@ -27,6 +31,8 @@
   padding: v.spacing(2) v.spacing(3);
   border-radius: 22px;
   transition: v.transition(base);
+  background: none;
+  border: none;
 
   &:hover {
     background-color: v.color(gray-50);
@@ -34,10 +40,11 @@
 }
 
 .nav-logo-text {
+  font-family: 'Saans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   font-size: v.font-size(xl);
   font-weight: v.font-weight(bold);
-  color: #FF5A5F;
-  letter-spacing: -0.5px;
+  color: #000000;
+  letter-spacing: letter-spacing(nav);
 }
 
 /* Right Menu */

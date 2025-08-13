@@ -20,8 +20,9 @@ export default function HeroHeader({
       <div className="hero-content">
         <div className="hero-text">
           <h1 className="hero-title">
-            <span>One album in.</span>
-            <span>Endless obsessions out.</span>
+            One album in.
+            <br />
+            Endless obsessions out.
           </h1>
           <p className="hero-description">
             Finally: music discovery that doesn&apos;t insult your intelligence. Just enter an 

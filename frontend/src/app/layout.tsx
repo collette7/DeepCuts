@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.scss";
 import { AuthProvider } from './contexts/AuthContext';
 import AuthErrorHandler from '@/components/AuthErrorHandler';
+import SimpleFooter from './components/SimpleFooter';
 
 export const metadata: Metadata = {
   title: "DeepCuts Music Discovery",
@@ -21,6 +22,7 @@ export default function RootLayout({
           <main>
             {children}
           </main>
+          <SimpleFooter />
         </AuthProvider>
       </body>
     </html>

@@ -61,7 +61,6 @@ const handleSearch = useCallback(async (query: string) => {
     // Check cache first
     const cacheKey = query.toLowerCase().trim();
     if (searchCache.has(cacheKey)) {
-      console.log('Using cached results for:', query);
       setAlbums(searchCache.get(cacheKey) || []);
       return;
     }
@@ -92,40 +91,42 @@ const handleSearch = useCallback(async (query: string) => {
 }, [searchCache]);
 
 const loadSpotifyDataProgressively = async (initialAlbums: AlbumData[], cacheKey: string) => {
-  console.log('Loading Spotify data for', initialAlbums.length, 'albums...');
-  
   // Load Spotify data for each album in parallel
   const promises = initialAlbums.map(async (album) => {
     try {
       const spotifyData = await apiClient.getAlbumSpotifyData(album.id, album.title, album.artist);
       
+      const enrichedAlbum = {
+        ...album,
+        spotify_preview_url: spotifyData.spotify_preview_url,
+        spotify_url: spotifyData.spotify_url,
+        cover_url: spotifyData.cover_url || album.cover_url,
+        discogs_url: spotifyData.discogs_url || album.discogs_url
+      };
+      
       // Update this specific album with Spotify and Discogs data
       setAlbums(currentAlbums => 
         currentAlbums.map(a => 
-          a.id === album.id 
-            ? {
-                ...a,
-                spotify_preview_url: spotifyData.spotify_preview_url,
-                spotify_url: spotifyData.spotify_url,
-                cover_url: spotifyData.cover_url || a.cover_url,
-                discogs_url: spotifyData.discogs_url || a.discogs_url
-              }
-            : a
+          a.id === album.id ? enrichedAlbum : a
         )
       );
       
       // Also update selected album if it's currently being viewed
       setSelectedAlbum(current => 
-        current && current.id === album.id 
-          ? {
-              ...current,
-              spotify_preview_url: spotifyData.spotify_preview_url,
-              spotify_url: spotifyData.spotify_url,
-              cover_url: spotifyData.cover_url || current.cover_url,
-              discogs_url: spotifyData.discogs_url || current.discogs_url
-            }
-          : current
+        current && current.id === album.id ? enrichedAlbum : current
       );
+      
+      // If this album is favorited and we got new data, update the favorite (non-blocking)
+      if (user && favoriteAlbums.has(album.id) && (spotifyData.spotify_url || spotifyData.discogs_url)) {
+        apiClient.updateFavorite(album.id, {
+          spotify_url: spotifyData.spotify_url,
+          spotify_preview_url: spotifyData.spotify_preview_url,
+          discogs_url: spotifyData.discogs_url,
+          cover_url: spotifyData.cover_url
+        }).catch(() => {
+          // Silently handle update failures - not critical
+        });
+      }
     } catch (error) {
       console.error(`Failed to load Spotify data for ${album.title}:`, error);
     }
@@ -139,8 +140,6 @@ const loadSpotifyDataProgressively = async (initialAlbums: AlbumData[], cacheKey
     setSearchCache(prev => new Map(prev.set(cacheKey, currentAlbums)));
     return currentAlbums;
   });
-  
-  console.log('Finished loading Spotify data progressively');
 };
 
 const handleListenNow = async (album: AlbumData) => {
@@ -165,6 +164,18 @@ const handleListenNow = async (album: AlbumData) => {
       setAlbums(current => 
         current.map(a => a.id === album.id ? enrichedAlbum : a)
       );
+      
+      // If this album is favorited and we got new data, update the favorite (non-blocking)
+      if (user && favoriteAlbums.has(album.id) && (spotifyData.spotify_url || spotifyData.discogs_url)) {
+        apiClient.updateFavorite(album.id, {
+          spotify_url: spotifyData.spotify_url,
+          spotify_preview_url: spotifyData.spotify_preview_url,
+          discogs_url: spotifyData.discogs_url,
+          cover_url: spotifyData.cover_url
+        }).catch(() => {
+          // Silently handle update failures - not critical
+        });
+      }
     } catch (error) {
       console.error('Failed to fetch Spotify data for album:', error);
     }

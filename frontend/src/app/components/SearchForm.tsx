@@ -179,7 +179,7 @@ export default function SearchForm({
               <div className="result-info">
                 <div className="result-title">{result.title}</div>
                 <div className="result-metadata">
-                  {result.year && <span>{result.year}</span>}
+                  {result.year && <time dateTime={result.year.toString()}>{result.year}</time>}
                 </div>
               </div>
             </div>

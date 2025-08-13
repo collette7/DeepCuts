@@ -6,7 +6,7 @@
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  max-width: 233px;
+  min-height: 300px;
   cursor: pointer;
   transition: all 0.2s ease;
 
@@ -19,7 +19,7 @@
 
 .img-container {
   width: 100%;
-  height: 220px;
+  aspect-ratio: 1;
   position: relative;
   overflow: hidden;
   background: linear-gradient(135deg, v.color(gray-100), v.color(gray-200));
@@ -54,6 +54,7 @@
   font-size: v.font-size(sm);
   font-weight: v.font-weight(medium);
   opacity: 0.8;
+  margin: 0;
 }
 
 /* Favorite Button - Dark overlay style from Figma */
@@ -115,23 +116,27 @@
 .album-info {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
   width: 100%;
+  min-height: 80px;
+  flex: 1;
 }
 
 .album-text {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  flex: 0 0 auto;
+  min-height: 0;
 }
 
 .album-title {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  font-weight: 600; /* Semi Bold */
-  font-size: 18px;
-  line-height: 24px;
-  letter-spacing: -0.36px;
-  color: #000000;
+  font-weight: v.font-weight(semibold);
+  font-size: v.font-size(lg);
+  line-height: v.line-height(snug);
+  letter-spacing: v.letter-spacing(title);
+  color: v.color(black);
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -140,30 +145,40 @@
 
 .album-artist {
   font-family: 'Saans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  font-weight: 300; /* Light */
-  font-size: 16px;
-  line-height: normal;
-  letter-spacing: -0.32px;
-  color: #000000;
+  font-weight: 300;
+  font-size: v.font-size(base);
+  line-height: v.line-height(normal);
+  letter-spacing: v.letter-spacing(subtitle);
+  color: v.color(black);
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Metadata Row */
+/* Metadata Row - Using semantic dl/dt/dd */
 .album-metadata {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   flex-wrap: nowrap;
+  margin: 0;
+  
+  dt, dd {
+    margin: 0;
+    padding: 0;
+  }
+  
+  dd {
+    display: inline;
+  }
 }
 
 .metadata-item {
   font-family: 'DM Mono', 'Monaco', 'Menlo', monospace;
-  font-weight: 400;
-  font-size: 13px;
-  line-height: 20px;
+  font-weight: v.font-weight(normal);
+  font-size: v.font-size(sm);
+  line-height: v.line-height(normal);
   color: rgba(0, 0, 0, 0.5);
   white-space: nowrap;
   overflow: hidden;
@@ -172,14 +187,15 @@
 
 .metadata-separator {
   font-family: 'DM Mono', 'Monaco', 'Menlo', monospace;
-  font-weight: 400;
-  font-size: 6px;
-  line-height: 20px;
+  font-weight: v.font-weight(normal);
+  font-size: v.font-size(xs);
+  line-height: v.line-height(normal);
   color: rgba(0, 0, 0, 0.5);
   flex-shrink: 0;
   display: flex;
   align-items: center;
 }
+
 
 @keyframes spin {
   0% { transform: rotate(0deg); }
@@ -190,23 +206,19 @@
 @media (max-width: 640px) {
   .album-card {
     width: 100%;
-    max-width: 280px;
   }
   
-  .img-container {
-    height: 200px;
-  }
   
   .album-title {
-    font-size: 16px;
-    line-height: 22px;
+    font-size: v.font-size(lg);
+    line-height: v.line-height(snug);
   }
   
   .album-artist {
-    font-size: 14px;
+    font-size: v.font-size(base);
   }
   
   .metadata-item {
-    font-size: 12px;
+    font-size: v.font-size(sm);
   }
 }

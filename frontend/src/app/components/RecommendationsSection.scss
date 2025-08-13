@@ -12,30 +12,51 @@
   margin-bottom: spacing(6);
   text-align: left;
   line-height: 1.4;
+  padding: 0;
 }
 
 .recommendations-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: spacing(6);
-  justify-content: left;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: flex-start;
+  padding: 0;
+  max-width: none;
+  margin: 0;
+  
+  // Each card takes up 1/5 of the width minus gaps
+  & > * {
+    flex: 0 0 calc(20% - 19.2px); // 20% width minus proportional gap
+    max-width: calc(20% - 19.2px);
+  }
   
   @media (max-width: 1100px) {
-    grid-template-columns: repeat(4, 1fr);
+    & > * {
+      flex: 0 0 calc(25% - 18px); // 4 columns
+      max-width: calc(25% - 18px);
+    }
   }
   
   @media (max-width: 900px) {
-    grid-template-columns: repeat(3, 1fr);
+    & > * {
+      flex: 0 0 calc(33.333% - 16px); // 3 columns
+      max-width: calc(33.333% - 16px);
+    }
   }
   
   @media (max-width: breakpoint(sm)) {
-    grid-template-columns: repeat(2, 1fr);
-    gap: spacing(4);
-    padding: 0 spacing(4);
+    gap: 16px;
+    & > * {
+      flex: 0 0 calc(50% - 8px); // 2 columns
+      max-width: calc(50% - 8px);
+    }
   }
   
   @media (max-width: 480px) {
-    grid-template-columns: 1fr;
+    & > * {
+      flex: 0 0 100%; // 1 column
+      max-width: 100%;
+    }
   }
 }
 
@@ -46,8 +67,7 @@
   }
   
   .recommendations-title {
-    font-size: font-size(lg);
+    font-size: font-size(xl);
     margin-bottom: spacing(4);
-    padding: 0 spacing(4);
   }
 }
