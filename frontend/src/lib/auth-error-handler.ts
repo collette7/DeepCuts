@@ -53,16 +53,6 @@ export async function handleAuthError(error: unknown): Promise<void> {
 // Global error handler that can be attached to window
 export function setupGlobalAuthErrorHandler() {
   if (typeof window !== 'undefined') {
-    const originalConsoleError = console.error
-    
-    console.error = (...args: unknown[]) => {
-      const error = args[0]
-      if (isRefreshTokenError(error)) {
-        handleAuthError(error)
-      }
-      originalConsoleError.apply(console, args)
-    }
-    
     // Also handle unhandled promise rejections
     window.addEventListener('unhandledrejection', (event) => {
       if (isRefreshTokenError(event.reason)) {
