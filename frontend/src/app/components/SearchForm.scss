@@ -122,6 +122,8 @@
   cursor: pointer;
   transition: v.transition(fast);
   border-bottom: 1px solid v.color(gray-100);
+  border-radius: v.radius(sm);
+  margin: 0 v.spacing(1);
 
   &:last-child {
     border-bottom: none;

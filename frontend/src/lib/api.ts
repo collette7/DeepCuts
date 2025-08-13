@@ -1,13 +1,6 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+import { handleAuthError, isRefreshTokenError } from './auth-error-handler';
 
-// Debug logging for API URL
-if (typeof window !== 'undefined') {
-  console.log('API Configuration:', {
-    API_BASE_URL,
-    hasEnvVar: !!process.env.NEXT_PUBLIC_API_URL,
-    envValue: process.env.NEXT_PUBLIC_API_URL
-  });
-}
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 class ApiClient {
     // client for FastAPI 
@@ -24,6 +17,12 @@ class ApiClient {
             
             if (error) {
                 console.warn('Auth session error:', error);
+                
+                // Handle refresh token errors
+                if (isRefreshTokenError(error)) {
+                    await handleAuthError(error);
+                }
+                
                 return headers;
             }
             
@@ -32,6 +31,11 @@ class ApiClient {
             }
         } catch (error) {
             console.error('Error getting auth headers:', error);
+            
+            // Handle refresh token errors
+            if (isRefreshTokenError(error)) {
+                await handleAuthError(error);
+            }
         }
         
         return headers;
@@ -45,27 +49,12 @@ class ApiClient {
     async searchAlbums(query: string = 'Miles Davis') {
         //Search albums
         try {
-            console.log('Searching albums from:', `${API_BASE_URL}/api/v1/search`);
-            
-            // Add timeout to prevent infinite loading
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for AI processing
-            
             const response = await fetch(`${API_BASE_URL}/api/v1/search`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ query }),
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            console.log('Search response received:', {
-                status: response.status,
-                ok: response.ok,
-                statusText: response.statusText,
-                url: response.url
+                body: JSON.stringify({ query })
             });
 
             if (!response.ok) {
@@ -73,13 +62,9 @@ class ApiClient {
             }
             
             const data = await response.json();
-            console.log('Search data:', data);
             return data;
         } catch (error) {
-            console.error('Search API Error:', error);
-            if (error instanceof Error && error.name === 'AbortError') {
-                throw new Error('Search request timed out. Please try again.');
-            }
+            console.error('API Error:', error);
             throw error;
         }
     }

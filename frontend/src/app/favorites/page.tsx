@@ -21,7 +21,6 @@ export default function FavoritesPage() {
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumData | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
-  const [fetchingSpotifyData, setFetchingSpotifyData] = useState(false);
 
   const loadFavorites = useCallback(async () => {
     try {
@@ -71,7 +70,6 @@ export default function FavoritesPage() {
     
     // If no Spotify URL, try to fetch it in the background
     if (!album.spotify_url && album.title && album.artist) {
-      setFetchingSpotifyData(true);
       try {
         const spotifyData = await apiClient.getAlbumSpotifyData(album.id, album.title, album.artist);
         const enrichedAlbum = {
@@ -96,8 +94,6 @@ export default function FavoritesPage() {
         }));
       } catch (error) {
         console.error('Failed to fetch Spotify data:', error);
-      } finally {
-        setFetchingSpotifyData(false);
       }
     }
   };

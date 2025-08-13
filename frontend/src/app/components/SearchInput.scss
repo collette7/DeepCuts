@@ -215,6 +215,8 @@
   cursor: pointer;
   transition: background-color 0.15s;
   border-bottom: 1px solid #f3f4f6;
+  border-radius: 8px;
+  margin: 0 4px;
   
   &:last-child {
     border-bottom: none;
