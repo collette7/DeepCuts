@@ -1,6 +1,40 @@
-# DeepCuts Frontend
+# DeepCuts Frontend - Learn Modern Web Development
 
-Next.js React application providing the user interface for DeepCuts music recommendations.
+A comprehensive Next.js React application that demonstrates modern web development practices through a real-world music recommendation system. This project serves as both a functional application and an educational resource for learning frontend development.
+
+## 🎯 Learning Objectives
+
+This codebase teaches you:
+- **Modern React patterns** with hooks, context, and component composition
+- **Next.js 13+ App Router** for server/client component architecture
+- **TypeScript integration** for type-safe development
+- **Authentication flows** with JWT tokens and session management
+- **API integration** with progressive loading and error handling
+- **State management** patterns from local state to global context
+- **Performance optimization** through caching and lazy loading
+- **Security best practices** including input sanitization and XSS prevention
+
+## 💡 Key Educational Concepts
+
+### **Frontend Architecture Patterns**
+Learn how modern applications separate concerns:
+- **Presentation Layer**: React components for UI
+- **State Layer**: Context and hooks for data management  
+- **Service Layer**: API client for backend communication
+- **Styling Layer**: SCSS modules for maintainable styles
+
+### **Progressive Enhancement**
+See how the app provides immediate value while loading enhanced features:
+1. **Basic content loads first** (AI recommendations)
+2. **Enhanced data loads progressively** (Spotify/Discogs enrichment)
+3. **Graceful fallbacks** when services are unavailable
+
+### **Authentication Architecture**
+Understand modern auth patterns:
+- **JWT token management** with automatic refresh
+- **Session persistence** across browser sessions
+- **Route protection** and conditional rendering
+- **Error handling** for expired/invalid tokens
 
 ## Frontend-Specific Features
 
@@ -67,6 +101,67 @@ The frontend communicates with the FastAPI backend through a centralized API cli
 - Discogs metadata lookup
 - Authentication token management
 
+## 📚 Learning Path
+
+### **Beginner Path**
+1. **[Wave 1: React Fundamentals](./wave-1.md)** - Components, hooks, and Next.js basics
+2. **[Wave 2: Authentication Systems](./wave-2.md)** - JWT, Supabase, and user management
+3. **[Glossary](./glossary.md)** - Comprehensive technical terms and concepts
+
+### **Intermediate Path**  
+3. **[Wave 3: API Integration](./wave-3.md)** - Progressive loading and state management
+4. **[Wave 4: Advanced Patterns](./wave-4.md)** - Performance optimization and deployment
+
+### **Quick Reference**
+- **[Technical Glossary](./glossary.md)** - All concepts and terms explained
+- **Code Examples** - Look for `💡 Concept Explained` and `🔍 Deep Dive` sections throughout
+
+## 🔍 Code Study Guide
+
+### **Start Here: Core Files to Understand**
+
+1. **`src/app/page.tsx`** - Main application logic and React patterns
+   - Study the hooks usage (useState, useEffect, useCallback)
+   - Observe progressive loading implementation
+   - Note error handling and loading states
+
+2. **`src/lib/api.ts`** - API client pattern and HTTP communication
+   - See how authentication headers are managed
+   - Study error handling and retry logic
+   - Understand caching implementation
+
+3. **`src/app/contexts/AuthContext.tsx`** - State management with React Context
+   - Learn session management
+   - Study authentication flows
+   - See how context provides global state
+
+4. **`src/app/components/AlbumCard.tsx`** - Component design patterns
+   - Understand prop interfaces and TypeScript
+   - See event handling and conditional rendering
+   - Study accessibility implementation
+
+## 🛡️ Security Concepts Demonstrated
+
+This codebase implements several security best practices:
+
+### **Input Sanitization**
+```typescript
+// Always sanitize user input
+const sanitizedQuery = query.trim().slice(0, 200);
+const sanitizedAlbumId = encodeURIComponent(albumId);
+```
+
+### **Authentication Security**
+- JWT tokens stored securely
+- Automatic token refresh
+- Session validation on each request
+- Graceful handling of expired sessions
+
+### **XSS Prevention**  
+- React automatically escapes user content
+- No dangerous `innerHTML` usage
+- Safe URL construction with `encodeURIComponent`
+
 ## Deployment
 
 ### Environment Setup
@@ -85,4 +180,11 @@ npm run build
 # Start production server
 npm start
 ```
+
+## 📖 Additional Learning Resources
+
+- **[React Documentation](https://react.dev)** - Official React guides
+- **[Next.js Documentation](https://nextjs.org/docs)** - Framework-specific features
+- **[TypeScript Handbook](https://www.typescriptlang.org/docs/)** - Type system fundamentals
+- **[Supabase Guides](https://supabase.com/docs)** - Authentication and database patterns
 

@@ -11,7 +11,7 @@ class AIService:
         # ACTIVE MODEL - Just change this variable OR set ACTIVE_MODEL env variable
         # Claude: "claude-3-5-sonnet-20241022", "claude-3-opus-20240229", "claude-3-haiku-20240307"
         # Gemini (FREE): "gemini-1.5-flash", "gemini-pro"
-        self.ACTIVE_MODEL = os.getenv("ACTIVE_MODEL", "gemini-1.5-flash")  # Default to free Gemini Flash
+        self.ACTIVE_MODEL = os.getenv("ACTIVE_MODEL", "claude-3-5-sonnet-20241022")  # Default to Claude Sonnet
         
         # Initialize the appropriate client
         if "gemini" in self.ACTIVE_MODEL.lower():

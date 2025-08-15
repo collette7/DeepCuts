@@ -212,47 +212,7 @@ class FavoritesService:
         try:
             favorites_result = await self.get_user_favorites(user_email, user_token)
             
-            if favorites_result.success and favorites_result.favorites:
-                # Enrich album data with Spotify information
-                enriched_favorites = []
-                for favorite in favorites_result.favorites:
-                    album = favorite.get('albums') or favorite.get('album')
-                    if album:
-                        # Try to get Spotify data for this album
-                        try:
-                            from ..main import get_spotify_album_data
-                            spotify_data = await get_spotify_album_data(
-                                album.get('title', ''), 
-                                album.get('artist', '')
-                            )
-                            
-                            # Update album with Spotify data
-                            enriched_album = {
-                                **album,
-                                'spotify_preview_url': spotify_data.get('preview_url') or album.get('spotify_preview_url'),
-                                'spotify_url': spotify_data.get('external_url') or album.get('spotify_url')
-                            }
-                            
-                            # Update the favorite record with enriched album
-                            favorite_copy = favorite.copy()
-                            if 'albums' in favorite:
-                                favorite_copy['albums'] = enriched_album
-                            else:
-                                favorite_copy['album'] = enriched_album
-                                
-                            enriched_favorites.append(favorite_copy)
-                        except Exception as e:
-                            print(f"Failed to enrich album {album.get('title', 'Unknown')}: {e}")
-                            enriched_favorites.append(favorite)
-                    else:
-                        enriched_favorites.append(favorite)
-                
-                return {
-                    "success": True,
-                    "favorites": enriched_favorites,
-                    "total": len(enriched_favorites)
-                }
-            
+            # Return favorites without Spotify enrichment - frontend handles this progressively
             return {
                 "success": favorites_result.success,
                 "favorites": favorites_result.favorites if favorites_result.success else [],
