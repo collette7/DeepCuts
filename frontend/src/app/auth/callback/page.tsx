@@ -18,8 +18,16 @@ export default function AuthCallback() {
           return
         }
 
-        // Redirect to home page
-        router.push('/?message=welcome')
+        // Check for pending search query to restore
+        const pendingQuery = sessionStorage.getItem('pendingSearchQuery')
+        
+        // Redirect to home page, preserving search if it exists
+        if (pendingQuery) {
+          // The page.tsx will handle restoring the search via useEffect
+          router.push('/')
+        } else {
+          router.push('/?message=welcome')
+        }
       } catch (err) {
         console.error('Unexpected error in auth callback:', err)
         router.push('/?error=unexpected')
