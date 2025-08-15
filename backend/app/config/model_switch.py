@@ -19,7 +19,7 @@ class ModelSwitch:
     """Handles switching between different AI models"""
     
     def __init__(self):
-        self.current_model = self._get_default_model()
+        self.current_model = AIModel.GEMINI_PRO
         self.fallback_models = [
             AIModel.CLAUDE_35_SONNET,
             AIModel.GEMINI_PRO,
