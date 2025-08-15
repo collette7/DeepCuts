@@ -85,15 +85,29 @@ const handleSearch = useCallback(async (query: string) => {
   } catch (error) {
     console.error('Error searching albums:', error);
     setAlbums([]);
-    setError('Bad connection, try again later');
+    // More specific error handling
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      setError('Connection error. Please check your internet connection.');
+    } else {
+      setError('Bad connection, try again later');
+    }
     setLoading(false);
   }
 }, [searchCache]);
 
 const loadSpotifyDataProgressively = async (initialAlbums: AlbumData[], cacheKey: string) => {
+  // Ensure we're working with valid data
+  if (!initialAlbums || initialAlbums.length === 0) return;
+  
   // Load Spotify data for each album in parallel
   const promises = initialAlbums.map(async (album) => {
     try {
+      // Skip if album data is invalid
+      if (!album || !album.id || !album.title || !album.artist) {
+        console.warn('Invalid album data:', album);
+        return;
+      }
+      
       const spotifyData = await apiClient.getAlbumSpotifyData(album.id, album.title, album.artist);
       
       const enrichedAlbum = {
@@ -128,18 +142,20 @@ const loadSpotifyDataProgressively = async (initialAlbums: AlbumData[], cacheKey
         });
       }
     } catch (error) {
-      console.error(`Failed to load Spotify data for ${album.title}:`, error);
+      console.error(`Failed to load Spotify data for ${album?.title}:`, error);
     }
   });
   
   // Wait for all to complete, then cache the final results
   await Promise.all(promises);
   
-  // Update cache with enriched results
-  setAlbums(currentAlbums => {
-    setSearchCache(prev => new Map(prev.set(cacheKey, currentAlbums)));
-    return currentAlbums;
-  });
+  // Update cache with enriched results (only if cacheKey is valid)
+  if (cacheKey && cacheKey.length > 0) {
+    setAlbums(currentAlbums => {
+      setSearchCache(prev => new Map(prev.set(cacheKey, currentAlbums)));
+      return currentAlbums;
+    });
+  }
 };
 
 const handleListenNow = async (album: AlbumData) => {
@@ -220,8 +236,14 @@ useEffect(() => {
     // Check for pending search query after login
     const pendingQuery = sessionStorage.getItem('pendingSearchQuery');
     if (pendingQuery) {
-      sessionStorage.removeItem('pendingSearchQuery');
-      handleSearch(pendingQuery);
+      // Small delay to ensure auth state is fully established
+      setTimeout(() => {
+        sessionStorage.removeItem('pendingSearchQuery');
+        // Restore the search query visually first
+        setSearchQuery(pendingQuery);
+        // Then execute the search
+        handleSearch(pendingQuery);
+      }, 100);
     }
     loadUserFavorites();
   } else {

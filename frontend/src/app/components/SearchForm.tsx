@@ -47,11 +47,14 @@ export default function SearchForm({
       try {
         const data: SuggestionResponse = await apiClient.searchDiscogs(searchQuery);
         
-        if (data.results && data.results.length > 0) {
+        if (data && data.results && data.results.length > 0) {
           // Deduplicate by normalizing titles (remove extra info, case insensitive)
           const deduplicatedResults = data.results.reduce((acc: SuggestionResult[], current) => {
+            // Ensure current has required properties
+            if (!current || !current.title) return acc;
+            
             const normalizeTitle = (title: string) => {
-              return title
+              return (title || '')
                 .toLowerCase()
                 .replace(/\s*-\s*.*$/, '')
                 .replace(/[^\w\s]/g, '')
@@ -79,7 +82,8 @@ export default function SearchForm({
           setShowResults(false);
         }
       } catch (error) {
-        console.error('Search error:', error);
+        console.error('Search suggestion error:', error);
+        // Don't show error UI for suggestions, just hide results
         setResults([]);
         setShowResults(false);
       }
@@ -123,9 +127,10 @@ export default function SearchForm({
   };
 
   const handleResultClick = (result: SuggestionResult) => {
-    onSearchQueryChange(result.title);
-    setShowResults(false);
-    
+    if (result && result.title) {
+      onSearchQueryChange(result.title);
+      setShowResults(false);
+    }
   };
   return (
     <div className="search-section">
