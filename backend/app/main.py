@@ -437,8 +437,18 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
             
             if response.status_code == 200:
                 data = response.json()
+                # Clean up results to remove asterisks from titles
+                cleaned_results = []
+                for result in data.get("results", []):
+                    if "title" in result:
+                        result["title"] = (result["title"]
+                                         .replace("* -", " -")  # "Artist* -" becomes "Artist -"
+                                         .replace("*", "")      # Any remaining asterisks
+                                         .strip())
+                    cleaned_results.append(SuggestionResult(**result))
+                
                 return SuggestionResponse(
-                    results=[SuggestionResult(**result) for result in data.get("results", [])],
+                    results=cleaned_results,
                     pagination=data.get("pagination", {})
                 )
             else:
