@@ -209,4 +209,4 @@ With the server running, visit:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
+This project is proprietary software. All rights reserved. See the [LICENSE](../LICENSE) file for details.
