@@ -163,7 +163,7 @@ With the backend running, visit http://localhost:8000/docs for interactive API d
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'Add amazing feature'`
+3. Commit your changes: `git commit -m 'Add new amazing feature'`
 4. Push to the branch: `git push origin feature/amazing-feature`
 5. Open a Pull Request
 
