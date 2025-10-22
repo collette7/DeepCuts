@@ -93,15 +93,22 @@ class AIService:
         """Parse the XML"""
         recommendations = []
         
+        import logging
+        logger = logging.getLogger('deepcuts')
+        
         recommendations_match = re.search(r'<recommendations>(.*?)</recommendations>', response_text, re.DOTALL)
         if not recommendations_match:
+            logger.warning("No <recommendations> tag found in AI response")
+            logger.debug(f"Looking for recommendations in response: {response_text[:1000]}")
             return recommendations
             
         recommendations_xml = recommendations_match.group(1)
+        logger.debug(f"Found recommendations XML section with {len(recommendations_xml)} chars")
         
         # Parse each album rec
         album_pattern = r'<album>\s*<title>(.*?)</title>\s*<artist>(.*?)</artist>\s*<year>(.*?)</year>\s*<genre>(.*?)</genre>\s*<explanation>(.*?)</explanation>\s*</album>'
         album_matches = re.findall(album_pattern, recommendations_xml, re.DOTALL)
+        logger.info(f"Found {len(album_matches)} album matches in XML")
         
         for title, artist, year, genre, explanation in album_matches:
             try:
@@ -162,7 +169,14 @@ class AIService:
                     ]
                 )
                 response_text = message.content[0].text
+            
+            # Log the raw response for debugging
+            import logging
+            logger = logging.getLogger('deepcuts')
+            logger.debug(f"AI Response (first 500 chars): {response_text[:500]}")
+            
             recommendations = self.parse_recommendations(response_text)
+            logger.info(f"Parsed {len(recommendations)} recommendations from AI response")
             
             return recommendations
             
@@ -170,7 +184,7 @@ class AIService:
             # Import logger here to avoid circular imports
             import logging
             logger = logging.getLogger('deepcuts')
-            logger.error(f"Error getting recommendations from Claude: {e}", exc_info=True)
+            logger.error(f"Error getting recommendations from AI: {e}", exc_info=True)
             return []
 
 
