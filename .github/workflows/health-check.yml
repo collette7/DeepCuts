@@ -1,0 +1,180 @@
+name: Health Check & Monitoring
+
+on:
+  schedule:
+    # Run health checks every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to check'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+        - development
+
+jobs:
+  health-check:
+    name: Application Health Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set environment URL
+      id: set-url
+      run: |
+        case "${{ github.event.inputs.environment || 'production' }}" in
+          "production")
+            echo "url=https://deepcuts.casa" >> $GITHUB_OUTPUT
+            echo "api_url=https://api.deepcuts.casa" >> $GITHUB_OUTPUT
+            ;;
+          "staging")
+            echo "url=https://staging.deepcuts.casa" >> $GITHUB_OUTPUT
+            echo "api_url=https://api-staging.deepcuts.casa" >> $GITHUB_OUTPUT
+            ;;
+          "development")
+            echo "url=http://localhost:3000" >> $GITHUB_OUTPUT
+            echo "api_url=http://localhost:8000" >> $GITHUB_OUTPUT
+            ;;
+        esac
+        
+    - name: Check frontend availability
+      id: frontend-check
+      run: |
+        response=$(curl -s -o /dev/null -w "%{http_code}" "${{ steps.set-url.outputs.url }}" || echo "000")
+        if [ "$response" = "200" ]; then
+          echo "status=✅ Available" >> $GITHUB_OUTPUT
+          echo "healthy=true" >> $GITHUB_OUTPUT
+        else
+          echo "status=❌ Unavailable (HTTP $response)" >> $GITHUB_OUTPUT
+          echo "healthy=false" >> $GITHUB_OUTPUT
+        fi
+        echo "response_code=$response" >> $GITHUB_OUTPUT
+        
+    - name: Check API health endpoint
+      id: api-check
+      run: |
+        response=$(curl -s "${{ steps.set-url.outputs.api_url }}/" | jq -r '.status // "unknown"' || echo "error")
+        if [ "$response" = "healthy" ]; then
+          echo "status=✅ Healthy" >> $GITHUB_OUTPUT
+          echo "healthy=true" >> $GITHUB_OUTPUT
+        else
+          echo "status=❌ Unhealthy ($response)" >> $GITHUB_OUTPUT
+          echo "healthy=false" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Check search functionality
+      id: search-check
+      run: |
+        search_result=$(curl -s -X POST "${{ steps.set-url.outputs.api_url }}/api/v1/search" \
+          -H "Content-Type: application/json" \
+          -d '{"query": "Miles Davis"}' | jq -r '.total_found // 0' || echo "0")
+        if [ "$search_result" -gt "0" ]; then
+          echo "status=✅ Working ($search_result results)" >> $GITHUB_OUTPUT
+          echo "healthy=true" >> $GITHUB_OUTPUT
+        else
+          echo "status=❌ Not working" >> $GITHUB_OUTPUT
+          echo "healthy=false" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Check response times
+      id: performance-check
+      run: |
+        # Test frontend response time
+        frontend_time=$(curl -s -o /dev/null -w "%{time_total}" "${{ steps.set-url.outputs.url }}" || echo "999")
+        api_time=$(curl -s -o /dev/null -w "%{time_total}" "${{ steps.set-url.outputs.api_url }}/" || echo "999")
+        
+        if (( $(echo "$frontend_time < 3.0" | bc -l) )); then
+          frontend_perf="✅ Fast (${frontend_time}s)"
+        elif (( $(echo "$frontend_time < 5.0" | bc -l) )); then
+          frontend_perf="⚠️ Slow (${frontend_time}s)"
+        else
+          frontend_perf="❌ Very slow (${frontend_time}s)"
+        fi
+        
+        if (( $(echo "$api_time < 2.0" | bc -l) )); then
+          api_perf="✅ Fast (${api_time}s)"
+        elif (( $(echo "$api_time < 3.0" | bc -l) )); then
+          api_perf="⚠️ Slow (${api_time}s)"
+        else
+          api_perf="❌ Very slow (${api_time}s)"
+        fi
+        
+        echo "frontend_performance=$frontend_perf" >> $GITHUB_OUTPUT
+        echo "api_performance=$api_perf" >> $GITHUB_OUTPUT
+        
+    - name: Generate health report
+      run: |
+        cat << EOF >> $GITHUB_STEP_SUMMARY
+        ## 🏥 Health Check Report
+        
+        **Environment:** ${{ github.event.inputs.environment || 'production' }}
+        **Checked at:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        
+        ### Service Status
+        | Component | Status | Performance |
+        |-----------|--------|-------------|
+        | Frontend | ${{ steps.frontend-check.outputs.status }} | ${{ steps.performance-check.outputs.frontend_performance }} |
+        | API | ${{ steps.api-check.outputs.status }} | ${{ steps.performance-check.outputs.api_performance }} |
+        | Search | ${{ steps.search-check.outputs.status }} | - |
+        
+        ### Overall Health
+        EOF
+        
+        if [ "${{ steps.frontend-check.outputs.healthy }}" = "true" ] && \
+           [ "${{ steps.api-check.outputs.healthy }}" = "true" ] && \
+           [ "${{ steps.search-check.outputs.healthy }}" = "true" ]; then
+          echo "🟢 **All systems operational**" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "🔴 **Some systems experiencing issues**" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: Create issue on failure
+      if: steps.frontend-check.outputs.healthy == 'false' || steps.api-check.outputs.healthy == 'false' || steps.search-check.outputs.healthy == 'false'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const title = `🚨 Health Check Failed - ${{ github.event.inputs.environment || 'production' }}`;
+          const body = `
+          ## Health Check Failure Report
+          
+          **Environment:** ${{ github.event.inputs.environment || 'production' }}
+          **Time:** ${new Date().toISOString()}
+          
+          ### Failed Components
+          - Frontend: ${{ steps.frontend-check.outputs.status }}
+          - API: ${{ steps.api-check.outputs.status }}
+          - Search: ${{ steps.search-check.outputs.status }}
+          
+          ### Performance
+          - Frontend: ${{ steps.performance-check.outputs.frontend_performance }}
+          - API: ${{ steps.performance-check.outputs.api_performance }}
+          
+          **Action Required:** Please investigate the failing components immediately.
+          
+          ---
+          *This issue was automatically created by the health check workflow.*
+          `;
+          
+          // Check if an issue already exists
+          const existingIssues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            labels: ['health-check', 'bug'],
+            state: 'open'
+          });
+          
+          if (existingIssues.data.length === 0) {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['health-check', 'bug', 'priority-high']
+            });
+          }

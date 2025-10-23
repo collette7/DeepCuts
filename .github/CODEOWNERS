@@ -1,0 +1,25 @@
+# Global code owners
+* @collette
+
+# Frontend specific
+frontend/ @collette
+*.tsx @collette
+*.scss @collette
+
+# Backend specific  
+backend/ @collette
+*.py @collette
+
+# CI/CD and workflows
+.github/ @collette
+Procfile @collette
+
+# Security sensitive files
+backend/app/services/favorites.py @collette
+backend/app/database.py @collette
+frontend/src/lib/auth* @collette
+
+# Configuration files
+requirements.txt @collette
+package.json @collette
+tsconfig.json @collette
