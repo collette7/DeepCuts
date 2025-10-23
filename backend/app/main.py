@@ -539,6 +539,40 @@ async def get_favorites_with_details(
     return await favorites_service.get_favorites_with_album_details(user_email, token)
 
 
+@app.get("/debug/ai-test")
+async def debug_ai_test():
+    """Debug endpoint to test AI service configuration"""
+    try:
+        import os
+        
+        debug_info = {
+            "active_model": os.getenv("ACTIVE_MODEL"),
+            "has_claude_key": bool(os.getenv("CLAUDE_API_KEY")),
+            "has_gemini_key": bool(os.getenv("GEMINI_API_KEY")),
+            "claude_key_preview": os.getenv("CLAUDE_API_KEY", "")[:10] + "..." if os.getenv("CLAUDE_API_KEY") else None,
+            "gemini_key_preview": os.getenv("GEMINI_API_KEY", "")[:10] + "..." if os.getenv("GEMINI_API_KEY") else None,
+        }
+        
+        # Test a simple AI call
+        try:
+            test_recommendations = await ai_service.get_album_recommendations("Miles Davis Kind of Blue")
+            debug_info["ai_test_success"] = True
+            debug_info["ai_test_result_count"] = len(test_recommendations)
+            if test_recommendations:
+                debug_info["ai_test_first_result"] = {
+                    "title": test_recommendations[0].title,
+                    "artist": test_recommendations[0].artist
+                }
+        except Exception as ai_error:
+            debug_info["ai_test_success"] = False
+            debug_info["ai_test_error"] = str(ai_error)
+            
+        return debug_info
+        
+    except Exception as e:
+        return {"error": str(e)}
+
+
 
 
 
