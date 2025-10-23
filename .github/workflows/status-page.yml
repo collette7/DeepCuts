@@ -1,0 +1,147 @@
+name: Update Status Page
+
+on:
+  workflow_run:
+    workflows: ["CI/CD Pipeline", "Health Check & Monitoring"]
+    types: [completed]
+  push:
+    branches: [main]
+
+jobs:
+  update-status:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Get workflow status
+      id: status
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Get recent workflow runs
+          const workflows = await github.rest.actions.listWorkflowRunsForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            per_page: 50
+          });
+          
+          // Analyze workflow results
+          const ciRuns = workflows.data.workflow_runs.filter(run => 
+            run.name === 'CI/CD Pipeline' && run.head_branch === 'main'
+          ).slice(0, 5);
+          
+          const healthRuns = workflows.data.workflow_runs.filter(run => 
+            run.name === 'Health Check & Monitoring'
+          ).slice(0, 5);
+          
+          const ciStatus = ciRuns.length > 0 ? ciRuns[0].conclusion : 'unknown';
+          const healthStatus = healthRuns.length > 0 ? healthRuns[0].conclusion : 'unknown';
+          
+          // Calculate success rates
+          const ciSuccessRate = ciRuns.length > 0 ? 
+            (ciRuns.filter(run => run.conclusion === 'success').length / ciRuns.length * 100).toFixed(1) : 0;
+          const healthSuccessRate = healthRuns.length > 0 ? 
+            (healthRuns.filter(run => run.conclusion === 'success').length / healthRuns.length * 100).toFixed(1) : 0;
+          
+          return {
+            ciStatus,
+            healthStatus,
+            ciSuccessRate,
+            healthSuccessRate,
+            lastUpdate: new Date().toISOString()
+          };
+          
+    - name: Update README with status badges
+      run: |
+        # Create or update status section in README
+        if ! grep -q "## 📊 Project Status" README.md; then
+          cat << 'EOF' >> README.md
+        
+        ## 📊 Project Status
+        
+        | Component | Status | Success Rate (Last 5 runs) |
+        |-----------|--------|-----------------------------|
+        | CI/CD Pipeline | ![CI Status](https://img.shields.io/github/actions/workflow/status/${{ github.repository }}/ci.yml?branch=main&label=CI) | ${{ fromJson(steps.status.outputs.result).ciSuccessRate }}% |
+        | Health Monitoring | ![Health Status](https://img.shields.io/github/actions/workflow/status/${{ github.repository }}/health-check.yml?label=Health) | ${{ fromJson(steps.status.outputs.result).healthSuccessRate }}% |
+        | Code Quality | ![Code Quality](https://img.shields.io/github/actions/workflow/status/${{ github.repository }}/ci.yml?branch=main&label=Quality) | - |
+        | Security Scan | ![Security](https://img.shields.io/github/actions/workflow/status/${{ github.repository }}/ci.yml?branch=main&label=Security) | - |
+        
+        **Last Updated:** ${{ fromJson(steps.status.outputs.result).lastUpdate }}
+        
+        ### Quick Links
+        - 🔍 [View CI Runs](https://github.com/${{ github.repository }}/actions/workflows/ci.yml)
+        - 🏥 [Health Checks](https://github.com/${{ github.repository }}/actions/workflows/health-check.yml)
+        - 🛡️ [Security Scans](https://github.com/${{ github.repository }}/security)
+        - 📊 [Project Insights](https://github.com/${{ github.repository }}/pulse)
+        EOF
+        else
+          echo "Status section already exists in README.md"
+        fi
+        
+    - name: Create status dashboard file
+      run: |
+        mkdir -p .github/status
+        cat << EOF > .github/status/dashboard.md
+        # 📊 DeepCuts Status Dashboard
+        
+        Last updated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        
+        ## Current Status
+        
+        ### Build & Deployment
+        - **CI/CD Pipeline**: ${{ fromJson(steps.status.outputs.result).ciStatus == 'success' && '🟢 Passing' || '🔴 Failing' }}
+        - **Code Quality**: Monitored continuously
+        - **Security Scans**: Automated on PRs
+        
+        ### Application Health
+        - **Health Monitoring**: ${{ fromJson(steps.status.outputs.result).healthStatus == 'success' && '🟢 Healthy' || '⚠️ Issues Detected' }}
+        - **Frontend**: Monitored every 6 hours
+        - **Backend API**: Monitored every 6 hours
+        - **Search Function**: Monitored every 6 hours
+        
+        ### Success Rates (Last 5 runs)
+        - CI/CD: ${{ fromJson(steps.status.outputs.result).ciSuccessRate }}%
+        - Health Checks: ${{ fromJson(steps.status.outputs.result).healthSuccessRate }}%
+        
+        ## Monitoring Coverage
+        
+        ### Automated Checks
+        - ✅ TypeScript compilation
+        - ✅ ESLint code quality
+        - ✅ Build verification
+        - ✅ Security vulnerability scanning
+        - ✅ Dependency review
+        - ✅ Import validation
+        - ✅ Application startup tests
+        - ✅ API endpoint health
+        - ✅ Search functionality
+        - ✅ Response time monitoring
+        
+        ### Manual Reviews
+        - Code reviews on all PRs
+        - Security reviews for sensitive changes
+        - Performance reviews for optimization PRs
+        
+        ## Quick Actions
+        
+        - [🔄 Run Health Check](https://github.com/${{ github.repository }}/actions/workflows/health-check.yml)
+        - [🔍 View Latest CI Results](https://github.com/${{ github.repository }}/actions/workflows/ci.yml)
+        - [🛡️ Security Overview](https://github.com/${{ github.repository }}/security)
+        - [📈 Repository Insights](https://github.com/${{ github.repository }}/pulse)
+        
+        ---
+        *This dashboard is automatically updated by GitHub Actions*
+        EOF
+        
+    - name: Commit status updates
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "📊 Update project status dashboard [skip ci]"
+          git push
+        fi

@@ -1,0 +1,48 @@
+# Configuration for PR labeler
+# Labels PRs based on the files that are changed
+
+'frontend':
+  - 'frontend/**/*'
+
+'backend':
+  - 'backend/**/*'
+
+'ci/cd':
+  - '.github/**/*'
+  - 'Procfile'
+  - 'requirements.txt'
+  - 'package.json'
+  - 'package-lock.json'
+
+'documentation':
+  - '*.md'
+  - 'docs/**/*'
+  - 'README*'
+
+'dependencies':
+  - 'package.json'
+  - 'package-lock.json'
+  - 'requirements.txt'
+  - 'yarn.lock'
+
+'api':
+  - 'backend/app/main.py'
+  - 'backend/app/models/**/*'
+  - 'backend/app/services/**/*'
+
+'ui/ux':
+  - 'frontend/src/app/components/**/*'
+  - 'frontend/src/app/**/*.tsx'
+  - 'frontend/src/app/**/*.scss'
+  - 'frontend/src/app/**/*.css'
+
+'configuration':
+  - '*.config.*'
+  - '.env*'
+  - 'tsconfig.json'
+  - 'eslint.config.*'
+
+'security':
+  - 'backend/app/services/favorites.py'
+  - 'frontend/src/lib/auth*'
+  - 'backend/app/database.py'
