@@ -99,6 +99,15 @@ jobs:
             sys.exit(1)
         "
 
+    - name: Backend - AI Model Configuration Tests
+      if: matrix.component == 'backend'
+      env:
+        ACTIVE_MODEL: claude-sonnet-4-5
+      run: |
+        cd backend
+        pytest tests/test_ai_models.py::TestModelConfiguration -v
+        pytest tests/test_ai_models.py::TestDeprecatedModels -v
+
   build-status:
     name: Build Status Monitor
     runs-on: ubuntu-latest
