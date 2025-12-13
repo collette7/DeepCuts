@@ -16,7 +16,7 @@ from app.models.recommendations import (
     CreateRecommendationSessionResponse
 )
 from app.config import settings
-from app.services.ai import ai_service
+from app.services.ai import ai_service, set_active_model, VALID_CLAUDE_MODELS, VALID_GEMINI_MODELS, get_model_info
 from app.services.favorites import favorites_service
 from app.services.recommendations import recommendation_service
 from app.database import supabase_admin
@@ -71,6 +71,9 @@ if supabase_key:
 
 supabase: Client = create_client(supabase_url, supabase_key)
 
+# Initialize AI service with Supabase client for runtime config
+ai_service.supabase = supabase_admin
+
 
 @app.get("/")
 async def root():
@@ -94,6 +97,126 @@ async def root():
             "spotify_integration": "enabled",
             "playlist_sync": "coming_soon"
         }
+    }
+
+
+@app.get("/api/v1/health/ai")
+async def ai_health_check():
+    """
+    Health check endpoint for AI configuration.
+    Returns the current AI model status and validates it's working.
+    """
+    config = ai_service.get_config_status()
+
+    # Check for critical errors
+    if config.get("validation_error"):
+        return {
+            "status": "error",
+            "message": config["validation_error"],
+            **config
+        }
+
+    if config.get("is_deprecated"):
+        return {
+            "status": "error",
+            "message": f"Model '{config['active_model']}' is deprecated and will not work",
+            **config
+        }
+
+    return {
+        "status": "healthy" if config["model_validated"] else "warning",
+        "message": "AI service configured" if config["model_validated"] else "Model not in known valid list",
+        **config
+    }
+
+
+@app.get("/api/v1/health/ai/verify")
+async def verify_ai_model():
+    """
+    Verify the AI model by making a test API call.
+    This is more expensive but confirms the model actually works.
+    """
+    result = await ai_service.verify_model_exists()
+
+    if result["valid"]:
+        return {
+            "status": "healthy",
+            "message": f"Model '{result['model']}' is working correctly",
+            **result
+        }
+    else:
+        return {
+            "status": "error",
+            "message": result.get("error", "Model verification failed"),
+            **result
+        }
+
+
+# =============================================
+# Settings Management Endpoints
+# =============================================
+
+@app.get("/api/v1/settings/models")
+async def get_available_models():
+    """
+    Get all available AI models.
+    Returns models organized by provider with metadata.
+    """
+    current_model = ai_service.ACTIVE_MODEL
+    current_info = get_model_info(current_model)
+
+    return {
+        "current_model": {
+            "id": current_model,
+            "name": current_info["name"] if current_info else current_model,
+            "provider": "gemini" if "gemini" in current_model.lower() else "claude",
+            "is_free": current_info["free"] if current_info else False,
+        },
+        "available_models": {
+            "claude": VALID_CLAUDE_MODELS,
+            "gemini": VALID_GEMINI_MODELS,
+        },
+        "note": "Gemini models are free. Change the model via PUT /api/v1/settings/model"
+    }
+
+
+@app.put("/api/v1/settings/model")
+async def update_active_model(model_id: str):
+    """
+    Update the active AI model.
+    Changes take effect immediately (within 60 seconds due to caching).
+
+    Args:
+        model_id: The model ID to switch to (e.g., 'gemini-2.5-flash', 'claude-3-haiku-20240307')
+    """
+    result = await set_active_model(supabase_admin, model_id)
+
+    if result["success"]:
+        return {
+            "status": "success",
+            "message": f"Active model changed to {result['model_name']}",
+            **result
+        }
+    else:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+
+@app.post("/api/v1/settings/model/refresh")
+async def refresh_model_config():
+    """
+    Force refresh the AI model configuration from Supabase.
+    Use this after changing the model in the Supabase dashboard.
+    """
+    ai_service.supabase = supabase_admin
+    new_model = ai_service.refresh_model()
+    model_info = get_model_info(new_model)
+
+    return {
+        "status": "success",
+        "message": f"Model refreshed to {new_model}",
+        "model_id": new_model,
+        "model_name": model_info["name"] if model_info else new_model,
+        "is_free": model_info["free"] if model_info else False,
     }
 
 
