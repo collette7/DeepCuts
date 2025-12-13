@@ -8,9 +8,11 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from supabase import create_client
+
 
 def main():
     url = os.getenv("SUPABASE_URL")
@@ -42,7 +44,7 @@ def main():
     except Exception as e:
         error_str = str(e)
         if "does not exist" in error_str.lower():
-            print(f"❌ Table does not exist")
+            print("❌ Table does not exist")
         elif "PGRST" in error_str:
             print(f"❌ Schema issue: {e}")
         else:

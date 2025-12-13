@@ -1,4 +1,5 @@
-from typing import List, Optional, Dict, Any
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -14,11 +15,11 @@ class SuggestionResult(BaseModel):
     id: int
     type: str
     title: str
-    year: Optional[str] = None
-    thumb: Optional[str] = None
+    year: str | None = None
+    thumb: str | None = None
 
 
 class SuggestionResponse(BaseModel):
     """Search suggestions response"""
-    results: List[SuggestionResult]
-    pagination: Dict[str, Any]
+    results: list[SuggestionResult]
+    pagination: dict[str, Any]

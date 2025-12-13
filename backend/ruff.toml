@@ -4,25 +4,6 @@ line-length = 100
 # Assume Python 3.11
 target-version = "py311"
 
-# Enable specific rule categories
-select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "UP",  # pyupgrade
-    "N",   # pep8-naming
-]
-
-# Ignore specific rules
-ignore = [
-    "E501",  # line too long (handled by line-length)
-    "B008",  # do not perform function calls in argument defaults
-    "N818",  # exception name should be named with an Error suffix
-]
-
 # Exclude specific directories
 exclude = [
     ".git",
@@ -33,9 +14,34 @@ exclude = [
     ".env",
 ]
 
-[per-file-ignores]
+[lint]
+# Enable specific rule categories
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+
+# Ignore specific rules
+ignore = [
+    "E501",  # line too long (handled by line-length)
+    "B008",  # do not perform function calls in argument defaults
+    "UP035", # deprecated typing imports (allow for compatibility)
+    "UP006", # use list instead of List (allow for compatibility)
+    "UP045", # use X | None instead of Optional[X] (allow for compatibility)
+]
+
+[lint.per-file-ignores]
 # Ignore import errors in __init__.py files
 "__init__.py" = ["F401"]
+# Ignore module naming for now
+"searchSuggestions.py" = ["N999"]
+# Scripts need to load dotenv before imports
+"scripts/*.py" = ["E402"]
 
 [lint.isort]
 # Use a single line between direct and from imports

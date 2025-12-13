@@ -1,10 +1,11 @@
-import os
-import uuid
-import anthropic
-from typing import List, Optional, Dict, Any
-import re
-import xml.etree.ElementTree as ET
 import logging
+import os
+import re
+import uuid
+from typing import Any
+
+import anthropic
+
 from app.models.albums import AlbumData
 
 logger = logging.getLogger('deepcuts')
@@ -58,7 +59,7 @@ def get_all_valid_model_ids():
     gemini_ids = [m["id"] for m in VALID_GEMINI_MODELS]
     return claude_ids + gemini_ids
 
-def get_model_info(model_id: str) -> Optional[Dict[str, Any]]:
+def get_model_info(model_id: str) -> dict[str, Any] | None:
     """Get info about a specific model."""
     for m in VALID_CLAUDE_MODELS + VALID_GEMINI_MODELS:
         if m["id"] == model_id:
@@ -175,7 +176,7 @@ class AIService:
             self.model_validated = True
             logger.info(f"Model '{self.ACTIVE_MODEL}' validated successfully")
 
-    async def verify_model_exists(self) -> Dict[str, Any]:
+    async def verify_model_exists(self) -> dict[str, Any]:
         """Make a test API call to verify the model exists and is accessible."""
         result = {
             "model": self.ACTIVE_MODEL,
@@ -202,7 +203,7 @@ class AIService:
 
         return result
 
-    def get_config_status(self) -> Dict[str, Any]:
+    def get_config_status(self) -> dict[str, Any]:
         """Get the current AI configuration status for health checks."""
         model_info = get_model_info(self.ACTIVE_MODEL)
         return {
@@ -218,7 +219,7 @@ class AIService:
                 "gemini": VALID_GEMINI_MODELS,
             },
         }
-        
+
     def get_recommendation_prompt(self, album_name: str) -> str:
         """Promp template."""
         return f"""You are an expert music recommender with extensive knowledge of albums across various genres, styles, and time periods.
@@ -278,45 +279,45 @@ class AIService:
 
         Ensure that your recommendations are diverse while still maintaining a strong connection to the original album's qualities. Focus on albums that share musical similarities rather than just belonging to the same genre. Look for hidden gems and lesser-known releases that true fans of the given album would appreciate."""
 
-    def parse_recommendations(self, response_text: str) -> List[AlbumData]:
+    def parse_recommendations(self, response_text: str) -> list[AlbumData]:
         """Parse the XML"""
         recommendations = []
-        
+
         recommendations_match = re.search(r'<recommendations>(.*?)</recommendations>', response_text, re.DOTALL)
         if not recommendations_match:
             logger.warning("No <recommendations> tag found in AI response")
             logger.debug(f"Looking for recommendations in response: {response_text[:1000]}")
             return recommendations
-            
+
         recommendations_xml = recommendations_match.group(1)
         logger.debug(f"Found recommendations XML section with {len(recommendations_xml)} chars")
-        
+
         # Parse each album rec
         album_pattern = r'<album>\s*<title>(.*?)</title>\s*<artist>(.*?)</artist>\s*<year>(.*?)</year>\s*<genre>(.*?)</genre>\s*<explanation>(.*?)</explanation>\s*</album>'
         album_matches = re.findall(album_pattern, recommendations_xml, re.DOTALL)
         logger.info(f"Found {len(album_matches)} album matches in XML")
-        
+
         for title, artist, year, genre, explanation in album_matches:
             try:
-                # Clean up 
+                # Clean up
                 title = title.strip()
                 artist = artist.strip()
                 year_str = year.strip()
                 genre = genre.strip()
                 explanation = explanation.strip()
-                
+
                 # Parse year
                 try:
                     parsed_year = int(year_str) if year_str.isdigit() else None
                 except ValueError:
                     parsed_year = None
-                
+
                 album = AlbumData(
                     id=str(uuid.uuid4()),
                     title=title,
                     artist=artist,
                     year=parsed_year,
-                    genre=genre,  
+                    genre=genre,
                     spotify_preview_url=None,
                     spotify_url=None,
                     discogs_url=None,
@@ -324,18 +325,18 @@ class AIService:
                     reasoning=explanation
                 )
                 recommendations.append(album)
-                
+
             except Exception as e:
                 logger.error(f"Error parsing album: {e}")
                 continue
-                
+
         return recommendations
 
-    async def get_album_recommendations(self, album_name: str) -> List[AlbumData]:
+    async def get_album_recommendations(self, album_name: str) -> list[AlbumData]:
         """Get album recommendations from AI model"""
         try:
             prompt = self.get_recommendation_prompt(album_name)
-            
+
             if self.is_gemini:
                 # Use Gemini API
                 response = self.client.generate_content(prompt)
@@ -353,21 +354,21 @@ class AIService:
                     ]
                 )
                 response_text = message.content[0].text
-            
+
             # Log the raw response for debugging
             logger.debug(f"AI Response (first 500 chars): {response_text[:500]}")
-            
+
             recommendations = self.parse_recommendations(response_text)
             logger.info(f"Parsed {len(recommendations)} recommendations from AI response")
-            
+
             return recommendations
-            
+
         except Exception as e:
             logger.error(f"Error getting recommendations from AI: {e}", exc_info=True)
             return []
 
 
-async def set_active_model(supabase_client, model_id: str) -> Dict[str, Any]:
+async def set_active_model(supabase_client, model_id: str) -> dict[str, Any]:
     """Set the active model in Supabase settings."""
     # Validate model
     if model_id in DEPRECATED_MODELS:
@@ -379,7 +380,7 @@ async def set_active_model(supabase_client, model_id: str) -> Dict[str, Any]:
 
     try:
         # Upsert the setting
-        result = supabase_client.table('app_settings').upsert({
+        supabase_client.table('app_settings').upsert({
             "key": "active_model",
             "value": model_id,
         }, on_conflict="key").execute()

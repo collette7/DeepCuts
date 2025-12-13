@@ -1,7 +1,7 @@
+import logging
 import os
 from enum import Enum
-from typing import Optional, List, Dict, Any
-import logging
+from typing import Any
 
 logger = logging.getLogger('deepcuts')
 
@@ -17,7 +17,7 @@ class AIModel(str, Enum):
 
 class ModelSwitch:
     """Handles switching between different AI models"""
-    
+
     def __init__(self):
         self.current_model = AIModel.GEMINI_PRO
         self.fallback_models = [
@@ -26,7 +26,7 @@ class ModelSwitch:
             AIModel.GPT_4_TURBO,
             AIModel.CLAUDE_3_HAIKU
         ]
-    
+
     def _get_default_model(self) -> AIModel:
         """Get default model from environment or use Claude Sonnet"""
         model_name = os.getenv("DEFAULT_AI_MODEL", AIModel.CLAUDE_35_SONNET.value)
@@ -35,7 +35,7 @@ class ModelSwitch:
         except ValueError:
             logger.warning(f"Invalid model name: {model_name}, using default")
             return AIModel.CLAUDE_35_SONNET
-    
+
     def switch_to(self, model: AIModel) -> bool:
         """Switch to a specific model"""
         try:
@@ -49,7 +49,7 @@ class ModelSwitch:
         except Exception as e:
             logger.error(f"Error switching model: {e}")
             return False
-    
+
     def _is_model_available(self, model: AIModel) -> bool:
         """Check if model is available (has API key configured)"""
         if model in [AIModel.CLAUDE_35_SONNET, AIModel.CLAUDE_3_OPUS, AIModel.CLAUDE_3_HAIKU]:
@@ -59,16 +59,16 @@ class ModelSwitch:
         elif model in [AIModel.GPT_4_TURBO, AIModel.GPT_35_TURBO]:
             return bool(os.getenv("OPENAI_API_KEY"))
         return False
-    
-    def get_available_models(self) -> List[AIModel]:
+
+    def get_available_models(self) -> list[AIModel]:
         """Get list of available models based on configured API keys"""
         available = []
         for model in AIModel:
             if self._is_model_available(model):
                 available.append(model)
         return available
-    
-    def fallback_to_next(self) -> Optional[AIModel]:
+
+    def fallback_to_next(self) -> AIModel | None:
         """Fallback to next available model in the fallback chain"""
         for model in self.fallback_models:
             if model != self.current_model and self._is_model_available(model):
@@ -77,7 +77,7 @@ class ModelSwitch:
                 return model
         logger.error("No fallback models available")
         return None
-    
+
     def get_model_client(self):
         """Get the appropriate client for the current model"""
         if self.current_model in [AIModel.CLAUDE_35_SONNET, AIModel.CLAUDE_3_OPUS, AIModel.CLAUDE_3_HAIKU]:
@@ -92,8 +92,8 @@ class ModelSwitch:
             openai.api_key = os.getenv("OPENAI_API_KEY")
             return openai
         return None
-    
-    def get_model_config(self) -> Dict[str, Any]:
+
+    def get_model_config(self) -> dict[str, Any]:
         """Get configuration for current model"""
         configs = {
             AIModel.CLAUDE_35_SONNET: {

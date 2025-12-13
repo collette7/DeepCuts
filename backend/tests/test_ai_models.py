@@ -11,10 +11,10 @@ Run specific test: pytest tests/test_ai_models.py::test_claude_model_exists -v
 """
 
 import os
-import pytest
+
 import anthropic
 import google.generativeai as genai
-
+import pytest
 
 # Known valid model names (update these when models change)
 VALID_CLAUDE_MODELS = [
