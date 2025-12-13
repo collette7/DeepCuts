@@ -56,6 +56,9 @@ jobs:
         
     - name: Frontend - Build test
       if: matrix.component == 'frontend'
+      env:
+        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       run: |
         cd frontend
         npm run build
@@ -153,10 +156,13 @@ jobs:
         pip install -r requirements.txt
         
     - name: Build frontend
+      env:
+        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       run: |
         cd frontend
         npm run build
-        
+
     - name: Test backend startup
       env:
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
