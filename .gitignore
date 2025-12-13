@@ -49,3 +49,6 @@ build/
 # Temporary files
 *.tmp
 *.temp
+
+# Local scripts
+scripts/check-local.sh

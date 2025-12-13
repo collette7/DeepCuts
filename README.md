@@ -130,6 +130,17 @@ NEXT_PUBLIC_SPOTIFY_CLIENT_ID=your_spotify_client_id
 
 ## 🛠️ Development
 
+### Pre-Push Checks
+Run all CI checks locally before pushing:
+```bash
+./scripts/check-local.sh
+```
+
+Or for a quick check without tests:
+```bash
+(cd frontend && npm run lint && npm run build) && (cd backend && ruff check .)
+```
+
 ### Running Tests
 ```bash
 # Backend tests
