@@ -25,7 +25,7 @@ VALID_CLAUDE_MODELS = [
     # Claude 3.5
     "claude-3-5-sonnet-20241022",
     "claude-3-5-haiku-20241022",
-    # Claude 3 Haiku 
+    # Claude 3 Haiku
     "claude-3-haiku-20240307",
 ]
 
@@ -163,10 +163,6 @@ class TestGeminiAPI:
 
         try:
             models = list(genai.list_models())
-            generative_models = [
-                m.name for m in models
-                if hasattr(m, 'supported_generation_methods') and 'generateContent' in str(m.supported_generation_methods)
-            ]
 
             # Just verify we can list models - this helps debug which models are available
             assert len(models) > 0, "No models found"
