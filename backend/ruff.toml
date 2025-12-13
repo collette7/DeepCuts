@@ -1,4 +1,3 @@
-[tool.ruff]
 # Set the maximum line length to 100.
 line-length = 100
 
@@ -34,11 +33,11 @@ exclude = [
     ".env",
 ]
 
-[tool.ruff.per-file-ignores]
+[per-file-ignores]
 # Ignore import errors in __init__.py files
 "__init__.py" = ["F401"]
 
-[tool.ruff.isort]
+[lint.isort]
 # Use a single line between direct and from imports
 split-on-trailing-comma = true
 force-single-line = false

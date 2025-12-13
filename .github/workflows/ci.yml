@@ -197,7 +197,11 @@ jobs:
     name: Security Scan
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-    
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
