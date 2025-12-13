@@ -1,26 +1,28 @@
+import logging
 import os
-from fastapi import FastAPI, HTTPException, Depends, Header
-from fastapi.middleware.cors import CORSMiddleware
-from supabase import create_client, Client
-from dotenv import load_dotenv
-from typing import List, Dict, Any, Optional
 import time
+from typing import Any
+
 import httpx
-from app.models.albums import AlbumData, SearchRequest, SearchResponse
-from app.models.searchSuggestions import SuggestionRequest, SuggestionResult, SuggestionResponse
-from app.models.favorites import AddToFavoritesRequest, FavoriteActionResponse, UserFavoritesList
-from app.models.recommendations import (
-    RecommendationSessionRequest, 
-    RecommendationSessionResponse, 
-    RecommendationSessionsList,
-    CreateRecommendationSessionResponse
-)
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from supabase import Client, create_client
+
 from app.config import settings
-from app.services.ai import ai_service, set_active_model, VALID_CLAUDE_MODELS, VALID_GEMINI_MODELS, get_model_info
+from app.database import supabase_admin
+from app.models.albums import AlbumData, SearchRequest, SearchResponse
+from app.models.favorites import AddToFavoritesRequest, FavoriteActionResponse, UserFavoritesList
+from app.models.searchSuggestions import SuggestionRequest, SuggestionResponse, SuggestionResult
+from app.services.ai import (
+    VALID_CLAUDE_MODELS,
+    VALID_GEMINI_MODELS,
+    ai_service,
+    get_model_info,
+    set_active_model,
+)
 from app.services.favorites import favorites_service
 from app.services.recommendations import recommendation_service
-from app.database import supabase_admin
-import logging
 
 load_dotenv()
 
@@ -31,7 +33,7 @@ app = FastAPI(title=settings.PROJECT_NAME, version=settings.PROJECT_VERSION)
 # Configure CORS
 allowed_origins = [
     "http://localhost:3000",
-    "http://localhost:3001", 
+    "http://localhost:3001",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
     "https://www.deepcuts.casa",
@@ -55,7 +57,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Connect to Supabase 
+# Connect to Supabase
 supabase_url = os.getenv("SUPABASE_URL")
 supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
@@ -82,11 +84,11 @@ async def root():
     supabase_status = "unknown"
     try:
         # Try a simple query to test the connection
-        test = supabase_admin.table('users').select('id').limit(1).execute()
+        supabase_admin.table('users').select('id').limit(1).execute()
         supabase_status = "connected"
     except Exception as e:
         supabase_status = f"error: {str(e)[:50]}"
-    
+
     return {
         "message": f"Welcome to {settings.PROJECT_NAME}",
         "version": settings.PROJECT_VERSION,
@@ -226,14 +228,14 @@ async def get_random_albums(limit: int = 10):
     try:
         # Get all albums then randomly sample them
         result = supabase_admin.table('albums').select('*').execute()
-        
+
         if not result.data:
             return {"albums": [], "total": 0}
-        
+
         # Randomly sample albums
         import random
         random_albums = random.sample(result.data, min(limit, len(result.data)))
-        
+
         # Convert to AlbumData format
         albums = []
         for album in random_albums:
@@ -249,25 +251,25 @@ async def get_random_albums(limit: int = 10):
                 "reasoning": album.get('reasoning')
             }
             albums.append(album_data)
-        
+
         return {
             "albums": albums,
             "total": len(albums)
         }
-        
+
     except Exception as e:
         logger.error(f"Error fetching random albums: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch albums")
+        raise HTTPException(status_code=500, detail="Failed to fetch albums") from e
 
 
-async def get_spotify_album_data(title: str, artist: str) -> Dict[str, Optional[str]]:
+async def get_spotify_album_data(title: str, artist: str) -> dict[str, str | None]:
     """Get Spotify album data"""
     spotify_client_id = os.getenv("SPOTIFY_CLIENT_ID")
     spotify_client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
-    
+
     if not spotify_client_id or not spotify_client_secret:
         return {"preview_url": None, "external_url": None}
-    
+
     try:
         async with httpx.AsyncClient() as client:
             # Get Spotify access token
@@ -278,12 +280,12 @@ async def get_spotify_album_data(title: str, artist: str) -> Dict[str, Optional[
                 "client_secret": spotify_client_secret
             }
             auth_response = await client.post(auth_url, data=auth_data)
-            
+
             if auth_response.status_code != 200:
                 return {"preview_url": None, "external_url": None}
-            
+
             access_token = auth_response.json().get("access_token")
-            
+
             # Search for album
             search_query = f"album:{title} artist:{artist}"
             search_url = "https://api.spotify.com/v1/search"
@@ -293,69 +295,69 @@ async def get_spotify_album_data(title: str, artist: str) -> Dict[str, Optional[
                 "type": "album",
                 "limit": 5
             }
-            
+
             search_response = await client.get(search_url, headers=headers, params=params)
-            
+
             if search_response.status_code == 200:
                 data = search_response.json()
                 albums = data.get("albums", {}).get("items", [])
-                
+
                 # Find best match
                 for album in albums:
                     album_name = album.get("name", "").lower()
                     album_artists = [artist.get("name", "").lower() for artist in album.get("artists", [])]
-                    
+
                     if (title.lower() in album_name or album_name in title.lower()) and \
                         any(artist.lower() in album_artist for album_artist in album_artists):
-                        
+
                         # Get album tracks for preview URL
                         album_id = album.get("id")
                         if album_id:
                             tracks_url = f"https://api.spotify.com/v1/albums/{album_id}/tracks"
                             tracks_response = await client.get(tracks_url, headers=headers)
-                            
+
                             if tracks_response.status_code == 200:
                                 tracks_data = tracks_response.json()
                                 tracks = tracks_data.get("items", [])
-                                
+
                                 # Find a track with preview URL
                                 preview_url = None
                                 for track in tracks:
                                     if track.get("preview_url"):
                                         preview_url = track.get("preview_url")
                                         break
-                                
+
                                 return {
                                     "preview_url": preview_url,
                                     "external_url": album.get("external_urls", {}).get("spotify")
                                 }
-                        
+
                         return {
                             "preview_url": None,
                             "external_url": album.get("external_urls", {}).get("spotify")
                         }
-                
+
     except Exception as e:
         logger.error(f"Spotify API error for {title} by {artist}: {e}")
-    
+
     return {"preview_url": None, "external_url": None}
 
 
-async def get_discogs_url(title: str, artist: str) -> Optional[str]:
+async def get_discogs_url(title: str, artist: str) -> str | None:
     """Generate Discogs marketplace search URL for an album."""
     import urllib.parse
     search_query = f"{artist} {title}"
     return f"https://www.discogs.com/search/?q={urllib.parse.quote(search_query)}&type=all"
 
 
-async def get_album_cover_from_discogs(title: str, artist: str) -> Optional[str]:
+async def get_album_cover_from_discogs(title: str, artist: str) -> str | None:
     """Get album cover URL from Discogs API."""
     discogs_key = os.getenv("DISCOGS_KEY")
     discogs_secret = os.getenv("DISCOGS_SECRET")
-    
+
     if not discogs_key or not discogs_secret:
         return None
-    
+
     try:
         async with httpx.AsyncClient() as client:
             # Search for the specific album
@@ -371,48 +373,48 @@ async def get_album_cover_from_discogs(title: str, artist: str) -> Optional[str]
             headers = {
                 "User-Agent": "DeepCuts/1.0 +http://localhost:8000"
             }
-            
+
             response = await client.get(url, params=params, headers=headers)
-            
+
             if response.status_code == 200:
                 data = response.json()
                 results = data.get("results", [])
-                
-                # Find the best match 
+
+                # Find the best match
                 best_match = None
                 for result in results:
                     result_title = result.get("title", "").lower()
                     if artist.lower() in result_title and title.lower() in result_title:
                         best_match = result
                         break
-                
+
                 # If no exact match, use first result
                 if not best_match and results:
                     best_match = results[0]
-                
+
                 if best_match:
                     release_id = best_match.get("id")
                     if release_id:
                         release_url = f"https://api.discogs.com/releases/{release_id}"
                         release_response = await client.get(release_url, params={"key": discogs_key, "secret": discogs_secret}, headers=headers)
-                        
+
                         if release_response.status_code == 200:
                             release_data = release_response.json()
                             images = release_data.get("images", [])
-                            
+
                             for image in images:
                                 if image.get("type") == "primary":
                                     return image.get("uri")  # Full resolution image
-                            
+
                             if images:
                                 return images[0].get("uri")
-                    
+
                     # Fallback to search result images
                     return best_match.get("cover_image") or best_match.get("thumb")
-                    
+
     except Exception as e:
         logger.error(f"Discogs API error for {title} by {artist}: {e}")
-    
+
     return None
 
 
@@ -423,7 +425,7 @@ async def search_albums(
 ) -> SearchResponse:
     """Get album recommendations based on user query."""
     start_time = time.time()
-    
+
     # Get user email if authenticated
     user_email = None
     if authorization and authorization.startswith("Bearer "):
@@ -434,9 +436,9 @@ async def search_albums(
                 user_email = user_response.user.email
         except Exception as e:
             logger.info(f"Search: Could not authenticate user: {e}")
-    
+
     session_id = None
-    
+
     try:
         # Create recommendation session (for both authenticated and anonymous users)
         try:
@@ -448,15 +450,15 @@ async def search_albums(
             )
         except Exception as e:
             logger.error(f"Failed to create recommendation session: {e}")
-        
+
         # Get album recommendations from claude
         recommendations = await ai_service.get_album_recommendations(request.query)
-        
+
         # Return empty results if claude returns no recommendations
         if not recommendations or len(recommendations) == 0:
             logger.warning(f"No recommendations from Claude for query: {request.query}")
             recommendations = []
-        
+
         # Return AI recommendations immediately without waiting for external API calls
         # External data will be loaded progressively on the frontend
         if recommendations:
@@ -476,30 +478,30 @@ async def search_albums(
                     reasoning=album.reasoning
                 )
                 quick_recommendations.append(quick_album)
-            
+
             recommendations = quick_recommendations
-        
+
         # Save recommended albums to the session
         if session_id and recommendations:
             try:
                 await recommendation_service.save_recommendations(session_id, recommendations)
             except Exception as e:
                 logger.error(f"Failed to save recommended albums: {e}")
-        
+
         # Limit results
         limited_recommendations = recommendations[:request.max_results]
-        
+
     except Exception as e:
         logger.error(f"Search error for query '{request.query}': {e}")
         limited_recommendations = []
-    
+
     processing_time = int((time.time() - start_time) * 1000)
-    
+
     return SearchResponse(
         query=request.query,
         recommendations=limited_recommendations,
         total_found=len(limited_recommendations),
-        processing_time_ms=processing_time 
+        processing_time_ms=processing_time
     )
 
 
@@ -510,11 +512,11 @@ async def get_album_spotify_data(album_id: str, title: str, artist: str):
         spotify_data = await get_spotify_album_data(title, artist)
         cover_url = await get_album_cover_from_discogs(title, artist)
         discogs_url = await get_discogs_url(title, artist)
-        
+
         return {
             "album_id": album_id,
             "spotify_preview_url": spotify_data.get("preview_url"),
-            "spotify_url": spotify_data.get("external_url"), 
+            "spotify_url": spotify_data.get("external_url"),
             "cover_url": cover_url,
             "discogs_url": discogs_url
         }
@@ -531,17 +533,17 @@ async def get_album_spotify_data(album_id: str, title: str, artist: str):
 @app.post("/api/v1/discogs/search")
 async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
     """Get search suggestions from Discogs for autocomplete dropdown."""
-    
+
     discogs_key = os.getenv("DISCOGS_KEY")
     discogs_secret = os.getenv("DISCOGS_SECRET")
-    
+
     if not discogs_key or not discogs_secret:
         # Return empty results if no API
         return SuggestionResponse(
             results=[],
             pagination={"per_page": request.per_page, "pages": 0, "page": 1, "items": 0}
         )
-    
+
     try:
         async with httpx.AsyncClient() as client:
             url = "https://api.discogs.com/database/search"
@@ -555,9 +557,9 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
             headers = {
                 "User-Agent": "DeepCuts/1.0 +http://localhost:8000"
             }
-            
+
             response = await client.get(url, params=params, headers=headers)
-            
+
             if response.status_code == 200:
                 data = response.json()
                 # Clean up results to remove asterisks from titles
@@ -569,14 +571,14 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
                                          .replace("*", "")      # Any remaining asterisks
                                          .strip())
                     cleaned_results.append(SuggestionResult(**result))
-                
+
                 return SuggestionResponse(
                     results=cleaned_results,
                     pagination=data.get("pagination", {})
                 )
             else:
                 raise HTTPException(status_code=response.status_code, detail="Discogs API error")
-                
+
     except Exception as e:
         logger.error(f"Discogs search error for '{request.query}': {e}")
         return SuggestionResponse(
@@ -589,23 +591,23 @@ def get_current_user(authorization: str = Header(None)) -> str:
     """Get current user"""
     if not authorization:
         raise HTTPException(status_code=401, detail="Authorization header required")
-    
-    # Extract token 
+
+    # Extract token
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid authorization format")
-    
+
     token = authorization.replace("Bearer ", "")
-    
+
     try:
         # Verify token with Supabase and get user
         user_response = supabase_admin.auth.get_user(token)
         if not user_response.user:
             raise HTTPException(status_code=401, detail="Invalid token")
-        
+
         return user_response.user.email
     except Exception as e:
         logger.error(f"Authentication failed: {e}")
-        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}") from e
 
 
 @app.post("/api/v1/favorites/add")
@@ -616,21 +618,21 @@ async def add_favorite(
     """Save album to user favorites"""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Authorization header required")
-    
+
     token = authorization.replace("Bearer ", "")
-    
+
     try:
         # Verify token with Supabase and get user
         user_response = supabase_admin.auth.get_user(token)
         if not user_response.user:
             raise HTTPException(status_code=401, detail="Invalid token")
-        
+
         user = user_response.user
         return await favorites_service.add_to_favorites(user.id, user.email, request)
-        
+
     except Exception as e:
         logger.error(f"Authentication failed: {e}")
-        raise HTTPException(status_code=401, detail="Authentication failed")
+        raise HTTPException(status_code=401, detail="Authentication failed") from e
 
 
 @app.delete("/api/v1/favorites/remove/{album_id}")
@@ -656,7 +658,7 @@ async def get_user_favorites(
 async def get_favorites_with_details(
     user_email: str = Depends(get_current_user),
     authorization: str = Header(None)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get user's favorites"""
     token = authorization.replace("Bearer ", "") if authorization else None
     return await favorites_service.get_favorites_with_album_details(user_email, token)
@@ -667,7 +669,7 @@ async def debug_ai_test():
     """Debug endpoint to test AI service configuration"""
     try:
         import os
-        
+
         debug_info = {
             "active_model": os.getenv("ACTIVE_MODEL"),
             "has_claude_key": bool(os.getenv("CLAUDE_API_KEY")),
@@ -675,7 +677,7 @@ async def debug_ai_test():
             "claude_key_preview": os.getenv("CLAUDE_API_KEY", "")[:10] + "..." if os.getenv("CLAUDE_API_KEY") else None,
             "gemini_key_preview": os.getenv("GEMINI_API_KEY", "")[:10] + "..." if os.getenv("GEMINI_API_KEY") else None,
         }
-        
+
         # Test a simple AI call
         try:
             test_recommendations = await ai_service.get_album_recommendations("Miles Davis Kind of Blue")
@@ -689,9 +691,9 @@ async def debug_ai_test():
         except Exception as ai_error:
             debug_info["ai_test_success"] = False
             debug_info["ai_test_error"] = str(ai_error)
-            
+
         return debug_info
-        
+
     except Exception as e:
         return {"error": str(e)}
 

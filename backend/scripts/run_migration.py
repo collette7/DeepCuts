@@ -16,6 +16,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from supabase import create_client
@@ -54,7 +55,7 @@ def main():
 
     except Exception as e:
         if "does not exist" in str(e).lower() or "PGRST" in str(e):
-            print(f"   ❌ app_settings table does not exist")
+            print("   ❌ app_settings table does not exist")
             print("\n   Please run this SQL in Supabase Dashboard > SQL Editor:")
             print_app_settings_sql()
         else:
@@ -64,14 +65,14 @@ def main():
     print("\n2. Checking recommendation_sessions table...")
     try:
         result = client.table('recommendation_sessions').select('id, query').limit(1).execute()
-        print(f"   ✅ recommendation_sessions table exists with 'query' column")
+        print("   ✅ recommendation_sessions table exists with 'query' column")
     except Exception as e:
         if "query" in str(e).lower():
-            print(f"   ❌ 'query' column missing from recommendation_sessions")
+            print("   ❌ 'query' column missing from recommendation_sessions")
             print("\n   Please run this SQL in Supabase Dashboard > SQL Editor:")
             print_fix_sessions_sql()
         elif "does not exist" in str(e).lower():
-            print(f"   ❌ recommendation_sessions table does not exist")
+            print("   ❌ recommendation_sessions table does not exist")
             print("\n   Please run this SQL in Supabase Dashboard > SQL Editor:")
             print_create_sessions_sql()
         else:
