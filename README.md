@@ -192,3 +192,20 @@ This project is proprietary software. All rights reserved. See the [LICENSE](LIC
 
 
 
+
+## 📊 Project Status
+
+| Component | Status | Success Rate (Last 5 runs) |
+|-----------|--------|-----------------------------|
+| CI/CD Pipeline | ![CI Status](https://img.shields.io/github/actions/workflow/status/collette7/DeepCuts/ci.yml?branch=main&label=CI) | 0.0% |
+| Health Monitoring | ![Health Status](https://img.shields.io/github/actions/workflow/status/collette7/DeepCuts/health-check.yml?label=Health) | 0.0% |
+| Code Quality | ![Code Quality](https://img.shields.io/github/actions/workflow/status/collette7/DeepCuts/ci.yml?branch=main&label=Quality) | - |
+| Security Scan | ![Security](https://img.shields.io/github/actions/workflow/status/collette7/DeepCuts/ci.yml?branch=main&label=Security) | - |
+
+**Last Updated:** 2025-12-13T23:58:02.916Z
+
+### Quick Links
+- 🔍 [View CI Runs](https://github.com/collette7/DeepCuts/actions/workflows/ci.yml)
+- 🏥 [Health Checks](https://github.com/collette7/DeepCuts/actions/workflows/health-check.yml)
+- 🛡️ [Security Scans](https://github.com/collette7/DeepCuts/security)
+- 📊 [Project Insights](https://github.com/collette7/DeepCuts/pulse)
