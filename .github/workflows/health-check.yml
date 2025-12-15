@@ -16,6 +16,10 @@ on:
         - staging
         - development
 
+permissions:
+  issues: write
+  contents: read
+
 jobs:
   health-check:
     name: Application Health Check
