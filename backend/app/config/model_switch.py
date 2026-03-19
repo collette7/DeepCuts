@@ -1,11 +1,11 @@
 import logging
 import os
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger('deepcuts')
 
-class AIModel(str, Enum):
+class AIModel(StrEnum):
     """Available AI models"""
     CLAUDE_35_SONNET = "claude-3-5-sonnet-20241022"
     CLAUDE_3_OPUS = "claude-3-opus-20240229"
