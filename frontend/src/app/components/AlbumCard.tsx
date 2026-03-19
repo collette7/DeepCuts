@@ -87,7 +87,7 @@ export default function AlbumCard({ album, onListenNow, onToggleFavorite, isFavo
           {album.genre && album.genre !== "Unknown" && (
             <>
               <dt className="sr-only">Genre</dt>
-              <dd className="metadata-item">{album.genre.toUpperCase()}</dd>
+              <dd className="metadata-item metadata-genre">{album.genre.split(',')[0].trim().toUpperCase()}</dd>
             </>
           )}
           {album.genre && album.genre !== "Unknown" && album.year && (
@@ -96,7 +96,7 @@ export default function AlbumCard({ album, onListenNow, onToggleFavorite, isFavo
           {album.year && (
             <>
               <dt className="sr-only">Year</dt>
-              <dd className="metadata-item">{album.year}</dd>
+              <dd className="metadata-item metadata-year">{album.year}</dd>
             </>
           )}
         </dl>
