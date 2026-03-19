@@ -42,8 +42,10 @@ class ApiClient {
     }
 
     async getWelcome() {
-        //Get welcome message
         const response = await fetch(`${API_BASE_URL}/`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         return response.json();
     }
     async searchAlbums(query: string = 'Miles Davis') {
@@ -181,8 +183,7 @@ class ApiClient {
             }
             
             return await response.json();
-        } catch (error) {
-            // Silently handle network errors for non-critical update operations
+        } catch {
             return { success: false, message: 'Update failed' };
         }
     }
@@ -210,9 +211,16 @@ class ApiClient {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
-            return await response.json();
+            const data = await response.json();
+            if (data.favorites) {
+                data.favorites = data.favorites.map((fav: FavoriteItem & { albums?: AlbumData }) => ({
+                    ...fav,
+                    album: fav.album || fav.albums,
+                    albums: undefined,
+                }));
+            }
+            return data;
         } catch (error) {
-            // Handle different types of errors
             if (error instanceof Error) {
                 if (error.name === 'AbortError') {
                     return { success: false, favorites: [], total: 0, error: 'Request timeout' };
@@ -352,7 +360,6 @@ export interface FavoritesWithDetailsResponse {
 export interface FavoriteItem {
     id: string;
     saved_at: string;
-    albums?: AlbumData;
     album?: AlbumData;
     reasoning?: string;
 }

@@ -7,9 +7,9 @@ interface LoadingSpinnerProps {
 export default function LoadingSpinner({ fullPage = false }: LoadingSpinnerProps) {
   if (fullPage) {
     return (
-      <div className="loading-container">
+      <div className="loading-container" role="status" aria-live="polite">
         <div className="loading-content">
-          <div className="loading-spinner"></div>
+          <div className="loading-spinner" aria-hidden="true"></div>
           <p className="loading-text">Loading...</p>
         </div>
       </div>
@@ -17,8 +17,8 @@ export default function LoadingSpinner({ fullPage = false }: LoadingSpinnerProps
   }
 
   return (
-    <div className="loading-content">
-      <div className="loading-spinner"></div>
+    <div className="loading-content" role="status" aria-live="polite">
+      <div className="loading-spinner" aria-hidden="true"></div>
       <p className="loading-text">Loading...</p>
     </div>
   );

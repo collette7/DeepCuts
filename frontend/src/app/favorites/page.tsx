@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { apiClient, AlbumData, FavoriteItem } from '@/lib/api';
+import { enrichAlbumsInParallel } from '@/lib/spotify';
 import AlbumCard from '../components/AlbumCard';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import ErrorMessage from '../components/ui/ErrorMessage';
@@ -15,6 +17,7 @@ import './page.scss';
 
 export default function FavoritesPage() {
   const { user, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,54 +27,14 @@ export default function FavoritesPage() {
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
 
   const loadSpotifyDataForFavorites = useCallback(async (albums: AlbumData[]) => {
-    // Load Spotify data for each album in parallel
-    const promises = albums.map(async (album) => {
-      try {
-        const spotifyData = await apiClient.getAlbumSpotifyData(album.id, album.title, album.artist);
-        
-        // Update the favorites state with enriched album data
-        setFavorites(currentFavorites => 
-          currentFavorites.map(fav => {
-            const favAlbum = fav.albums || fav.album;
-            if (favAlbum && favAlbum.id === album.id) {
-              const enrichedAlbum = {
-                ...favAlbum,
-                spotify_preview_url: spotifyData.spotify_preview_url,
-                spotify_url: spotifyData.spotify_url,
-                cover_url: spotifyData.cover_url || favAlbum.cover_url,
-                discogs_url: spotifyData.discogs_url || favAlbum.discogs_url
-              };
-              
-              // Update the favorite with the enriched album
-              return {
-                ...fav,
-                albums: fav.albums ? enrichedAlbum : fav.albums,
-                album: fav.album ? enrichedAlbum : fav.album
-              };
-            }
-            return fav;
-          })
-        );
-        
-        // Also update selected album if it's currently being viewed
-        setSelectedAlbum(current => 
-          current && current.id === album.id 
-            ? {
-                ...current,
-                spotify_preview_url: spotifyData.spotify_preview_url,
-                spotify_url: spotifyData.spotify_url,
-                cover_url: spotifyData.cover_url || current.cover_url,
-                discogs_url: spotifyData.discogs_url || current.discogs_url
-              }
-            : current
-        );
-      } catch (error) {
-        console.error(`Failed to load Spotify data for ${album.title}:`, error);
-      }
+    await enrichAlbumsInParallel(albums, (original, enriched) => {
+      setFavorites(current =>
+        current.map(fav =>
+          fav.album?.id === original.id ? { ...fav, album: enriched } : fav
+        )
+      );
+      setSelectedAlbum(current => current?.id === original.id ? enriched : current);
     });
-    
-    // Wait for all to complete
-    await Promise.all(promises);
   }, []);
 
   const loadFavorites = useCallback(async () => {
@@ -94,7 +57,7 @@ export default function FavoritesPage() {
       if (response.favorites) {
         // Convert favorites to albums array for enrichment
         const albums = response.favorites
-          .map(fav => fav.albums || fav.album)
+          .map(fav => fav.album)
           .filter((album): album is AlbumData => album !== undefined);
         
         setFavorites(response.favorites);
@@ -146,10 +109,8 @@ export default function FavoritesPage() {
       await apiClient.removeFromFavorites(album.id);
       
       // Remove from local state
-      setFavorites(prev => prev.filter(fav => {
-        const favAlbum = fav.albums || fav.album;
-        return favAlbum?.id !== album.id;
-      }));
+      setFavorites(prev => prev.filter(fav => fav.album?.id !== album.id));
+      showToast('Removed from favorites', 'success');
     } catch (error) {
       console.error(`Error removing favorite:`, error);
     } finally {
@@ -166,7 +127,7 @@ export default function FavoritesPage() {
       <>
         <Navigation />
         <div className="page-container">
-          <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+          <div className="container loading-center">
             <LoadingSpinner />
           </div>
         </div>
@@ -189,7 +150,7 @@ export default function FavoritesPage() {
           </div>
         </header>
 
-        {error && <ErrorMessage error={error} />}
+        {error && <ErrorMessage error={error} onRetry={loadFavorites} />}
 
         {!error && favorites.length === 0 && (
           <div className="empty-state">
@@ -204,22 +165,21 @@ export default function FavoritesPage() {
         {!error && favorites.length > 0 && (
           <div className="recommendations-section">
             <div className="recommendations-grid">
-              {favorites.map((favorite) => {
-                // Handle different response formats
-                const album = favorite.albums || favorite.album;
+              {favorites.map((favorite, index) => {
+                const album = favorite.album;
                 
-                if (!album) return null; // Skip if no album data
+                if (!album) return null;
                 
-                // Merge reasoning from favorites record into album data (if available)
                 const albumWithReasoning = {
                   ...album,
-                  reasoning: favorite?.reasoning || album?.reasoning
+                  reasoning: favorite.reasoning || album.reasoning
                 };
                 
                 return (
                   <AlbumCard 
                     key={favorite.id || album.id}
                     album={albumWithReasoning}
+                    index={index}
                     onListenNow={handleListenNow}
                     onToggleFavorite={handleRemoveFavorite}
                     isFavorited={true}
