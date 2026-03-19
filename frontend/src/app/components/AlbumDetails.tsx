@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { AlbumData } from '@/lib/api';
 import { User } from '@supabase/supabase-js';
 import { X, ExternalLink, UserPlus } from 'lucide-react';
@@ -15,18 +16,46 @@ interface AlbumDetailsProps {
 }
 
 export default function AlbumDetails({ album, isOpen, onClose, user, onAuthRequired, hiderecommendationReason = false }: AlbumDetailsProps) {
-  if (!isOpen || !album) return null;
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const [closing, setClosing] = useState(false);
+  const [visible, setVisible] = useState(false);
+
+  const handleClose = useCallback(() => {
+    setClosing(true);
+    setTimeout(() => {
+      setClosing(false);
+      setVisible(false);
+      onClose();
+    }, 300);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setVisible(true);
+      setClosing(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!visible) return;
+    closeButtonRef.current?.focus();
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [visible, handleClose]);
+
+  if (!visible || !album) return null;
 
   return (
     <>
-      {/* Backdrop */}
-      <div className="details-backdrop" onClick={onClose} />
+      <div className={`details-backdrop${closing ? ' closing' : ''}`} onClick={handleClose} aria-hidden="true" />
       
-      {/* Flyout */}
-      <div className="album-details-flyout">
+      <div className={`album-details-flyout${closing ? ' closing' : ''}`} role="dialog" aria-modal="true" aria-label={`${album.title} by ${album.artist}`}>
         <div className="details-header">
           <h3>Album Details</h3>
-          <button onClick={onClose} className="details-close-btn">
+          <button ref={closeButtonRef} onClick={handleClose} className="details-close-btn" aria-label="Close album details">
             <X size={16} />
           </button>
         </div>

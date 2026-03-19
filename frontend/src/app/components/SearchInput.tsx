@@ -26,10 +26,22 @@ export default function SearchInput({
 }: SearchInputProps) {
   const [results, setResults] = useState<SuggestionResult[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const [closingDropdown, setClosingDropdown] = useState(false);
   const [cache, setCache] = useState(new Map<string, SuggestionResult[]>());
+  const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const closingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const hideDropdown = useCallback(() => {
+    if (!showResults) return;
+    setClosingDropdown(true);
+    closingTimeoutRef.current = setTimeout(() => {
+      setShowResults(false);
+      setClosingDropdown(false);
+    }, 200);
+  }, [showResults]);
 
   const delaySearch = useCallback(async (searchQuery: string) => {
     if (timeoutRef.current) {
@@ -95,13 +107,18 @@ export default function SearchInput({
 
   useEffect(() => {
     delaySearch(value);
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, [value, delaySearch]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (resultsRef.current && !resultsRef.current.contains(event.target as Node) &&
           inputRef.current && !inputRef.current.contains(event.target as Node)) {
-        setShowResults(false);
+        hideDropdown();
       }
     };
 
@@ -112,12 +129,14 @@ export default function SearchInput({
     return () => {
       clearTimeout(timeoutId);
       document.removeEventListener('mousedown', handleClickOutside);
+      if (closingTimeoutRef.current) clearTimeout(closingTimeoutRef.current);
     };
-  }, [showResults]); 
+  }, [showResults, hideDropdown]); 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     onChange(newValue);
+    setActiveIndex(-1);
     if (newValue.length >= 2) {
       setShowResults(true);
     }
@@ -131,13 +150,40 @@ export default function SearchInput({
 
   const handleResultClick = (result: SuggestionResult) => {
     onChange(result.title);
-    setShowResults(false);
+    hideDropdown();
+    setActiveIndex(-1);
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setShowResults(false);
+    hideDropdown();
+    setActiveIndex(-1);
     onSubmit(e);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showResults || results.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setActiveIndex(prev => (prev < results.length - 1 ? prev + 1 : 0));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setActiveIndex(prev => (prev > 0 ? prev - 1 : results.length - 1));
+        break;
+      case 'Enter':
+        if (activeIndex >= 0 && activeIndex < results.length) {
+          e.preventDefault();
+          handleResultClick(results[activeIndex]);
+        }
+        break;
+      case 'Escape':
+        hideDropdown();
+        setActiveIndex(-1);
+        break;
+    }
   };
 
   return (
@@ -153,8 +199,14 @@ export default function SearchInput({
               value={value}
               onChange={handleInputChange}
               onFocus={handleInputFocus}
+              onKeyDown={handleKeyDown}
               className="search-input"
               autoComplete="off"
+              role="combobox"
+              aria-expanded={showResults && results.length > 0}
+              aria-autocomplete="list"
+              aria-controls="search-results-listbox"
+              aria-activedescendant={activeIndex >= 0 ? `search-result-${results[activeIndex]?.id}` : undefined}
               required
             />
           </div>
@@ -180,12 +232,15 @@ export default function SearchInput({
       </form>
       
       {showResults && results.length > 0 && (
-        <div ref={resultsRef} className="search-results-dropdown">
-          {results.map((result) => (
+        <div ref={resultsRef} className={`search-results-dropdown${closingDropdown ? ' closing' : ''}`} id="search-results-listbox" role="listbox" aria-label="Search suggestions">
+          {results.map((result, idx) => (
             <div 
-              key={result.id} 
-              className="search-result-item"
+              key={result.id}
+              id={`search-result-${result.id}`}
+              className={`search-result-item ${idx === activeIndex ? 'active' : ''}`}
               onClick={() => handleResultClick(result)}
+              role="option"
+              aria-selected={idx === activeIndex}
             >
               <div className="result-album-cover">
                 {result.thumb ? (

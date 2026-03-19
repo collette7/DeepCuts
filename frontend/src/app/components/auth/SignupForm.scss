@@ -48,7 +48,7 @@
   background-color: v.color(background);
   transition: v.transition(base);
 
-  &:focus {
+  &:focus-visible {
     outline: none;
     border-color: v.color(primary);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);

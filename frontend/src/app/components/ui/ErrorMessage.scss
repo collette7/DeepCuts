@@ -22,3 +22,25 @@
 .error-description {
   color: v.color(foreground);
 }
+
+.error-retry-btn {
+  margin-top: v.spacing(4);
+  padding: v.spacing(3) v.spacing(6);
+  background: v.color(primary);
+  color: v.color(white);
+  border: none;
+  border-radius: 8px;
+  font-size: v.font-size(sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: v.transition(base);
+
+  &:hover {
+    background: v.color(primary-hover);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}

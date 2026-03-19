@@ -186,11 +186,6 @@
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
 // Search Results Dropdown
 .search-results-dropdown {
   position: absolute;
@@ -222,7 +217,8 @@
     border-bottom: none;
   }
   
-  &:hover {
+  &:hover,
+  &.active {
     background-color: #f8fafc;
   }
 }
@@ -288,6 +284,21 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+.search-results-dropdown.closing {
+  animation: slideUp 0.2s ease-out forwards;
 }
 
 // Responsive styles
