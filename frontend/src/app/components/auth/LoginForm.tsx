@@ -87,9 +87,6 @@ export default function LoginForm({ onSuccess, onSwitchToSignup }: LoginFormProp
         </p>
       )}
       
-      <div className="auth-help-links">
-        <p>Trouble logging in? <button type="button" className="auth-help-link">Get help</button></p>
-      </div>
     </form>
   )
 }

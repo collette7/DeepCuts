@@ -1,22 +1,25 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient, AlbumData, SearchResponse, FavoriteItem } from '@/lib/api';
+import { enrichAlbumWithSpotifyData, enrichAlbumsInParallel } from '@/lib/spotify';
 import { useAuth } from './contexts/AuthContext';
+import { useToast } from './contexts/ToastContext';
 import AlbumCard from './components/AlbumCard';
 import HeroHeader from './components/HeroHeader';
 import ErrorMessage from './components/ui/ErrorMessage';
 import AuthModal from './components/auth/AuthModal';
 import AlbumDetails from './components/AlbumDetails';
 import Navigation from './components/Navigation';
+import SkeletonCard from './components/ui/SkeletonCard';
 import './page.css';
 import './components/RecommendationsSection.scss';
 
-
-// Dynamic loading from Sessions database
+const MAX_CACHE_ENTRIES = 50;
 
 export default function Home() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [albums, setAlbums] = useState<AlbumData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +27,7 @@ export default function Home() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumData | null>(null);
   const [favoriteAlbums, setFavoriteAlbums] = useState<Set<string>>(new Set());
-  const [favoritesLoading, setFavoritesLoading] = useState(false);
+  const favoritesLoadingRef = useRef(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCache, setSearchCache] = useState<Map<string, AlbumData[]>>(new Map());
@@ -96,101 +99,54 @@ const handleSearch = useCallback(async (query: string) => {
 }, [searchCache]);
 
 const loadSpotifyDataProgressively = async (initialAlbums: AlbumData[], cacheKey: string) => {
-  // Ensure we're working with valid data
   if (!initialAlbums || initialAlbums.length === 0) return;
-  
-  // Load Spotify data for each album in parallel
-  const promises = initialAlbums.map(async (album) => {
-    try {
-      // Skip if album data is invalid
-      if (!album || !album.id || !album.title || !album.artist) {
-        console.warn('Invalid album data:', album);
-        return;
-      }
-      
-      const spotifyData = await apiClient.getAlbumSpotifyData(album.id, album.title, album.artist);
-      
-      const enrichedAlbum = {
-        ...album,
-        spotify_preview_url: spotifyData.spotify_preview_url,
-        spotify_url: spotifyData.spotify_url,
-        cover_url: spotifyData.cover_url || album.cover_url,
-        discogs_url: spotifyData.discogs_url || album.discogs_url
-      };
-      
-      // Update this specific album with Spotify and Discogs data
-      setAlbums(currentAlbums => 
-        currentAlbums.map(a => 
-          a.id === album.id ? enrichedAlbum : a
-        )
-      );
-      
-      // Also update selected album if it's currently being viewed
-      setSelectedAlbum(current => 
-        current && current.id === album.id ? enrichedAlbum : current
-      );
-      
-      // If this album is favorited and we got new data, update the favorite (non-blocking)
-      if (user && favoriteAlbums.has(album.id) && (spotifyData.spotify_url || spotifyData.discogs_url)) {
-        apiClient.updateFavorite(album.id, {
-          spotify_url: spotifyData.spotify_url,
-          spotify_preview_url: spotifyData.spotify_preview_url,
-          discogs_url: spotifyData.discogs_url,
-          cover_url: spotifyData.cover_url
-        }).catch(() => {
-          // Silently handle update failures - not critical
-        });
-      }
-    } catch (error) {
-      console.error(`Failed to load Spotify data for ${album?.title}:`, error);
+
+  await enrichAlbumsInParallel(initialAlbums, (original, enriched) => {
+    setAlbums(current => current.map(a => a.id === original.id ? enriched : a));
+    setSelectedAlbum(current => current?.id === original.id ? enriched : current);
+
+    if (user && favoriteAlbums.has(original.id) && (enriched.spotify_url || enriched.discogs_url)) {
+      apiClient.updateFavorite(original.id, {
+        spotify_url: enriched.spotify_url,
+        spotify_preview_url: enriched.spotify_preview_url,
+        discogs_url: enriched.discogs_url,
+        cover_url: enriched.cover_url,
+      }).catch(() => {});
     }
   });
-  
-  // Wait for all to complete, then cache the final results
-  await Promise.all(promises);
-  
-  // Update cache with enriched results (only if cacheKey is valid)
+
   if (cacheKey && cacheKey.length > 0) {
     setAlbums(currentAlbums => {
-      setSearchCache(prev => new Map(prev.set(cacheKey, currentAlbums)));
+      setSearchCache(prev => {
+        const next = new Map(prev.set(cacheKey, currentAlbums));
+        if (next.size > MAX_CACHE_ENTRIES) {
+          const oldestKey = next.keys().next().value;
+          if (oldestKey !== undefined) next.delete(oldestKey);
+        }
+        return next;
+      });
       return currentAlbums;
     });
   }
 };
 
 const handleListenNow = async (album: AlbumData) => {
-  // Open the details immediately
   setSelectedAlbum(album);
   setDetailsOpen(true);
-  
-  // If no Spotify URL, try to fetch it in the background
+
   if (!album.spotify_url && album.title && album.artist) {
     try {
-      const spotifyData = await apiClient.getAlbumSpotifyData(album.id, album.title, album.artist);
-      const enrichedAlbum = {
-        ...album,
-        spotify_url: spotifyData.spotify_url,
-        spotify_preview_url: spotifyData.spotify_preview_url,
-        cover_url: spotifyData.cover_url || album.cover_url,
-        discogs_url: spotifyData.discogs_url || album.discogs_url
-      };
-      setSelectedAlbum(enrichedAlbum);
-      
-      // Also update the album in the main list
-      setAlbums(current => 
-        current.map(a => a.id === album.id ? enrichedAlbum : a)
-      );
-      
-      // If this album is favorited and we got new data, update the favorite (non-blocking)
-      if (user && favoriteAlbums.has(album.id) && (spotifyData.spotify_url || spotifyData.discogs_url)) {
+      const enriched = await enrichAlbumWithSpotifyData(album);
+      setSelectedAlbum(enriched);
+      setAlbums(current => current.map(a => a.id === album.id ? enriched : a));
+
+      if (user && favoriteAlbums.has(album.id) && (enriched.spotify_url || enriched.discogs_url)) {
         apiClient.updateFavorite(album.id, {
-          spotify_url: spotifyData.spotify_url,
-          spotify_preview_url: spotifyData.spotify_preview_url,
-          discogs_url: spotifyData.discogs_url,
-          cover_url: spotifyData.cover_url
-        }).catch(() => {
-          // Silently handle update failures - not critical
-        });
+          spotify_url: enriched.spotify_url,
+          spotify_preview_url: enriched.spotify_preview_url,
+          discogs_url: enriched.discogs_url,
+          cover_url: enriched.cover_url,
+        }).catch(() => {});
       }
     } catch (error) {
       console.error('Failed to fetch Spotify data for album:', error);
@@ -204,23 +160,22 @@ const handleCloseDetails = () => {
 };
 
 const loadUserFavorites = useCallback(async () => {
-  if (!user || favoritesLoading) return;
+  if (!user || favoritesLoadingRef.current) return;
   
   try {
-    setFavoritesLoading(true);
+    favoritesLoadingRef.current = true;
     const response = await apiClient.getFavoritesWithDetails();
     
     if (response.success && response.favorites) {
-      // Extract album IDs from the favorites response
-      const favoriteIds = new Set(response.favorites.map((fav: FavoriteItem) => fav.albums?.id || fav.album?.id || fav.id).filter(Boolean));
+      const favoriteIds = new Set(response.favorites.map((fav: FavoriteItem) => fav.album?.id || fav.id).filter(Boolean));
       setFavoriteAlbums(favoriteIds);
     }
   } catch (error) {
     console.error('Error loading user favorites:', error);
   } finally {
-    setFavoritesLoading(false);
+    favoritesLoadingRef.current = false;
   }
-}, [user, favoritesLoading]);
+}, [user]);
 
 // Initial load on mount
 useEffect(() => {
@@ -271,13 +226,15 @@ const handleToggleFavorite = async (album: AlbumData) => {
         newSet.delete(album.id);
         return newSet;
       });
+      showToast('Removed from favorites', 'success');
     } else {
       await apiClient.addToFavorites(album);
       setFavoriteAlbums(prev => new Set(prev).add(album.id));
+      showToast('Added to favorites', 'success');
     }
   } catch (error) {
     console.error('Error toggling favorite:', error);
-    // Could show a toast notification here
+    showToast('Failed to update favorites', 'error');
   }
 };
 
@@ -299,23 +256,29 @@ const handleToggleFavorite = async (album: AlbumData) => {
 
         {/* Results Area */}
         {loading && (
-          <div style={{ textAlign: 'center', padding: '2rem' }}>
-            <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#999' }}>
+          <div className="recommendations-section">
+            <p className="loading-hint-text" role="status" aria-live="polite">
               This may take 15-30 seconds for the best recommendations
             </p>
+            <div className="recommendations-grid">
+              {Array.from({ length: 6 }, (_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
           </div>
         )}
         
-        {error && <ErrorMessage error={error} />}
+        {error && <ErrorMessage error={error} onRetry={() => searchQuery ? handleSearch(searchQuery) : loadInitialAlbums()} />}
         
         {!loading && !error && albums.length > 0 && (
           <div className="recommendations-section">
             <h2 className="recommendations-title">{searchQuery ? `${albums.length} deep cut albums for ${searchQuery} lovers` : "Today's top favorites"}</h2>
             <div className="recommendations-grid">
-              {albums.map((album) => (
+              {albums.map((album, index) => (
                 <AlbumCard 
                   key={album.id} 
                   album={album} 
+                  index={index}
                   onListenNow={handleListenNow}
                   onToggleFavorite={handleToggleFavorite}
                   isFavorited={favoriteAlbums.has(album.id)}

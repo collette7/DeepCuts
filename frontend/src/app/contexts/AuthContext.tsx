@@ -24,10 +24,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const clearSession = () => {
     setSession(null)
     setUser(null)
-    // Clear any stored tokens
     if (typeof window !== 'undefined') {
       localStorage.removeItem('supabase.auth.token')
-      sessionStorage.clear()
+      sessionStorage.removeItem('supabase.auth.token')
     }
   }
 

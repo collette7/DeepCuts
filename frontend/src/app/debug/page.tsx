@@ -1,29 +1,33 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function DebugPage() {
+  const router = useRouter()
   const [envVars, setEnvVars] = useState<Record<string, unknown>>({})
-  
+  const isDev = process.env.NODE_ENV === 'development'
+
   useEffect(() => {
-    // Check client-side env vars
+    // Block access in production to prevent environment variable exposure
+    if (!isDev) {
+      router.replace('/')
+      return
+    }
+
     setEnvVars({
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      apiUrl: process.env.NEXT_PUBLIC_API_URL,
-      allEnvKeys: Object.keys(process.env).filter(key => key.startsWith('NEXT_PUBLIC_'))
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'NOT SET',
+      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET',
+      apiUrl: process.env.NEXT_PUBLIC_API_URL ? 'SET' : 'NOT SET',
     })
-  }, [])
+  }, [isDev, router])
+
+  if (!isDev) return null
 
   return (
     <div style={{ padding: '20px', fontFamily: 'monospace' }}>
-      <h1>Environment Debug</h1>
+      <h1>Environment Debug (Development Only)</h1>
       <pre>{JSON.stringify(envVars, null, 2)}</pre>
-      
-      <h2>Direct Access Test:</h2>
-      <p>NEXT_PUBLIC_SUPABASE_URL: {process.env.NEXT_PUBLIC_SUPABASE_URL || 'UNDEFINED'}</p>
-      <p>NEXT_PUBLIC_SUPABASE_ANON_KEY: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'UNDEFINED'}</p>
-      <p>NEXT_PUBLIC_API_URL: {process.env.NEXT_PUBLIC_API_URL || 'UNDEFINED'}</p>
     </div>
   )
 }

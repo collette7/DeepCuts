@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import AuthModal from './auth/AuthModal';
@@ -15,11 +15,24 @@ export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authView, setAuthView] = useState<'login' | 'signup'>('login');
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleSignOut = async () => {
     await signOut();
     setIsMenuOpen(false);
   };
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isMenuOpen]);
 
   return (
     <nav className="main-nav">
@@ -34,8 +47,12 @@ export default function Navigation() {
         <div className="nav-right">
           <div className="nav-user-menu">
             <button 
+              ref={menuButtonRef}
               className="nav-user-button"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-expanded={isMenuOpen}
+              aria-haspopup="menu"
+              aria-label="User menu"
             >
               <Menu size={16} />
               

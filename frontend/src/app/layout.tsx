@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.scss";
 import { AuthProvider } from './contexts/AuthContext';
-import AuthErrorHandler from '@/components/AuthErrorHandler';
+import { ToastProvider } from './contexts/ToastContext';
+import AuthErrorHandler from './components/AuthErrorHandler';
 import SimpleFooter from './components/SimpleFooter';
 
 export const metadata: Metadata = {
@@ -18,11 +19,13 @@ export default function RootLayout({
     <html lang="en">
       <body suppressHydrationWarning={true}>
         <AuthProvider>
-          <AuthErrorHandler />
-          <main>
-            {children}
-          </main>
-          <SimpleFooter />
+          <ToastProvider>
+            <AuthErrorHandler />
+            <main>
+              {children}
+            </main>
+            <SimpleFooter />
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

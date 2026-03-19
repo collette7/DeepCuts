@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X, Mail } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import LoginForm from './LoginForm'
 import SignupForm from './SignupForm'
 import './AuthModal.scss'
@@ -15,11 +16,22 @@ interface AuthModalProps {
 export default function AuthModal({ isOpen, onClose, defaultView = 'login' }: AuthModalProps) {
   const [currentView, setCurrentView] = useState<'login' | 'signup' | 'verify-email'>(defaultView)
   const [userEmail, setUserEmail] = useState('')
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
 
-  // Sync currentView with defaultView when it changes
   useEffect(() => {
     setCurrentView(defaultView)
   }, [defaultView])
+
+  useEffect(() => {
+    if (!isOpen) return
+    closeButtonRef.current?.focus()
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [isOpen, onClose])
 
   if (!isOpen) return null
 
@@ -30,6 +42,21 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'login' }: Au
   const handleSignupSuccess = (email: string) => {
     setUserEmail(email)
     setCurrentView('verify-email')
+    setResendStatus('idle')
+  }
+
+  const handleResendVerification = async () => {
+    if (resendStatus === 'sending') return
+    setResendStatus('sending')
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: userEmail,
+      })
+      setResendStatus(error ? 'error' : 'sent')
+    } catch {
+      setResendStatus('error')
+    }
   }
 
   const renderContent = () => {
@@ -64,7 +91,19 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'login' }: Au
             </div>
 
             <div className="email-verification-help">
-              <p>Didn&apos;t receive the email? Check your spam folder or <button className="resend-link">resend verification</button></p>
+              <p>
+                Didn&apos;t receive the email? Check your spam folder or{' '}
+                <button
+                  className="resend-link"
+                  onClick={handleResendVerification}
+                  disabled={resendStatus === 'sending'}
+                >
+                  {resendStatus === 'sending' ? 'Sending...' : resendStatus === 'sent' ? 'Sent!' : 'resend verification'}
+                </button>
+              </p>
+              {resendStatus === 'error' && (
+                <p className="auth-error-message">Failed to resend. Please try again.</p>
+              )}
             </div>
 
             <button 
@@ -81,14 +120,14 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'login' }: Au
   }
 
   return (
-    <div className="auth-modal-overlay" onClick={onClose}>
-      <div className="auth-modal-content" onClick={(e) => e.stopPropagation()}>
-        <button className="auth-modal-close" onClick={onClose}>
+    <>
+      <div className="auth-modal-overlay" onClick={onClose} aria-hidden="true" />
+      <div className="auth-modal-content" role="dialog" aria-modal="true" aria-label="Authentication" onClick={(e) => e.stopPropagation()}>
+        <button ref={closeButtonRef} className="auth-modal-close" onClick={onClose} aria-label="Close">
           <X size={16} />
         </button>
-        
         {renderContent()}
       </div>
-    </div>
+    </>
   )
 }

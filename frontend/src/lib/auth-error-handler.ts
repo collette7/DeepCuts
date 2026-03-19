@@ -34,10 +34,9 @@ export async function handleAuthError(error: unknown): Promise<void> {
       // Sign out the user to clear invalid session
       await supabase.auth.signOut()
       
-      // Clear any local storage
       if (typeof window !== 'undefined') {
         localStorage.removeItem('supabase.auth.token')
-        sessionStorage.clear()
+        sessionStorage.removeItem('supabase.auth.token')
       }
       
       // Optionally reload the page to reset the app state

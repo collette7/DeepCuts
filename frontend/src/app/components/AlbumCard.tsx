@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { AlbumData } from '@/lib/api';
 import { Music, Heart } from 'lucide-react';
 import './AlbumCard.scss';
@@ -8,24 +9,42 @@ interface AlbumCardProps {
   onToggleFavorite?: (album: AlbumData) => void;
   isFavorited?: boolean;
   isLoading?: boolean;
+  index?: number;
 }
 
-export default function AlbumCard({ album, onListenNow, onToggleFavorite, isFavorited = false, isLoading = false }: AlbumCardProps) {
+export default function AlbumCard({ album, onListenNow, onToggleFavorite, isFavorited = false, isLoading = false, index }: AlbumCardProps) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [bouncing, setBouncing] = useState(false);
+
+  const handleImageLoad = useCallback(() => {
+    setImageLoaded(true);
+  }, []);
+
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation(); 
     if (onToggleFavorite && !isLoading) {
+      setBouncing(true);
+      setTimeout(() => setBouncing(false), 400);
       onToggleFavorite(album);
     }
   };
 
   return (
-    <div className="album-card" onClick={() => onListenNow(album)}>
+    <div
+      className="album-card"
+      style={{ animationDelay: `${(index || 0) * 60}ms` }}
+      onClick={() => onListenNow(album)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onListenNow(album); } }}
+      role="button"
+      tabIndex={0}
+    >
       <div className="img-container">
         {album.cover_url ? (
           <img 
-            className="cover-image" 
+            className={`cover-image${imageLoaded ? ' loaded' : ''}`}
             src={album.cover_url} 
             alt={`${album.title} cover`}
+            onLoad={handleImageLoad}
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               target.style.display = 'none';
@@ -39,12 +58,11 @@ export default function AlbumCard({ album, onListenNow, onToggleFavorite, isFavo
           <p className="cover-placeholder-text">Album Cover</p>
         </div>
         
-        {/* Favorite Button */}
         {onToggleFavorite && (
           <button 
             onClick={handleFavoriteClick}
             disabled={isLoading}
-            className={`favorite-btn ${isFavorited ? 'favorited' : ''} ${isLoading ? 'loading' : ''}`}
+            className={`favorite-btn ${isFavorited ? 'favorited' : ''} ${isLoading ? 'loading' : ''} ${bouncing ? 'bouncing' : ''}`}
             aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
           >
             {isLoading ? (
