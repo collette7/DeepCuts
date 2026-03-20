@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { apiClient, AlbumData, SearchResponse, FavoriteItem } from '@/lib/api';
+import { apiClient, AlbumData, SearchResponse } from '@/lib/api';
 import { enrichAlbumWithSpotifyData, enrichAlbumsInParallel } from '@/lib/spotify';
 import { useAuth } from './contexts/AuthContext';
 import { useToast } from './contexts/ToastContext';
@@ -17,6 +17,10 @@ import './components/RecommendationsSection.scss';
 
 const MAX_CACHE_ENTRIES = 50;
 
+/** Stable identity key for an album — matches by title+artist regardless of ID source */
+const albumKey = (album: AlbumData) =>
+  `${album.title?.toLowerCase().trim()}|${album.artist?.toLowerCase().trim()}`;
+
 export default function Home() {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -27,6 +31,7 @@ export default function Home() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedAlbum, setSelectedAlbum] = useState<AlbumData | null>(null);
   const [favoriteAlbums, setFavoriteAlbums] = useState<Set<string>>(new Set());
+  const [favoriteIdMap, setFavoriteIdMap] = useState<Map<string, string>>(new Map());
   const favoritesLoadingRef = useRef(false);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -105,8 +110,10 @@ const loadSpotifyDataProgressively = async (initialAlbums: AlbumData[], cacheKey
     setAlbums(current => current.map(a => a.id === original.id ? enriched : a));
     setSelectedAlbum(current => current?.id === original.id ? enriched : current);
 
-    if (user && favoriteAlbums.has(original.id) && (enriched.spotify_url || enriched.discogs_url)) {
-      apiClient.updateFavorite(original.id, {
+    const key = albumKey(original);
+    if (user && favoriteAlbums.has(key) && (enriched.spotify_url || enriched.discogs_url)) {
+      const dbId = favoriteIdMap.get(key) || original.id;
+      apiClient.updateFavorite(dbId, {
         spotify_url: enriched.spotify_url,
         spotify_preview_url: enriched.spotify_preview_url,
         discogs_url: enriched.discogs_url,
@@ -140,8 +147,10 @@ const handleListenNow = async (album: AlbumData) => {
       setSelectedAlbum(enriched);
       setAlbums(current => current.map(a => a.id === album.id ? enriched : a));
 
-      if (user && favoriteAlbums.has(album.id) && (enriched.spotify_url || enriched.discogs_url)) {
-        apiClient.updateFavorite(album.id, {
+      const key = albumKey(album);
+      if (user && favoriteAlbums.has(key) && (enriched.spotify_url || enriched.discogs_url)) {
+        const dbId = favoriteIdMap.get(key) || album.id;
+        apiClient.updateFavorite(dbId, {
           spotify_url: enriched.spotify_url,
           spotify_preview_url: enriched.spotify_preview_url,
           discogs_url: enriched.discogs_url,
@@ -159,23 +168,32 @@ const handleCloseDetails = () => {
   setSelectedAlbum(null);
 };
 
-const loadUserFavorites = useCallback(async () => {
-  if (!user || favoritesLoadingRef.current) return;
-  
-  try {
-    favoritesLoadingRef.current = true;
-    const response = await apiClient.getFavoritesWithDetails();
+  const loadUserFavorites = useCallback(async () => {
+    if (!user || favoritesLoadingRef.current) return;
     
-    if (response.success && response.favorites) {
-      const favoriteIds = new Set(response.favorites.map((fav: FavoriteItem) => fav.album?.id || fav.id).filter(Boolean));
-      setFavoriteAlbums(favoriteIds);
+    try {
+      favoritesLoadingRef.current = true;
+      const response = await apiClient.getFavoritesWithDetails();
+      
+      if (response.success && response.favorites) {
+        const keys = new Set<string>();
+        const idMap = new Map<string, string>();
+        for (const fav of response.favorites) {
+          if (fav.album?.title && fav.album?.artist) {
+            const key = albumKey(fav.album);
+            keys.add(key);
+            idMap.set(key, fav.album.id);
+          }
+        }
+        setFavoriteAlbums(keys);
+        setFavoriteIdMap(idMap);
+      }
+    } catch (error) {
+      console.error('Error loading user favorites:', error);
+    } finally {
+      favoritesLoadingRef.current = false;
     }
-  } catch (error) {
-    console.error('Error loading user favorites:', error);
-  } finally {
-    favoritesLoadingRef.current = false;
-  }
-}, [user]);
+  }, [user]);
 
 // Initial load on mount
 useEffect(() => {
@@ -203,12 +221,12 @@ useEffect(() => {
     loadUserFavorites();
   } else {
     setFavoriteAlbums(new Set());
+    setFavoriteIdMap(new Map());
   }
 }, [user, handleSearch, loadUserFavorites]);
 
 const handleToggleFavorite = async (album: AlbumData) => {
   if (!user) {
-    // Store current search query in sessionStorage before opening auth modal
     if (searchQuery) {
       sessionStorage.setItem('pendingSearchQuery', searchQuery);
     }
@@ -216,20 +234,27 @@ const handleToggleFavorite = async (album: AlbumData) => {
     return;
   }
 
-  const isFavorited = favoriteAlbums.has(album.id);
+  const key = albumKey(album);
+  const isFavorited = favoriteAlbums.has(key);
   
   try {
     if (isFavorited) {
-      await apiClient.removeFromFavorites(album.id);
+      const dbId = favoriteIdMap.get(key) || album.id;
+      await apiClient.removeFromFavorites(dbId);
       setFavoriteAlbums(prev => {
         const newSet = new Set(prev);
-        newSet.delete(album.id);
+        newSet.delete(key);
         return newSet;
+      });
+      setFavoriteIdMap(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(key);
+        return newMap;
       });
       showToast('Removed from favorites', 'success');
     } else {
       await apiClient.addToFavorites(album);
-      setFavoriteAlbums(prev => new Set(prev).add(album.id));
+      setFavoriteAlbums(prev => new Set(prev).add(key));
       showToast('Added to favorites', 'success');
     }
   } catch (error) {
@@ -281,7 +306,7 @@ const handleToggleFavorite = async (album: AlbumData) => {
                   index={index}
                   onListenNow={handleListenNow}
                   onToggleFavorite={handleToggleFavorite}
-                  isFavorited={favoriteAlbums.has(album.id)}
+                  isFavorited={favoriteAlbums.has(albumKey(album))}
                 />
               ))}
             </div>
