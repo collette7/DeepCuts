@@ -53,50 +53,36 @@ class FavoritesService:
                 return FavoriteActionResponse(success=False, message="Failed to create/verify user")
 
             album_data = request.album_data
+            title = album_data['title'].strip()
+            artist = album_data['artist'].strip()
 
-            # First, save the album data to albums table - only required fields
-            album_insert_data = {
-                'title': album_data['title'],
-                'artist': album_data['artist']
-            }
+            existing = self.supabase.table('albums').select('id').ilike('title', title).ilike('artist', artist).limit(1).execute()
 
-            # Add optional fields if they exist
-            if album_data.get('year'):
-                album_insert_data['release_year'] = album_data['year']
-            if album_data.get('genre'):
-                album_insert_data['genre'] = album_data['genre']
-            if album_data.get('discogs_id'):
-                album_insert_data['discogs_id'] = album_data['discogs_id']
-            if album_data.get('cover_url'):
-                album_insert_data['cover_url'] = album_data['cover_url']
-            if album_data.get('spotify_preview_url'):
-                album_insert_data['spotify_preview_url'] = album_data['spotify_preview_url']
-            if album_data.get('spotify_url'):
-                album_insert_data['spotify_url'] = album_data['spotify_url']
-            # Don't try to store reasoning in albums table for now - it should go in favorites table
-            # if album_data.get('reasoning'):
-            #     album_insert_data['reasoning'] = album_data['reasoning']
-
-            try:
-                album_result = self.supabase.table('albums').upsert(album_insert_data).execute()
-            except Exception as e:
-                print(f"Error upserting album, trying without optional fields: {e}")
-                # Try with just required fields if there are schema issues
-                minimal_data = {
-                    'title': album_data['title'],
-                    'artist': album_data['artist']
-                }
-                album_result = self.supabase.table('albums').upsert(minimal_data).execute()
-
-            # Get the album ID from the result
-            if album_result.data:
-                album_uuid = album_result.data[0]['id']
+            if existing.data:
+                album_uuid = existing.data[0]['id']
+                update_fields = {}
+                for src, dst in [('year', 'release_year'), ('genre', 'genre'), ('discogs_id', 'discogs_id'),
+                                 ('cover_url', 'cover_url'), ('spotify_preview_url', 'spotify_preview_url'),
+                                 ('spotify_url', 'spotify_url')]:
+                    if album_data.get(src):
+                        update_fields[dst] = album_data[src]
+                if update_fields:
+                    try:
+                        self.supabase.table('albums').update(update_fields).eq('id', album_uuid).execute()
+                    except Exception as e:
+                        print(f"Error updating album metadata: {e}")
             else:
-                # If upsert didn't return data, try to find existing album
-                existing_album = self.supabase.table('albums').select('id').eq('title', album_data['title']).eq('artist', album_data['artist']).execute()
-                if existing_album.data:
-                    album_uuid = existing_album.data[0]['id']
-                else:
+                album_insert_data = {'title': title, 'artist': artist}
+                for src, dst in [('year', 'release_year'), ('genre', 'genre'), ('discogs_id', 'discogs_id'),
+                                 ('cover_url', 'cover_url'), ('spotify_preview_url', 'spotify_preview_url'),
+                                 ('spotify_url', 'spotify_url')]:
+                    if album_data.get(src):
+                        album_insert_data[dst] = album_data[src]
+                try:
+                    album_result = self.supabase.table('albums').insert(album_insert_data).execute()
+                    album_uuid = album_result.data[0]['id']
+                except Exception as e:
+                    print(f"Error inserting album: {e}")
                     return FavoriteActionResponse(success=False, message="Failed to save album")
 
             # Check if already favorited
