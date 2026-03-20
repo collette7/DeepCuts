@@ -18,14 +18,21 @@ FastAPI service providing AI-powered music recommendations and API endpoints.
 - **Gemini**: `gemini-1.5-flash`, `gemini-pro`
 
 ### Model Switching
-```python
-# Set via environment
-ACTIVE_MODEL=gemini-1.5-flash
 
-# Or programmatically
-from app.config.model_switch import model_switch
-model_switch.switch_to(AIModel.CLAUDE_35_SONNET)
+**The `app_settings` database table is the source of truth for the active AI model.** The `AIService` reads from `app_settings.active_model` on every request (60s in-process cache). The `ACTIVE_MODEL` env var is only a fallback if the DB row is missing.
+
+**To switch models**, update the database directly or use the API:
+```bash
+# Via API (recommended)
+curl -X POST https://your-backend.com/api/v1/ai/set-model \
+  -H "Content-Type: application/json" \
+  -d '{"model_id": "claude-haiku-4-5-20251001"}'
+
+# Or update the database directly
+# Table: app_settings, key='active_model', value='claude-haiku-4-5-20251001'
 ```
+
+Restart or wait 60s for the cache to expire. The env var (`ACTIVE_MODEL`) serves as a fallback for local development when the DB row is absent.
 
 ## Project Structure
 
@@ -42,6 +49,7 @@ app/
 │   ├── ai.py              # AI recommendation service
 │   ├── discogs.py         # Discogs API integration
 │   ├── favorites.py       # User favorites management
+│   ├── search_sessions.py # Search analytics tracking
 │   └── recommendations.py # Recommendation sessions
 ├── config.py              # Configuration settings
 ├── database.py            # Database connections
@@ -85,8 +93,8 @@ DISCOGS_KEY=your_discogs_consumer_key
 DISCOGS_SECRET=your_discogs_consumer_secret
 
 # Configuration
-ACTIVE_MODEL=gemini-1.5-flash  # or claude-3-5-sonnet-20241022
-DEFAULT_AI_MODEL=gemini-1.5-flash
+ACTIVE_MODEL=claude-haiku-4-5-20251001  # Fallback only — DB app_settings takes precedence
+DEFAULT_AI_MODEL=claude-haiku-4-5-20251001
 FRONTEND_URL=http://localhost:3000  # Optional: additional CORS origin
 ```
 
