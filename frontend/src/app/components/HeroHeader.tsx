@@ -25,8 +25,9 @@ export default function HeroHeader({
             endless obsessions out.
           </h1>
           <p className="hero-description">
-            Finally: music discovery that doesn&apos;t insult your intelligence. Just enter an 
-            album you love—we&apos;ll recommend others that hit the same.
+            Finally: music discovery that doesn&apos;t insult your intelligence.
+            <br />
+            Just enter an album you love—we&apos;ll recommend others that hit the same.
           </p>
         </div>
         
