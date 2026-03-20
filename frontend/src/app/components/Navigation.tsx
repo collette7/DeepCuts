@@ -39,7 +39,7 @@ export default function Navigation() {
       <div className="nav-container">
         {/* Logo */}
         <button className="nav-logo" onClick={() => router.push('/')} aria-label="DeepCuts Home">
-          <strong className="nav-logo-text">DeepCuts</strong>
+          <strong className="nav-logo-text">deepcuts</strong>
         </button>
 
 

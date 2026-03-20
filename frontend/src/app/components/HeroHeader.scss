@@ -21,17 +21,19 @@
   display: flex;
   flex-direction: column;
   gap: spacing(4);
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
 }
 
 .hero-title {
-  font-family: 'PP Acma', 'Helvetica', sans-serif;
-  font-weight: 300;
+  font-family: 'Dirtyline', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-weight: 400;
   font-size: font-size(9xl);
   line-height: 1;
   letter-spacing: letter-spacing(hero);
   color: color(black);
   margin: 0;
+  text-wrap: balance;
 
   @media (max-width: breakpoint(md)) {
     font-size: font-size(7xl);
@@ -46,36 +48,8 @@
   }
 }
 
-.hero-description {
-  font-family: 'Saans', 'Helvetica', sans-serif;
-  font-weight: 300;
-  font-size: font-size(2xl);
-  line-height: line-height(normal);
-  color: rgba(0, 0, 0, 0.5);
-  max-width: 771px;
-  margin: 0;
-
-  @media (max-width: breakpoint(md)) {
-    font-size: font-size(xl);
-    max-width: 100%;
-  }
-
-  @media (max-width: 480px) {
-    font-size: font-size(lg);
-  }
-}
-
 .hero-search {
   width: 100%;
   max-width: 645px;
   position: relative;
-}
-
-// Fallback fonts for when custom fonts aren't loaded
-.hero-title {
-  font-family: 'PP Acma', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-}
-
-.hero-description {
-  font-family: 'Saans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
 }
