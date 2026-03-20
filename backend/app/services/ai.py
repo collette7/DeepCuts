@@ -270,7 +270,7 @@ class AIService:
             <artist>Artist Name</artist>
             <year>Year</year>
             <genre>Primary Genre</genre>
-            <explanation>Your explanation here, 2-3 sentences focusing on specific musical qualities and characteristics</explanation>
+            <explanation>1-2 short sentences on why this matches the input album's qualities</explanation>
         </album>
         <!-- Repeat for all 10 recommendations -->
         </recommendations>
@@ -345,7 +345,7 @@ class AIService:
                 # Use Claude API
                 message = self.client.messages.create(
                     model=self.ACTIVE_MODEL,
-                    max_tokens=8192,
+                    max_tokens=16384,
                     messages=[
                         {
                             "role": "user",
