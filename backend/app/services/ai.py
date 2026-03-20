@@ -345,7 +345,7 @@ class AIService:
                 # Use Claude API
                 message = self.client.messages.create(
                     model=self.ACTIVE_MODEL,
-                    max_tokens=4000,
+                    max_tokens=8192,
                     messages=[
                         {
                             "role": "user",
