@@ -53,6 +53,7 @@
   display: flex;
   align-items: center;
   flex: 1;
+  min-width: 0;
   position: relative;
   height: 54px;
   padding-left: spacing(5);
@@ -96,6 +97,9 @@
   
   .hero & {
     font-size: clamp(0.875rem, 2.5vw, 1.125rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
