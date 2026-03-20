@@ -107,7 +107,8 @@
     right: 5px;
     top: 5px;
     bottom: 5px;
-    width: 38px;
+    width: 44px;
+    height: 44px;
     background-color: #0000FF;
     border: none;
     border-radius: 50%;
@@ -135,7 +136,7 @@
   
   // Default variant - text button
   .default & {
-    height: 48px;
+  height: 54px;
     padding: 0 spacing(6);
     margin-left: spacing(3);
     background-color: #3b82f6;
