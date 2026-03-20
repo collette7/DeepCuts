@@ -94,7 +94,8 @@ class FavoritesService:
             # Add to favorites with reasoning if provided
             favorite_data = {
                 'user_id': user_uuid,
-                'album_id': album_uuid
+                'album_id': album_uuid,
+                'search_session_id': str(request.search_session_id) if request.search_session_id else None
             }
 
             # Store reasoning in the favorites record since each user might have different reasoning for the same album

@@ -70,3 +70,4 @@ class SearchResponse(BaseModel):
     )
     total_found: int = Field(..., description="Total number")
     processing_time_ms: int = Field(..., description="Time taken to process request")
+    session_id: str | None = Field(None, description="Search session ID for analytics")

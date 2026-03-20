@@ -22,7 +22,7 @@ from app.services.ai import (
     set_active_model,
 )
 from app.services.favorites import favorites_service
-from app.services.recommendations import recommendation_service
+from app.services.search_sessions import search_session_service
 
 load_dotenv()
 
@@ -440,29 +440,15 @@ async def search_albums(
     session_id = None
 
     try:
-        # Create recommendation session (for both authenticated and anonymous users)
-        try:
-            session_id = await recommendation_service.create_recommendation_session(
-                query=request.query,
-                user_email=user_email,
-                source_album=getattr(request, 'source_album', None),
-                enhancer_settings={}
-            )
-        except Exception as e:
-            logger.error(f"Failed to create recommendation session: {e}")
-
-        # Get album recommendations from claude
+        # Get album recommendations from AI
         recommendations = await ai_service.get_album_recommendations(request.query)
 
-        # Return empty results if claude returns no recommendations
         if not recommendations or len(recommendations) == 0:
-            logger.warning(f"No recommendations from Claude for query: {request.query}")
+            logger.warning(f"No recommendations from AI for query: {request.query}")
             recommendations = []
 
-        # Return AI recommendations immediately without waiting for external API calls
-        # External data will be loaded progressively on the frontend
+        # Convert to AlbumData format
         if recommendations:
-            # Just convert to proper AlbumData format without external API calls
             quick_recommendations = []
             for album in recommendations:
                 quick_album = AlbumData(
@@ -471,24 +457,24 @@ async def search_albums(
                     artist=album.artist,
                     year=album.year,
                     genre=album.genre,
-                    spotify_preview_url=None,  # Will be loaded progressively
-                    spotify_url=None,  # Will be loaded progressively
+                    spotify_preview_url=None,
+                    spotify_url=None,
                     discogs_url=album.discogs_url,
-                    cover_url=None,  # Will be loaded progressively
+                    cover_url=None,
                     reasoning=album.reasoning
                 )
                 quick_recommendations.append(quick_album)
-
             recommendations = quick_recommendations
 
-        # Save recommended albums to the session
-        if session_id and recommendations:
-            try:
-                await recommendation_service.save_recommendations(session_id, recommendations)
-            except Exception as e:
-                logger.error(f"Failed to save recommended albums: {e}")
+        # Create search session for analytics
+        session_id = search_session_service.create_session(
+            query=request.query,
+            albums=recommendations,
+            user_email=user_email,
+            ai_model=ai_service.ACTIVE_MODEL,
+        )
 
-        # Limit results
+        # Limit results for response
         limited_recommendations = recommendations[:request.max_results]
 
     except Exception as e:
@@ -501,7 +487,8 @@ async def search_albums(
         query=request.query,
         recommendations=limited_recommendations,
         total_found=len(limited_recommendations),
-        processing_time_ms=processing_time
+        processing_time_ms=processing_time,
+        session_id=session_id,
     )
 
 
@@ -628,7 +615,15 @@ async def add_favorite(
             raise HTTPException(status_code=401, detail="Invalid token")
 
         user = user_response.user
-        return await favorites_service.add_to_favorites(user.id, user.email, request)
+        result = await favorites_service.add_to_favorites(user.id, user.email, request)
+        if result.success and request.search_session_id:
+            search_session_service.track_favorite(
+                session_id=str(request.search_session_id),
+                album_title=request.album_data.get('title', ''),
+                album_artist=request.album_data.get('artist', ''),
+                user_email=user.email
+            )
+        return result
 
     except Exception as e:
         logger.error(f"Authentication failed: {e}")
@@ -662,6 +657,63 @@ async def get_favorites_with_details(
     """Get user's favorites"""
     token = authorization.replace("Bearer ", "") if authorization else None
     return await favorites_service.get_favorites_with_album_details(user_email, token)
+
+
+@app.post("/api/v1/analytics/track-click")
+async def track_album_click(
+    session_id: str | None = None,
+    title: str = "",
+    artist: str = "",
+    authorization: str = Header(None)
+):
+    """Track when a user opens album details."""
+    user_email = None
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            token = authorization.replace("Bearer ", "")
+            user_response = supabase_admin.auth.get_user(token)
+            if user_response.user:
+                user_email = user_response.user.email
+        except Exception:
+            pass
+
+    search_session_service.track_click(
+        session_id=session_id,
+        album_title=title,
+        album_artist=artist,
+        user_email=user_email,
+    )
+    return {"success": True}
+
+
+@app.get("/api/v1/analytics/sessions")
+async def get_search_sessions(
+    limit: int = 50,
+    authorization: str = Header(None)
+):
+    """Get search sessions for analytics. Requires auth."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authorization required")
+
+    try:
+        token = authorization.replace("Bearer ", "")
+        user_response = supabase_admin.auth.get_user(token)
+        if not user_response.user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user_email = user_response.user.email
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Authentication failed") from None
+
+    sessions = search_session_service.get_sessions(user_email=user_email, limit=limit)
+    return {"sessions": sessions}
+
+
+@app.get("/api/v1/analytics/sessions/{session_id}")
+async def get_session_analytics(session_id: str):
+    """Get detailed analytics for a single search session."""
+    return search_session_service.get_session_analytics(session_id)
 
 
 @app.get("/debug/ai-test")

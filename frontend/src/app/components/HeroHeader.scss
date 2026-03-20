@@ -1,7 +1,7 @@
 @use '../../styles/variables' as *;
 
 .hero-header {
-  padding: spacing(4) 0;
+  padding: spacing(8) 0;
   background-color: color(white);
 
   @media (max-width: 768px) {

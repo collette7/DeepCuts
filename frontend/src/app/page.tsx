@@ -33,6 +33,7 @@ export default function Home() {
   const [favoriteAlbums, setFavoriteAlbums] = useState<Set<string>>(new Set());
   const [favoriteIdMap, setFavoriteIdMap] = useState<Map<string, string>>(new Map());
   const favoritesLoadingRef = useRef(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCache, setSearchCache] = useState<Map<string, AlbumData[]>>(new Map());
@@ -80,6 +81,7 @@ const handleSearch = useCallback(async (query: string) => {
     if (searchData.recommendations && searchData.recommendations.length > 0) {
       // Show AI results immediately
       setAlbums(searchData.recommendations);
+      setCurrentSessionId(searchData.session_id || null);
       setLoading(false);
       
       // Now load Spotify data progressively in the background
@@ -140,6 +142,7 @@ const loadSpotifyDataProgressively = async (initialAlbums: AlbumData[], cacheKey
 const handleListenNow = async (album: AlbumData) => {
   setSelectedAlbum(album);
   setDetailsOpen(true);
+  apiClient.trackClick(currentSessionId, album);
 
   if (!album.spotify_url && album.title && album.artist) {
     try {
@@ -253,7 +256,7 @@ const handleToggleFavorite = async (album: AlbumData) => {
       });
       showToast('Removed from favorites', 'success');
     } else {
-      await apiClient.addToFavorites(album);
+      await apiClient.addToFavorites(album, undefined, currentSessionId ?? undefined);
       setFavoriteAlbums(prev => new Set(prev).add(key));
       showToast('Added to favorites', 'success');
     }

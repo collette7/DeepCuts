@@ -12,9 +12,17 @@ interface AlbumCardProps {
   index?: number;
 }
 
+const VINYL_COLORS = ['#FF8C00', '#FF4081', '#00BCD4', '#8BC34A', '#9C27B0', '#FF5722', '#00E5FF', '#E040FB', '#76FF03', '#FF6E40'];
+
+function vinylColor(album: AlbumData): string {
+  const seed = `${album.title || ''}|${album.artist || ''}`.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return VINYL_COLORS[seed % VINYL_COLORS.length];
+}
+
 export default function AlbumCard({ album, onListenNow, onToggleFavorite, isFavorited = false, isLoading = false, index }: AlbumCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [bouncing, setBouncing] = useState(false);
+  const vinylStyle = { '--vinyl-color': vinylColor(album) } as React.CSSProperties;
 
   const handleImageLoad = useCallback(() => {
     setImageLoaded(true);
@@ -54,8 +62,9 @@ export default function AlbumCard({ album, onListenNow, onToggleFavorite, isFavo
           />
         ) : null}
         <div className="cover-placeholder" style={{ display: album.cover_url ? 'none' : 'flex' }}>
-          <Music className="cover-placeholder-icon" size={40} />
-          <p className="cover-placeholder-text">Album Cover</p>
+          <div className="vinyl-wrapper" style={vinylStyle}>
+            <div className="vinyl" />
+          </div>
         </div>
         
         {onToggleFavorite && (

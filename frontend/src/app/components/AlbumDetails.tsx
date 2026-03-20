@@ -15,9 +15,18 @@ interface AlbumDetailsProps {
   hiderecommendationReason?: boolean;
 }
 
+const VINYL_COLORS = ['#FF8C00', '#FF4081', '#00BCD4', '#8BC34A', '#9C27B0', '#FF5722', '#00E5FF', '#E040FB', '#76FF03', '#FF6E40'];
+
+function vinylColor(album: AlbumData | null): string {
+  if (!album) return VINYL_COLORS[0];
+  const seed = `${album.title || ''}|${album.artist || ''}`.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return VINYL_COLORS[seed % VINYL_COLORS.length];
+}
+
 export default function AlbumDetails({ album, isOpen, onClose, user, onAuthRequired, hiderecommendationReason = false }: AlbumDetailsProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [closing, setClosing] = useState(false);
+  const vinylStyle = { '--vinyl-color': vinylColor(album) } as React.CSSProperties;
   const [visible, setVisible] = useState(false);
 
   const handleClose = useCallback(() => {
@@ -67,7 +76,11 @@ export default function AlbumDetails({ album, isOpen, onClose, user, onAuthRequi
               {album.cover_url ? (
                 <img src={album.cover_url} alt={album.title} />
               ) : (
-                <div className="details-cover-placeholder">♪</div>
+                <div className="details-cover-placeholder">
+                  <div className="vinyl-wrapper" style={vinylStyle}>
+                    <div className="vinyl" />
+                  </div>
+                </div>
               )}
             </div>
             <div className="details-album-text">
