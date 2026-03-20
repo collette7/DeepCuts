@@ -110,7 +110,7 @@ class ApiClient {
         }
     }
 
-    async addToFavorites(albumData: AlbumData, sourceAlbumData?: AlbumData): Promise<FavoriteActionResponse> {
+    async addToFavorites(albumData: AlbumData, sourceAlbumData?: AlbumData, sessionId?: string): Promise<FavoriteActionResponse> {
         if (!albumData || !albumData.id) {
             throw new Error('Album data is required');
         }
@@ -121,7 +121,8 @@ class ApiClient {
                 headers: await this.getAuthHeaders(),
                 body: JSON.stringify({ 
                     album_data: albumData,
-                    source_album_data: sourceAlbumData 
+                    source_album_data: sourceAlbumData,
+                    search_session_id: sessionId ?? null
                 })
             });
 
@@ -299,6 +300,23 @@ class ApiClient {
         }
     }
 
+    async trackClick(sessionId: string | null, album: AlbumData): Promise<void> {
+        if (!sessionId || !album.title || !album.artist) return;
+        try {
+            await fetch(`${API_BASE_URL}/api/v1/analytics/track-click`, {
+                method: 'POST',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    title: album.title,
+                    artist: album.artist,
+                }),
+            });
+        } catch {
+            // Analytics tracking failures are silent
+        }
+    }
+
 
 }
 
@@ -326,9 +344,10 @@ export interface SearchRequest {
 
 export interface SearchResponse {
     query: string;
-    recommendations: AlbumData[];  // Keep this for search results
+    recommendations: AlbumData[];
     total_found: number;
     processing_time_ms: number;
+    session_id?: string;
 }
 
 export interface SuggestionResult {
