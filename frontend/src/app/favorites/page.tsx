@@ -145,7 +145,7 @@ export default function FavoritesPage() {
         <div className="container">
         <header className="header">
           <div>
-            <h1>Your Favorites</h1>
+            <h1>Favorites</h1>
             <p>{favorites.length} albums saved</p>
           </div>
         </header>
