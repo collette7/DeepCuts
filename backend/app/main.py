@@ -511,7 +511,7 @@ async def get_album_spotify_data(album_id: str, title: str, artist: str):
             "album_id": album_id,
             "spotify_preview_url": spotify_data.get("preview_url"),
             "spotify_url": spotify_data.get("external_url"),
-            "cover_url": spotify_data.get("cover_url") or discogs_cover,
+            "cover_url": discogs_cover or spotify_data.get("cover_url"),
             "discogs_url": discogs_url
         }
     except Exception as e:
