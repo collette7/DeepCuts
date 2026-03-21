@@ -310,6 +310,11 @@ async def get_spotify_album_data(title: str, artist: str) -> dict[str, str | Non
                     if (title.lower() in album_name or album_name in title.lower()) and \
                         any(artist.lower() in album_artist for album_artist in album_artists):
 
+                        spotify_cover_url = None
+                        images = album.get("images", [])
+                        if images:
+                            spotify_cover_url = images[0].get("url")
+
                         # Get album tracks for preview URL
                         album_id = album.get("id")
                         if album_id:
@@ -329,12 +334,14 @@ async def get_spotify_album_data(title: str, artist: str) -> dict[str, str | Non
 
                                 return {
                                     "preview_url": preview_url,
-                                    "external_url": album.get("external_urls", {}).get("spotify")
+                                    "external_url": album.get("external_urls", {}).get("spotify"),
+                                    "cover_url": spotify_cover_url,
                                 }
 
                         return {
                             "preview_url": None,
-                            "external_url": album.get("external_urls", {}).get("spotify")
+                            "external_url": album.get("external_urls", {}).get("spotify"),
+                            "cover_url": spotify_cover_url,
                         }
 
     except Exception as e:
@@ -371,7 +378,7 @@ async def get_album_cover_from_discogs(title: str, artist: str) -> str | None:
                 "secret": discogs_secret
             }
             headers = {
-                "User-Agent": "DeepCuts/1.0 +http://localhost:8000"
+                "User-Agent": "DeepCuts/1.0 (contact@deepcuts.com)"
             }
 
             response = await client.get(url, params=params, headers=headers)
@@ -497,14 +504,14 @@ async def get_album_spotify_data(album_id: str, title: str, artist: str):
     """Get Spotify and Discogs data for a specific album"""
     try:
         spotify_data = await get_spotify_album_data(title, artist)
-        cover_url = await get_album_cover_from_discogs(title, artist)
+        discogs_cover = await get_album_cover_from_discogs(title, artist)
         discogs_url = await get_discogs_url(title, artist)
 
         return {
             "album_id": album_id,
             "spotify_preview_url": spotify_data.get("preview_url"),
             "spotify_url": spotify_data.get("external_url"),
-            "cover_url": cover_url,
+            "cover_url": spotify_data.get("cover_url") or discogs_cover,
             "discogs_url": discogs_url
         }
     except Exception as e:
@@ -542,7 +549,7 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
                 "secret": discogs_secret
             }
             headers = {
-                "User-Agent": "DeepCuts/1.0 +http://localhost:8000"
+                "User-Agent": "DeepCuts/1.0 (contact@deepcuts.com)"
             }
 
             response = await client.get(url, params=params, headers=headers)
