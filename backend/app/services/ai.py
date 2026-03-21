@@ -221,63 +221,22 @@ class AIService:
         }
 
     def get_recommendation_prompt(self, album_name: str) -> str:
-        """Promp template."""
-        return f"""You are an expert music recommender with extensive knowledge of albums across various genres, styles, and time periods.
-        Your task is to recommend albums similar to a given input album, focusing on deeper cuts, overlooked records, or side projects by related producers.
+        """Prompt template for album recommendations."""
+        return f"""You are an expert music recommender. Recommend 10 real albums similar to the one below, focusing on deep cuts and overlooked records.
 
-        Here is the album you should base your recommendations on:
+<input_album>
+{album_name}
+</input_album>
 
-        <input_album>
-        {album_name}
-        </input_album>
-
-        Please follow these steps to generate your recommendations:
-
-        1. Analyze the input album:
-        In <album_analysis> tags, break down the input album's characteristics. Consider:
-        - Overall mood and atmosphere
-        - Production style and sound quality
-        - Album structure and flow
-        - Track lengths
-        - Instrumentation
-        - Mix style
-        - Any genre fusions or unique elements
-        - Regional influences (especially important for house music and its subgenres)
-
-        For each element, rate its importance to the album's sound on a scale of 1-10, with 10 being extremely important. Provide specific examples from the input album for each characteristic. Be specific about electronic music genres, avoiding overgeneralization. For house music, particularly styles like South African house, emphasize its energizing qualities.
-
-        List out each characteristic with its importance rating and example, numbering them for clarity. It's OK for this section to be quite long.
-
-        2. Search for similar albums:
-        In <recommendation_search> tags, document your process of finding and scoring similar albums:
-
-        a) Create a scoring rubric based on your analysis, assigning point values to each characteristic based on its importance.
-
-        b) For each potential recommendation:
-        - Apply the scoring rubric, explaining your reasoning for each point awarded
-        - Calculate a total "similarity score" based on how well it matches the important elements from your analysis
-        - Prioritize albums with comparable musical qualities, deeper cuts, overlooked records, side projects by related producers, and albums that a fan of the given album would likely obsess over
-        - Explicitly check that recommended albums are not just similarly named but musically similar to the input album
-
-        c) List at least 15 potential recommendations with their similarity scores and point breakdowns
-
-        3. Generate and format recommendations:
-        Present the top 10 album recommendations based on your similarity scoring. Use the following format for each recommendation:
-
-        <recommendations>
-        <album>
-            <title>Album Name</title>
-            <artist>Artist Name</artist>
-            <year>Year</year>
-            <genre>Primary Genre</genre>
-            <explanation>1-2 short sentences on why this matches the input album's qualities</explanation>
-        </album>
-        <!-- Repeat for all 10 recommendations -->
-        </recommendations>
-
-        IMPORTANT: Do NOT use placeholder or example data like "Example Album" or "Example Artist". Provide REAL album titles and artist names only. Every recommendation must be an actual released album that exists.
-
-        Ensure that your recommendations are diverse while still maintaining a strong connection to the original album's qualities. Focus on albums that share musical similarities rather than just belonging to the same genre. Look for hidden gems and lesser-known releases that true fans of the given album would appreciate."""
+<recommendations>
+<album>
+<title>Album Title</title>
+<artist>Artist Name</artist>
+<year>Year</year>
+<genre>Genre</genre>
+<explanation>1-2 sentences on what makes this similar to the input album.</explanation>
+</album>
+<recommendations>"""
 
     def parse_recommendations(self, response_text: str) -> list[AlbumData]:
         """Parse the XML"""
