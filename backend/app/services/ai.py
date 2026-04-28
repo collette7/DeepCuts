@@ -13,43 +13,47 @@ logger = logging.getLogger('deepcuts')
 # Known valid models - update these when providers deprecate/add models
 # Source: https://docs.anthropic.com/en/docs/about-claude/models/overview
 VALID_CLAUDE_MODELS = [
-    # Claude 4.5 (Latest - 2025)
+    # Claude 4.7 (Latest)
+    {"id": "claude-opus-4-7", "name": "Claude Opus 4.7", "retirement": "2027-04-16", "free": False},
+    # Claude 4.6
+    {"id": "claude-opus-4-6", "name": "Claude Opus 4.6", "retirement": "2027-02-05", "free": False},
+    {"id": "claude-sonnet-4-6", "name": "Claude Sonnet 4.6", "retirement": "2027-02-17", "free": False},
+    # Claude 4.5
     {"id": "claude-opus-4-5-20251101", "name": "Claude Opus 4.5", "retirement": "2026-11-24", "free": False},
     {"id": "claude-sonnet-4-5-20250929", "name": "Claude Sonnet 4.5", "retirement": "2026-09-29", "free": False},
     {"id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5", "retirement": "2026-10-15", "free": False},
     # Claude 4.1
     {"id": "claude-opus-4-1-20250805", "name": "Claude Opus 4.1", "retirement": "2026-08-05", "free": False},
-    # Claude 4
-    {"id": "claude-opus-4-20250514", "name": "Claude Opus 4", "retirement": "2026-05-14", "free": False},
-    {"id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4", "retirement": "2026-05-14", "free": False},
-    # Claude 3.5
-    {"id": "claude-3-5-haiku-20241022", "name": "Claude 3.5 Haiku", "retirement": "2025-10-22", "free": False},
-    # Claude 3 (Legacy)
-    {"id": "claude-3-haiku-20240307", "name": "Claude 3 Haiku", "retirement": "2025-03-07", "free": False},
 ]
 
 # Source: https://ai.google.dev/gemini-api/docs/models
 VALID_GEMINI_MODELS = [
-    # Gemini 3 (Preview)
-    {"id": "gemini-3-pro-preview", "name": "Gemini 3 Pro (Preview)", "free": True},
+    # Gemini 3.1 (Latest)
+    {"id": "gemini-3.1-pro-preview", "name": "Gemini 3.1 Pro Preview", "free": True},
+    {"id": "gemini-3-flash-preview", "name": "Gemini 3 Flash Preview", "free": True},
+    {"id": "gemini-3.1-flash-lite-preview", "name": "Gemini 3.1 Flash Lite Preview", "free": True},
     # Gemini 2.5
     {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro", "free": True},
+    {"id": "gemini-2.5-pro-preview", "name": "Gemini 2.5 Pro Preview", "free": True},
     {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "free": True},
     {"id": "gemini-2.5-flash-lite", "name": "Gemini 2.5 Flash Lite", "free": True},
-    # Gemini 2.0
-    {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "free": True},
-    {"id": "gemini-2.0-flash-lite", "name": "Gemini 2.0 Flash Lite", "free": True},
 ]
 
 # Deprecated models that will cause errors
 DEPRECATED_MODELS = [
-    "gemini-1.5-flash",  # Use gemini-2.0-flash
+    "gemini-3-pro-preview",  # Shut down March 9, 2026; use gemini-3.1-pro-preview
+    "gemini-2.0-flash",  # Shutting down June 1, 2026
+    "gemini-2.0-flash-lite",  # Shutting down June 1, 2026
+    "gemini-2.5-flash-preview-09-25",  # Already shut down
+    "gemini-1.5-flash",  # Use gemini-2.5-flash
     "gemini-1.5-pro",  # Use gemini-2.5-pro
     "gemini-pro",  # Use gemini-2.5-pro
-    "claude-3-opus-20240229",  # Deprecated June 30, 2025, retiring Jan 5, 2026
-    "claude-3-7-sonnet-20250219",  # Deprecated Oct 28, 2025, retiring Feb 19, 2026
-    "claude-3-haiku-20240307",  # Retired March 7, 2025
-    "claude-3-5-haiku-20241022",  # Retired October 22, 2025
+    "claude-opus-4-20250514",  # Deprecated April 14, 2026; retiring June 15, 2026
+    "claude-sonnet-4-20250514",  # Deprecated April 14, 2026; retiring June 15, 2026
+    "claude-3-opus-20240229",  # Retired January 5, 2026
+    "claude-3-7-sonnet-20250219",  # Retired February 19, 2026
+    "claude-3-haiku-20240307",  # Retired April 20, 2026
+    "claude-3-5-haiku-20241022",  # Retired February 19, 2026
     "claude-2",
     "claude-2.1",
     "claude-instant-1.2",
