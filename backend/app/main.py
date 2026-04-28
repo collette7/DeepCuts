@@ -638,6 +638,11 @@ async def search_albums(
 
     session_id = None
 
+    if not ai_service.is_ready:
+        ready_error = ai_service.get_ready_error()
+        logger.error(f"AI service not ready: {ready_error}")
+        raise HTTPException(status_code=503, detail=ready_error or "AI service is not configured")
+
     try:
         max_retries = 2
         attempt = 0
@@ -645,12 +650,12 @@ async def search_albums(
         filtered_albums = []
         raw_count = 0
         feedback = ""
-        
+        ai_error = None
+
         while attempt < max_retries:
             attempt += 1
             logger.info(f"AI recommendation attempt {attempt}/{max_retries}")
-            
-            # Get album recommendations from AI
+
             recommendations = await ai_service.get_album_recommendations(request.query, feedback)
             raw_count = len(recommendations)
 
@@ -659,6 +664,9 @@ async def search_albums(
                 if attempt < max_retries:
                     feedback = "Your previous response contained no valid recommendations. Please provide 10 real albums."
                     continue
+                verify = await ai_service.verify_model_exists()
+                if not verify["valid"]:
+                    ai_error = verify.get("error", "AI model returned no response")
                 break
 
             # Verify each album exists on Discogs, filter out fakes
@@ -699,6 +707,10 @@ async def search_albums(
                     feedback = "All albums failed verification. Please provide real, verifiable albums."
                     continue
                 break
+
+        if not recommendations:
+            detail = ai_error or "AI service returned no recommendations. Check your model configuration."
+            raise HTTPException(status_code=503, detail=detail)
 
         # Convert to AlbumData format
         if recommendations:
