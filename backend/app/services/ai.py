@@ -48,6 +48,8 @@ DEPRECATED_MODELS = [
     "gemini-pro",  # Use gemini-2.5-pro
     "claude-3-opus-20240229",  # Deprecated June 30, 2025, retiring Jan 5, 2026
     "claude-3-7-sonnet-20250219",  # Deprecated Oct 28, 2025, retiring Feb 19, 2026
+    "claude-3-haiku-20240307",  # Retired March 7, 2025
+    "claude-3-5-haiku-20241022",  # Retired October 22, 2025
     "claude-2",
     "claude-2.1",
     "claude-instant-1.2",
@@ -128,7 +130,7 @@ class AIService:
                 logger.debug(f"Could not get model from Supabase: {e}")
 
         # Fall back to env var
-        return os.getenv("ACTIVE_MODEL", "claude-3-haiku-20240307")
+        return os.getenv("ACTIVE_MODEL", "claude-sonnet-4-5-20250929")
 
     def refresh_model(self):
         """Refresh the active model from config (call this to pick up changes)."""
@@ -175,6 +177,26 @@ class AIService:
         else:
             self.model_validated = True
             logger.info(f"Model '{self.ACTIVE_MODEL}' validated successfully")
+
+    @property
+    def is_ready(self) -> bool:
+        if self.ACTIVE_MODEL in DEPRECATED_MODELS:
+            return False
+        if self.is_gemini:
+            return self.gemini_configured
+        return self.claude_configured
+
+    def get_ready_error(self) -> str | None:
+        if self.ACTIVE_MODEL in DEPRECATED_MODELS:
+            return (
+                f"Model '{self.ACTIVE_MODEL}' is deprecated and no longer available. "
+                f"Switch to a current model via /api/v1/settings/models."
+            )
+        if self.is_gemini and not self.gemini_configured:
+            return "Gemini API key not configured. Set GEMINI_API_KEY environment variable."
+        if not self.is_gemini and not self.claude_configured:
+            return "Claude API key not configured. Set CLAUDE_API_KEY environment variable."
+        return None
 
     async def verify_model_exists(self) -> dict[str, Any]:
         """Make a test API call to verify the model exists and is accessible."""
