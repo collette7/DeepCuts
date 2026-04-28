@@ -151,6 +151,22 @@ async def verify_ai_model():
         }
 
 
+@app.post("/api/v1/health/ai/auto-fix")
+async def auto_fix_ai_model():
+    result = await ai_service.find_working_model()
+    if result["success"]:
+        return {
+            "status": "fixed",
+            "message": f"Switched to working model {result['model_name']}",
+            **result
+        }
+    return {
+        "status": "error",
+        "message": result.get("error", "No working model found"),
+        **result
+    }
+
+
 # =============================================
 # Settings Management Endpoints
 # =============================================

@@ -226,7 +226,6 @@ class AIService:
         return result
 
     def get_config_status(self) -> dict[str, Any]:
-        """Get the current AI configuration status for health checks."""
         model_info = get_model_info(self.ACTIVE_MODEL)
         return {
             "active_model": self.ACTIVE_MODEL,
@@ -241,6 +240,32 @@ class AIService:
                 "gemini": VALID_GEMINI_MODELS,
             },
         }
+
+    async def find_working_model(self) -> dict[str, Any]:
+        candidates = []
+        if self.gemini_configured:
+            candidates.extend([m["id"] for m in VALID_GEMINI_MODELS])
+        if self.claude_configured:
+            candidates.extend([m["id"] for m in VALID_CLAUDE_MODELS])
+        for model_id in candidates:
+            if model_id in DEPRECATED_MODELS:
+                continue
+            original = self.ACTIVE_MODEL
+            self.ACTIVE_MODEL = model_id
+            try:
+                result = await self.verify_model_exists()
+                if result["valid"]:
+                    self.ACTIVE_MODEL = model_id
+                    self._validate_model_config()
+                    return {
+                        "success": True,
+                        "model_id": model_id,
+                        "model_name": get_model_info(model_id)["name"] if get_model_info(model_id) else model_id,
+                    }
+            finally:
+                if self.ACTIVE_MODEL != model_id:
+                    self.ACTIVE_MODEL = original
+        return {"success": False, "error": "No configured models responded successfully"}
 
     def get_recommendation_prompt(self, album_name: str) -> str:
         """Prompt template for album recommendations."""
