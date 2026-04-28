@@ -642,6 +642,8 @@ async def search_albums(
         max_retries = 2
         attempt = 0
         recommendations = []
+        filtered_albums = []
+        raw_count = 0
         feedback = ""
         
         while attempt < max_retries:
