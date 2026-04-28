@@ -6,7 +6,7 @@ import './SearchInput.scss';
 interface SearchInputProps {
   value: string;
   onChange: (value: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent, overrideQuery?: string) => void;
   loading?: boolean;
   placeholder?: string;
   variant?: 'default' | 'hero';
@@ -29,6 +29,7 @@ export default function SearchInput({
   const [closingDropdown, setClosingDropdown] = useState(false);
   const [cache, setCache] = useState(new Map<string, SuggestionResult[]>());
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [dropdownLoading, setDropdownLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -63,6 +64,7 @@ export default function SearchInput({
         return;
       }
 
+      setDropdownLoading(true);
       try {
         const data: SuggestionResponse = await apiClient.searchDiscogs(searchQuery);
         
@@ -101,6 +103,8 @@ export default function SearchInput({
         console.error('Search error:', error);
         setResults([]);
         setShowResults(false);
+      } finally {
+        setDropdownLoading(false);
       }
     }, 300);
   }, [cache]);
@@ -142,6 +146,19 @@ export default function SearchInput({
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pastedText = e.clipboardData.getData('text').trim();
+    if (pastedText.length >= 2) {
+      onChange(pastedText);
+      setActiveIndex(-1);
+      setShowResults(true);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      delaySearch(pastedText);
+    }
+  };
+
   const handleInputFocus = () => {
     if (results.length > 0 && value.length >= 2) {
       setShowResults(true);
@@ -149,9 +166,11 @@ export default function SearchInput({
   };
 
   const handleResultClick = (result: SuggestionResult) => {
-    onChange(result.title);
+    onChange(result.search_query);
     hideDropdown();
     setActiveIndex(-1);
+    const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
+    onSubmit(syntheticEvent, result.search_query);
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -198,6 +217,7 @@ export default function SearchInput({
               placeholder={placeholder}
               value={value}
               onChange={handleInputChange}
+              onPaste={handlePaste}
               onFocus={handleInputFocus}
               onKeyDown={handleKeyDown}
               className="search-input"
@@ -231,8 +251,24 @@ export default function SearchInput({
         </div>
       </form>
       
-      {showResults && results.length > 0 && (
+      {showResults && (
         <div ref={resultsRef} className={`search-results-dropdown${closingDropdown ? ' closing' : ''}`} id="search-results-listbox" role="listbox" aria-label="Search suggestions">
+          {dropdownLoading && (
+            <div className="search-result-item loading">
+              <div className="album-placeholder">♪</div>
+              <div className="result-info">
+                <div className="result-title">Loading...</div>
+              </div>
+            </div>
+          )}
+          {!dropdownLoading && results.length === 0 && (
+            <div className="search-result-item no-results">
+              <div className="album-placeholder">♪</div>
+              <div className="result-info">
+                <div className="result-title">No results found</div>
+              </div>
+            </div>
+          )}
           {results.map((result, idx) => (
             <div 
               key={result.id}
@@ -249,7 +285,7 @@ export default function SearchInput({
                     alt={result.title} 
                     className="album-thumbnail"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNSAzNUMzMC41MjI4IDM1IDM1IDMwLjUyMjggMzUgMjVDMzUgMTkuNDc3MiAzMC41MjI4IDE1IDI1IDE1QzE5LjQ3NzIgMTUgMTUgMTkuNDc3MiAxNSAyNUMxNSAzMC41MjI4IDE5LjQ3NzIgMzUgMjUgMzVaIiBzdHJva2U9IiM5Q0EzQUYiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4K';
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yNSAzNUMzMC41MjI4IDM1IDM1IDMwLjUyMjggMzUgMjVDMzUgMTkuNDc3MiAzMC41MjI4IDE1IDI1IDE1QzE5LjQ3NzIgMTUgMTUgMTkuNDc3MiAxNSAyNUMxNSAzMC41MjI4IDE5LjQ3NzIgMzUgMjUgMzZaIiBzdHJva2U9IiM5Q0EzQUYiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4K';
                     }}
                   />
                 ) : (

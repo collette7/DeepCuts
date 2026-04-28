@@ -7,18 +7,18 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 def get_supabase_client() -> Client:
-    """Get Supabase client with anon key"""
-    if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
-        logger.error("Missing SUPABASE_URL or SUPABASE_ANON_KEY")
-        raise ValueError("Supabase configuration is incomplete. Please set SUPABASE_URL and SUPABASE_ANON_KEY in your .env file")
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+    """Get Supabase client with publishable key"""
+    if not settings.SUPABASE_URL or not settings.SUPABASE_PUBLISHABLE_KEY:
+        logger.error("Missing SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY")
+        raise ValueError("Supabase configuration is incomplete. Please set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in your .env file")
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_PUBLISHABLE_KEY)
 
 def get_supabase_admin_client() -> Client:
-    """Get Supabase client with service role key"""
-    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
-        logger.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
-        raise ValueError("Supabase configuration is incomplete. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your .env file")
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    """Get Supabase client with secret key"""
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SECRET_KEY:
+        logger.error("Missing SUPABASE_URL or SUPABASE_SECRET_KEY")
+        raise ValueError("Supabase configuration is incomplete. Please set SUPABASE_URL and SUPABASE_SECRET_KEY in your .env file")
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SECRET_KEY)
 
 try:
     supabase: Client = get_supabase_client()

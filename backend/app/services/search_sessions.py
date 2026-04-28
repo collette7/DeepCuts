@@ -12,9 +12,9 @@ load_dotenv()
 class SearchSessionService:
     def __init__(self):
         self.url = os.getenv("SUPABASE_URL")
-        self.key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        self.key = os.getenv("SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         if not self.url or not self.key:
-            raise ValueError("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
+            raise ValueError("Missing SUPABASE_URL or SUPABASE_SECRET_KEY")
         self.supabase = create_client(self.url, self.key)
 
     def create_session(
@@ -23,6 +23,8 @@ class SearchSessionService:
         albums: list[AlbumData],
         user_email: str | None = None,
         ai_model: str | None = None,
+        raw_results_count: int = 0,
+        filtered_count: int = 0,
     ) -> str | None:
         try:
             session_data = {
@@ -30,6 +32,8 @@ class SearchSessionService:
                 "user_email": user_email,
                 "ai_model": ai_model,
                 "results_count": len(albums),
+                "raw_results_count": raw_results_count,
+                "filtered_count": filtered_count,
             }
             result = self.supabase.table("search_sessions").insert(session_data).execute()
             if not result.data:
@@ -57,6 +61,28 @@ class SearchSessionService:
         except Exception as e:
             print(f"Error creating search session: {e}")
             return None
+
+    def track_filtered_albums(
+        self,
+        session_id: str,
+        filtered_albums: list[dict[str, str]],
+    ) -> None:
+        try:
+            if filtered_albums:
+                rows = [
+                    {
+                        "session_id": session_id,
+                        "album_title": a.get("title"),
+                        "album_artist": a.get("artist"),
+                        "filter_reason": a.get("reason", "not_found"),
+                    }
+                    for a in filtered_albums
+                    if a.get("title") and a.get("artist")
+                ]
+                if rows:
+                    self.supabase.table("search_session_filtered_albums").insert(rows).execute()
+        except Exception as e:
+            print(f"Error tracking filtered albums: {e}")
 
     def track_click(
         self,
@@ -105,8 +131,8 @@ class SearchSessionService:
             q = (
                 self.supabase.table("search_sessions")
                 .select(
-                    "id, query, user_email, ai_model, results_count, created_at,"
-                    " search_session_albums(id, album_title, album_artist, album_year, album_genre, rank),"
+                    "id, query, user_email, ai_model, results_count, raw_results_count, filtered_count, created_at,"
+                    " search_session_albums(id, album_title, album_artist, album_year, album_genre, rank, is_verified, verification_source),"
                     " search_session_clicks!inner(id, album_title, album_artist, action, created_at)"
                 )
                 .order("created_at", desc=True)
@@ -126,8 +152,9 @@ class SearchSessionService:
                 self.supabase.table("search_sessions")
                 .select(
                     "*,"
-                    " search_session_albums(id, album_title, album_artist, album_year, album_genre, rank),"
-                    " search_session_clicks(id, album_title, album_artist, action, created_at)"
+                    " search_session_albums(id, album_title, album_artist, album_year, album_genre, rank, is_verified, verification_source),"
+                    " search_session_clicks(id, album_title, album_artist, action, created_at),"
+                    " search_session_filtered_albums(id, album_title, album_artist, filter_reason)"
                 )
                 .eq("id", session_id)
                 .single()
@@ -138,13 +165,17 @@ class SearchSessionService:
 
             clicks = [c for c in session.data.get("search_session_clicks", []) if c.get("action") == "click"]
             favorites = [c for c in session.data.get("search_session_clicks", []) if c.get("action") in ("favorite", "unfavorite")]
+            filtered = session.data.get("search_session_filtered_albums", [])
+            raw_count = session.data.get("raw_results_count", 0)
 
             return {
                 **session.data,
                 "total_clicks": len(clicks),
                 "total_favorites": len([f for f in favorites if f.get("action") == "favorite"]),
+                "total_filtered": len(filtered),
                 "click_rate": len(clicks) / max(session.data.get("results_count", 1), 1),
                 "favorite_rate": len([f for f in favorites if f.get("action") == "favorite"]) / max(session.data.get("results_count", 1), 1),
+                "filter_rate": len(filtered) / max(raw_count, 1) if raw_count else 0,
             }
         except Exception as e:
             print(f"Error fetching session analytics: {e}")

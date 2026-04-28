@@ -224,19 +224,34 @@ class AIService:
         """Prompt template for album recommendations."""
         return f"""You are an expert music recommender. Recommend 10 real albums similar to the one below, focusing on deep cuts and overlooked records.
 
+CRITICAL RULES:
+- Return the ORIGINAL album title as released, do NOT translate non-English titles to English
+- If the original title is Japanese, return it in Japanese
+- If the original title is English, return it in English
+- Do NOT mix translations - pick the original release language
+- Only recommend full-length studio albums (LPs), NOT singles or EPs
+- Focus on hidden gems and lesser-known releases
+- Emphasize musical similarities over superficial genre categorization
+- Be specific about genres and subgenres
+- Provide specific, concrete details rather than vague descriptions
+
 <input_album>
 {album_name}
 </input_album>
 
+Present your final recommendations in <recommendations> tags using this exact XML structure:
+
 <recommendations>
-<album>
-<title>Album Title</title>
-<artist>Artist Name</artist>
-<year>Year</year>
-<genre>Genre</genre>
-<explanation>1-2 sentences on what makes this similar to the input album.</explanation>
-</album>
-<recommendations>"""
+  <album>
+    <title>[Album Name]</title>
+    <artist>[Artist Name]</artist>
+    <year>[Release Year]</year>
+    <genre>[Specific genre/subgenre]</genre>
+    <mood>[Primary mood or atmosphere]</mood>
+    <explanation>[2-3 sentences focusing on specific musical qualities and characteristics that connect this album to the input. Mention concrete elements like production techniques, instrumentation, mood, or structural similarities.]</explanation>
+  </album>
+  <!-- Continue this structure for all 10 albums -->
+</recommendations>"""
 
     def parse_recommendations(self, response_text: str) -> list[AlbumData]:
         """Parse the XML"""
@@ -251,13 +266,23 @@ class AIService:
         recommendations_xml = recommendations_match.group(1)
         logger.debug(f"Found recommendations XML section with {len(recommendations_xml)} chars")
 
-        # Parse each album rec
-        album_pattern = r'<album>\s*<title>(.*?)</title>\s*<artist>(.*?)</artist>\s*<year>(.*?)</year>\s*<genre>(.*?)</genre>\s*<explanation>(.*?)</explanation>\s*</album>'
+        # Parse each album rec - supports both old format (without mood) and new format (with mood)
+        album_pattern = r'<album>\s*<title>(.*?)</title>\s*<artist>(.*?)</artist>\s*<year>(.*?)</year>\s*<genre>(.*?)</genre>(?:\s*<mood>(.*?)</mood>)?\s*<explanation>(.*?)</explanation>\s*</album>'
         album_matches = re.findall(album_pattern, recommendations_xml, re.DOTALL)
         logger.info(f"Found {len(album_matches)} album matches in XML")
 
-        for title, artist, year, genre, explanation in album_matches:
+        for match in album_matches:
             try:
+                # Handle both formats - with and without mood tag
+                if len(match) == 5:
+                    title, artist, year, genre, explanation = match
+                    mood = ""
+                elif len(match) == 6:
+                    title, artist, year, genre, mood, explanation = match
+                else:
+                    logger.warning(f"Unexpected match format with {len(match)} groups: {match}")
+                    continue
+
                 # Clean up
                 title = title.strip()
                 artist = artist.strip()
@@ -291,17 +316,17 @@ class AIService:
 
         return recommendations
 
-    async def get_album_recommendations(self, album_name: str) -> list[AlbumData]:
-        """Get album recommendations from AI model"""
+    async def get_album_recommendations(self, album_name: str, feedback: str = "") -> list[AlbumData]:
         try:
             prompt = self.get_recommendation_prompt(album_name)
+            
+            if feedback:
+                prompt += f"\n\n{feedback}"
 
             if self.is_gemini:
-                # Use Gemini API
                 response = self.client.generate_content(prompt)
                 response_text = response.text
             else:
-                # Use Claude API
                 message = self.client.messages.create(
                     model=self.ACTIVE_MODEL,
                     max_tokens=16384,
@@ -314,7 +339,6 @@ class AIService:
                 )
                 response_text = message.content[0].text
 
-            # Log the raw response for debugging
             logger.debug(f"AI Response (first 500 chars): {response_text[:500]}")
 
             recommendations = self.parse_recommendations(response_text)

@@ -66,7 +66,8 @@ class ApiClient {
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.detail || `HTTP ${response.status}: ${response.statusText}`);
             }
             
             const data = await response.json();
@@ -354,6 +355,7 @@ export interface SuggestionResult {
     id: number;
     type: string;
     title: string;
+    search_query: string;
     year?: string;
     thumb?: string;
 }

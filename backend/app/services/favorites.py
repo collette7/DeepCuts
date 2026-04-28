@@ -11,9 +11,9 @@ load_dotenv()
 class FavoritesService:
     def __init__(self):
         self.url = os.getenv("SUPABASE_URL")
-        self.service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        self.service_key = os.getenv("SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         if not self.url or not self.service_key:
-            raise ValueError("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
+            raise ValueError("Missing SUPABASE_URL or SUPABASE_SECRET_KEY")
         self.supabase = create_client(self.url, self.service_key)
 
     def _get_authenticated_client(self, user_token: str) -> Client:

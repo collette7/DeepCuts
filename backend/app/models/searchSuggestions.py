@@ -7,7 +7,7 @@ class SuggestionRequest(BaseModel):
     """Search suggestions request for autocomplete fron Discogs"""
     query: str
     type: str = "release"
-    per_page: int = 10
+    per_page: int = 25
 
 
 class SuggestionResult(BaseModel):
@@ -15,6 +15,7 @@ class SuggestionResult(BaseModel):
     id: int
     type: str
     title: str
+    search_query: str
     year: str | None = None
     thumb: str | None = None
 
