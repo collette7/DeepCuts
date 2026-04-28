@@ -813,23 +813,26 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
                 for result in data.get("results", []):
                     if "title" in result:
                         raw_title = result["title"]
-                        
+
                         if " - " not in raw_title:
                             continue
-                        
+
                         full_title = clean_discogs_title(raw_title)
-                        
+
                         if " - " in full_title:
+                            artist_part = full_title.split(" - ", 1)[0].strip()
                             album_only = full_title.split(" - ", 1)[1].strip()
                             display_title = album_only
                         else:
+                            artist_part = ""
                             display_title = full_title
-                        
-                        if display_title.lower() in seen_titles:
+
+                        if full_title.lower() in seen_titles:
                             continue
-                        seen_titles.add(display_title.lower())
-                        
+                        seen_titles.add(full_title.lower())
+
                         result["title"] = display_title
+                        result["artist"] = artist_part
                         result["search_query"] = full_title
                     cleaned_results.append(SuggestionResult(**result))
 

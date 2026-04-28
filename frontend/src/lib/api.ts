@@ -355,6 +355,7 @@ export interface SuggestionResult {
     id: number;
     type: string;
     title: string;
+    artist?: string;
     search_query: string;
     year?: string;
     thumb?: string;
