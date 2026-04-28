@@ -4,7 +4,7 @@ import './HeroHeader.scss';
 interface HeroHeaderProps {
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent, overrideQuery?: string) => void;
   loading: boolean;
 }
 

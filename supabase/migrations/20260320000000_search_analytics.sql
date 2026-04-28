@@ -51,4 +51,57 @@ CREATE INDEX IF NOT EXISTS idx_search_session_clicks_album ON search_session_cli
 -- Add session_id to favorites table for tracking which search led to a favorite
 ALTER TABLE favorites ADD COLUMN IF NOT EXISTS search_session_id UUID REFERENCES search_sessions(id) ON DELETE SET NULL;
 
+-- =============================================
+-- RLS POLICIES (Security Fix)
+-- =============================================
+
+-- search_sessions: Allow authenticated users to read their own, allow service role to insert
+ALTER TABLE search_sessions ENABLE ROW LEVEL SECURITY;
+
+-- Users can read their own search sessions
+CREATE POLICY "Users can view own search sessions"
+ON search_sessions FOR SELECT
+USING (user_email = auth.jwt() ->> 'email');
+
+-- Authenticated users can insert their own sessions
+CREATE POLICY "Users can insert own search sessions"
+ON search_sessions FOR INSERT
+WITH CHECK (auth.role() = 'authenticated' AND user_email = auth.jwt() ->> 'email');
+
+-- Service role can do anything (for admin operations)
+CREATE POLICY "Service role can manage search sessions"
+ON search_sessions FOR ALL
+USING (auth.role() = 'service_role');
+
+-- search_session_clicks: Track user actions
+ALTER TABLE search_session_clicks ENABLE ROW LEVEL SECURITY;
+
+-- Users can read their own clicks
+CREATE POLICY "Users can view own session clicks"
+ON search_session_clicks FOR SELECT
+USING (user_email = auth.jwt() ->> 'email');
+
+-- Authenticated users can insert their own clicks
+CREATE POLICY "Users can insert own session clicks"
+ON search_session_clicks FOR INSERT
+WITH CHECK (auth.role() = 'authenticated' AND user_email = auth.jwt() ->> 'email');
+
+-- Service role can manage clicks
+CREATE POLICY "Service role can manage session clicks"
+ON search_session_clicks FOR ALL
+USING (auth.role() = 'service_role');
+
+-- search_session_albums: Public read (non-sensitive ranking data), restrict inserts
+ALTER TABLE search_session_albums ENABLE ROW LEVEL SECURITY;
+
+-- Anyone can read album rankings (public data)
+CREATE POLICY "Anyone can view search session albums"
+ON search_session_albums FOR SELECT
+USING (true);
+
+-- Service role can manage album data
+CREATE POLICY "Service role can manage session albums"
+ON search_session_albums FOR ALL
+USING (auth.role() = 'service_role');
+
 COMMIT;

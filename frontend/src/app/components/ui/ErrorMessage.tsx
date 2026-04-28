@@ -11,23 +11,20 @@ export default function ErrorMessage({ error, fullPage = false, onRetry }: Error
     <button className="error-retry-btn" onClick={onRetry}>Try again</button>
   ) : null;
 
+  const content = (
+    <div className="error-content" role="alert" aria-live="assertive">
+      <p className="error-message">{error}</p>
+      {retryButton}
+    </div>
+  );
+
   if (fullPage) {
     return (
-      <div className="error-container" role="alert" aria-live="assertive">
-        <div className="error-content">
-          <p className="error-message">{error}</p>
-          <p className="error-description">Something went wrong :/</p>
-          {retryButton}
-        </div>
+      <div className="error-container">
+        {content}
       </div>
     );
   }
 
-  return (
-    <div className="error-content" role="alert" aria-live="assertive">
-      <p className="error-message">{error}</p>
-      <p className="error-description">Something went wrong :/</p>
-      {retryButton}
-    </div>
-  );
+  return content;
 }

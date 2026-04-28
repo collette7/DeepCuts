@@ -57,9 +57,13 @@ export default function Home() {
     }
   }, []);
 
-const handleSearchSubmit = async (e: React.FormEvent) => {
+const handleSearchSubmit = async (e: React.FormEvent, overrideQuery?: string) => {
   e.preventDefault();
-  await handleSearch(searchQuery);
+  const query = overrideQuery || searchQuery;
+  if (overrideQuery) {
+    setSearchQuery(overrideQuery);
+  }
+  await handleSearch(query);
 };
 
 const handleSearch = useCallback(async (query: string) => {
@@ -95,11 +99,12 @@ const handleSearch = useCallback(async (query: string) => {
   } catch (error) {
     console.error('Error searching albums:', error);
     setAlbums([]);
-    // More specific error handling
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
       setError('Connection error. Please check your internet connection.');
+    } else if (error instanceof Error) {
+      setError(error.message);
     } else {
-      setError('Bad connection, try again later');
+      setError('An unexpected error occurred');
     }
     setLoading(false);
   }
