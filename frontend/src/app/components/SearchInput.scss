@@ -280,6 +280,16 @@
   font-family: 'Saans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
+.result-artist {
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.result-meta-separator {
+  margin: 0 4px;
+  color: #d1d5db;
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;

@@ -295,6 +295,8 @@ export default function SearchInput({
               <div className="result-info">
                 <div className="result-title">{result.title}</div>
                 <div className="result-metadata">
+                  {result.artist && <span className="result-artist">{result.artist}</span>}
+                  {result.artist && result.year && <span className="result-meta-separator"> · </span>}
                   {result.year && <time dateTime={result.year.toString()}>{result.year}</time>}
                 </div>
               </div>

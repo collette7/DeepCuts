@@ -15,6 +15,7 @@ class SuggestionResult(BaseModel):
     id: int
     type: str
     title: str
+    artist: str | None = None
     search_query: str
     year: str | None = None
     thumb: str | None = None
