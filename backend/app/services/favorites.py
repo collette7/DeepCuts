@@ -91,27 +91,22 @@ class FavoritesService:
             if existing.data:
                 return FavoriteActionResponse(success=True, message="Album already in favorites")
 
-            # Add to favorites with reasoning if provided
             favorite_data = {
                 'user_id': user_uuid,
                 'album_id': album_uuid
             }
-            if request.search_session_id:
-                favorite_data['search_session_id'] = str(request.search_session_id)
-
-            # Store reasoning in the favorites record since each user might have different reasoning for the same album
-            # Try to add reasoning if provided, but don't fail if column doesn't exist
             if album_data.get('reasoning'):
-                try:
-                    favorite_data['reasoning'] = album_data['reasoning']
-                    self.supabase.table('favorites').insert(favorite_data).execute()
-                except Exception as e:
-                    print(f"Failed to insert with reasoning, trying without: {e}")
-                    # Remove reasoning and try again
+                favorite_data['reasoning'] = album_data['reasoning']
+
+            try:
+                self.supabase.table('favorites').insert(favorite_data).execute()
+            except Exception as e:
+                error_msg = str(e)
+                if 'reasoning' in error_msg and 'reasoning' in favorite_data:
                     favorite_data.pop('reasoning', None)
                     self.supabase.table('favorites').insert(favorite_data).execute()
-            else:
-                self.supabase.table('favorites').insert(favorite_data).execute()
+                else:
+                    raise
 
             return FavoriteActionResponse(success=True, message="Album added to favorites")
 

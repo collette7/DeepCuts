@@ -87,6 +87,7 @@ const handleSearch = useCallback(async (query: string) => {
       setAlbums(searchData.recommendations);
       setCurrentSessionId(searchData.session_id || null);
       setLoading(false);
+      setSearchQuery('');
       
       // Now load Spotify data progressively in the background
       loadSpotifyDataProgressively(searchData.recommendations, cacheKey);
@@ -267,7 +268,8 @@ const handleToggleFavorite = async (album: AlbumData) => {
     }
   } catch (error) {
     console.error('Error toggling favorite:', error);
-    showToast('Failed to update favorites', 'error');
+    const message = error instanceof Error ? error.message : 'Failed to update favorites';
+    showToast(message, 'error');
   }
 };
 
