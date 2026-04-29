@@ -18,33 +18,49 @@ import pytest
 
 # Known valid model names
 VALID_CLAUDE_MODELS = [
-    # Claude 4.5 (Latest - 2025)
-    "claude-sonnet-4-5-20250929",
+    # Claude 4.7 (Latest)
+    "claude-opus-4-7",
+    # Claude 4.6
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    # Claude 4.5
     "claude-opus-4-5-20251101",
+    "claude-sonnet-4-5-20250929",
     "claude-haiku-4-5-20251001",
-    # Claude 3.5
-    "claude-3-5-sonnet-20241022",
-    "claude-3-5-haiku-20241022",
-    # Claude 3 Haiku
-    "claude-3-haiku-20240307",
+    # Claude 4.1
+    "claude-opus-4-1-20250805",
 ]
 
 VALID_GEMINI_MODELS = [
-    "gemini-2.5-flash",
+    # Gemini 3.1 (Latest)
+    "gemini-3.1-pro-preview",
+    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite-preview",
+    # Gemini 2.5
     "gemini-2.5-pro",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
+    "gemini-2.5-pro-preview",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
 ]
 
 # Deprecated/invalid models
 DEPRECATED_MODELS = [
+    "gemini-3-pro-preview",  # Shut down March 9, 2026
+    "gemini-2.0-flash",  # Shutting down June 1, 2026
+    "gemini-2.0-flash-lite",  # Shutting down June 1, 2026
+    "gemini-2.5-flash-preview-09-25",  # Already shut down
     "gemini-1.5-flash",  # Deprecated
     "gemini-1.5-pro",  # Deprecated
     "gemini-pro",  # Old name
+    "claude-opus-4-20250514",  # Deprecated
+    "claude-sonnet-4-20250514",  # Deprecated
+    "claude-3-opus-20240229",  # Retired
+    "claude-3-7-sonnet-20250219",  # Retired
+    "claude-3-haiku-20240307",  # Retired
+    "claude-3-5-haiku-20241022",  # Retired
     "claude-2",  # Deprecated
     "claude-2.1",  # Deprecated
     "claude-instant-1.2",  # Deprecated
-    "claude-3-opus-20240229",  # Deprecated
 ]
 
 
@@ -53,7 +69,7 @@ class TestModelConfiguration:
 
     def test_active_model_not_deprecated(self):
         """Ensure ACTIVE_MODEL is not set to a known deprecated model."""
-        active_model = os.getenv("ACTIVE_MODEL", "claude-3-5-sonnet-20241022")
+        active_model = os.getenv("ACTIVE_MODEL", "gemini-2.5-flash")
 
         assert active_model not in DEPRECATED_MODELS, (
             f"ACTIVE_MODEL '{active_model}' is deprecated! "
@@ -62,7 +78,7 @@ class TestModelConfiguration:
 
     def test_active_model_is_known_valid(self):
         """Warn if ACTIVE_MODEL is not in our known valid list."""
-        active_model = os.getenv("ACTIVE_MODEL", "claude-3-5-sonnet-20241022")
+        active_model = os.getenv("ACTIVE_MODEL", "gemini-2.5-flash")
         all_valid = VALID_CLAUDE_MODELS + VALID_GEMINI_MODELS
 
         if active_model not in all_valid:
@@ -84,7 +100,7 @@ class TestClaudeAPI:
 
     def test_claude_model_exists(self, claude_api_key):
         """Verify the configured Claude model exists and is accessible."""
-        active_model = os.getenv("ACTIVE_MODEL", "claude-3-5-sonnet-20241022")
+        active_model = os.getenv("ACTIVE_MODEL", "gemini-2.5-flash")
 
         # Skip if not using Claude
         if "gemini" in active_model.lower():
@@ -108,7 +124,7 @@ class TestClaudeAPI:
         except anthropic.AuthenticationError as e:
             pytest.fail(f"Claude API authentication failed. Check CLAUDE_API_KEY. Error: {e}")
 
-    @pytest.mark.parametrize("model", ["claude-3-haiku-20240307"])  # Test only models accessible with our API key
+    @pytest.mark.parametrize("model", ["claude-sonnet-4-5-20250929"])  # Test a current Claude model
     def test_claude_known_models_accessible(self, claude_api_key, model):
         """Verify known Claude models are still accessible."""
         client = anthropic.Anthropic(api_key=claude_api_key)
@@ -137,7 +153,7 @@ class TestGeminiAPI:
 
     def test_gemini_model_exists(self, gemini_api_key):
         """Verify the configured Gemini model exists and is accessible."""
-        active_model = os.getenv("ACTIVE_MODEL", "claude-3-5-sonnet-20241022")
+        active_model = os.getenv("ACTIVE_MODEL", "gemini-2.5-flash")
 
         # Skip if not using Gemini
         if "gemini" not in active_model.lower():
@@ -195,7 +211,7 @@ class TestDeprecatedModels:
     @pytest.mark.parametrize("deprecated_model", DEPRECATED_MODELS)
     def test_deprecated_model_not_configured(self, deprecated_model):
         """Fail if ACTIVE_MODEL is set to a deprecated model."""
-        active_model = os.getenv("ACTIVE_MODEL", "claude-3-5-sonnet-20241022")
+        active_model = os.getenv("ACTIVE_MODEL", "gemini-2.5-flash")
 
         assert active_model != deprecated_model, (
             f"ACTIVE_MODEL is set to deprecated model '{deprecated_model}'! "

@@ -338,7 +338,7 @@ Present your final recommendations in <recommendations> tags using this exact XM
     async def get_album_recommendations(self, album_name: str, feedback: str = "") -> list[AlbumData]:
         try:
             prompt = self.get_recommendation_prompt(album_name)
-            
+
             if feedback:
                 prompt += f"\n\n{feedback}"
 
