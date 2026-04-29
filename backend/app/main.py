@@ -22,11 +22,6 @@ from app.services.ai import (
     get_model_info,
     set_active_model,
 )
-
-def safe_error_message(technical_detail: str | None) -> str:
-    if settings.ENVIRONMENT == "production":
-        return "Something went wrong. Our AI models are temporarily unavailable — please try again soon."
-    return technical_detail or "AI service error"
 from app.services.evaluator import evaluator
 from app.services.favorites import favorites_service
 from app.services.search_sessions import search_session_service
@@ -35,6 +30,13 @@ load_dotenv()
 
 # FastAPI's logging
 logger = logging.getLogger("uvicorn")
+
+
+def safe_error_message(technical_detail: str | None) -> str:
+    if settings.ENVIRONMENT == "production":
+        return "Something went wrong. Our AI models are temporarily unavailable — please try again soon."
+    return technical_detail or "AI service error"
+
 
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.PROJECT_VERSION)
 # Configure CORS
@@ -473,88 +475,88 @@ async def get_album_cover_from_discogs(title: str, artist: str) -> str | None:
 def get_spotify_token() -> str | None:
     """Get Spotify access token using client credentials flow."""
     import base64
-    
+
     client_id = os.getenv("SPOTIFY_CLIENT_ID")
     client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
-    
+
     if not client_id or not client_secret:
         return None
-    
+
     try:
         auth_url = "https://accounts.spotify.com/api/token"
         auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
         headers = {"Authorization": f"Basic {auth_header}"}
         data = {"grant_type": "client_credentials"}
-        
+
         import httpx
         response = httpx.post(auth_url, data=data, headers=headers, timeout=10.0)
-        
+
         if response.status_code == 200:
             return response.json().get("access_token")
     except Exception as e:
         logger.error(f"Spotify token error: {e}")
-    
+
     return None
 
 
 def fuzzy_match(query: str, target: str, threshold: float = 0.65) -> bool:
     """Fuzzy match two strings using token overlap and similarity ratio.
-    
+
     Args:
         query: The search term (e.g., album title from AI)
         target: The candidate match (e.g., album title from Spotify/Discogs)
         threshold: Minimum similarity score (0.0 to 1.0)
-    
+
     Returns:
         True if strings are similar enough
     """
     from difflib import SequenceMatcher
-    
+
     query_clean = query.lower().strip()
     target_clean = target.lower().strip()
-    
+
     # Exact or substring match
     if query_clean == target_clean:
         return True
     if query_clean in target_clean or target_clean in query_clean:
         return True
-    
+
     # Remove punctuation for token comparison
     def clean_tokens(s: str) -> set:
         return set(re.sub(r'[^\w\s]', ' ', s).split())
-    
+
     query_tokens = clean_tokens(query_clean)
     target_tokens = clean_tokens(target_clean)
-    
+
     if not query_tokens or not target_tokens:
         return False
-    
+
     # Token overlap ratio
     intersection = query_tokens & target_tokens
     union = query_tokens | target_tokens
     token_overlap = len(intersection) / len(union) if union else 0
-    
+
     # Sequence similarity for typos and minor variations
     seq_sim = SequenceMatcher(None, query_clean, target_clean).ratio()
-    
+
     # Boost score if most significant words match
     significant_match = False
     if len(query_tokens) >= 2:
         # Check if at least half the query words appear in target
         significant_match = len(intersection) / len(query_tokens) >= 0.5
-    
+
     # Combined score: weighted average
     score = max(token_overlap, seq_sim)
     if significant_match:
         score = max(score, 0.7)  # Boost if significant words match
-    
+
     return score >= threshold
 
 
 async def verify_album_exists(title: str, artist: str) -> bool:
     """Verify album exists on Spotify or Discogs."""
     spotify_access_token = get_spotify_token()
-    
+
     if spotify_access_token:
         try:
             async with httpx.AsyncClient() as client:
@@ -562,32 +564,32 @@ async def verify_album_exists(title: str, artist: str) -> bool:
                 search_url = "https://api.spotify.com/v1/search"
                 headers = {"Authorization": f"Bearer {spotify_access_token}"}
                 params = {"q": search_query, "type": "album", "limit": 5}
-                
+
                 response = await client.get(search_url, headers=headers, params=params, timeout=10.0)
-                
+
                 if response.status_code == 200:
                     data = response.json()
                     albums = data.get("albums", {}).get("items", [])
-                    
+
                     for album in albums:
                         album_type = album.get("album_type", "").lower()
                         if album_type != "album":
                             continue
-                            
+
                         album_name = album.get("name", "")
                         album_artists = [a.get("name", "") for a in album.get("artists", [])]
-                        
+
                         title_match = fuzzy_match(title, album_name)
                         artist_match = any(fuzzy_match(artist, a, threshold=0.6) for a in album_artists)
-                        
+
                         if title_match and artist_match:
                             return True
         except Exception as e:
             logger.error(f"Spotify verification error: {e}")
-    
+
     discogs_key = os.getenv("DISCOGS_KEY")
     discogs_secret = os.getenv("DISCOGS_SECRET")
-    
+
     if discogs_key and discogs_secret:
         try:
             async with httpx.AsyncClient() as client:
@@ -601,34 +603,34 @@ async def verify_album_exists(title: str, artist: str) -> bool:
                     "secret": discogs_secret
                 }
                 headers = {"User-Agent": "DeepCuts/1.0 (contact@deepcuts.com)"}
-                
+
                 response = await client.get(url, params=params, headers=headers, timeout=10.0)
-                
+
                 if response.status_code == 200:
                     data = response.json()
                     results = data.get("results", [])
-                    
+
                     for result in results:
                         result_title = result.get("title", "").lower()
                         format_list = [f.lower() for f in result.get("format", [])]
-                        
+
                         if " - " in result_title:
                             result_artist = result_title.split(" - ", 1)[0].strip()
                             result_album = result_title.split(" - ", 1)[1].strip()
-                            
+
                             is_single = any(fmt in format_list for fmt in ["single", "ep", "7\"", "cassette"])
-                            
+
                             if is_single:
                                 continue
-                                
+
                             title_match = fuzzy_match(title, result_album)
                             artist_match = fuzzy_match(artist, result_artist, threshold=0.6)
-                            
+
                             if title_match and artist_match:
                                 return True
         except Exception as e:
             logger.error(f"Discogs verification error: {e}")
-    
+
     return True
 
 
@@ -698,7 +700,7 @@ async def search_albums(
                         "artist": album.artist,
                         "reason": "not_found",
                     })
-            
+
             removed_count = raw_count - len(verified_recommendations)
             if removed_count > 0:
                 logger.info(f"Removed {removed_count} fake albums from {raw_count} AI recommendations")
@@ -707,15 +709,15 @@ async def search_albums(
             if recommendations:
                 evaluation = evaluator.evaluate(recommendations, request.query)
                 logger.info(f"Album evaluation score: {evaluation['score']}/100")
-                
+
                 if evaluation["passed"]:
                     break
-                
+
                 if attempt < max_retries:
                     feedback = evaluator.get_feedback_prompt(recommendations, evaluation)
                     logger.info(f"Retrying with feedback: {feedback[:200]}...")
                 else:
-                    logger.warning(f"Max retries reached. Using best effort results.")
+                    logger.warning("Max retries reached. Using best effort results.")
                     break
             else:
                 if attempt < max_retries:
@@ -766,7 +768,7 @@ async def search_albums(
         raise
     except Exception as e:
         logger.error(f"Search error for query '{request.query}': {e}")
-        raise HTTPException(status_code=500, detail=safe_error_message(str(e)))
+        raise HTTPException(status_code=500, detail=safe_error_message(str(e))) from None
 
     processing_time = int((time.time() - start_time) * 1000)
 
@@ -838,7 +840,7 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
                 data = response.json()
                 cleaned_results = []
                 seen_titles = set()
-                
+
                 for result in data.get("results", []):
                     if "title" in result:
                         raw_title = result["title"]
