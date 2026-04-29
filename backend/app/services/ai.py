@@ -7,6 +7,7 @@ from typing import Any
 import anthropic
 
 from app.models.albums import AlbumData
+from app.services.render_api import update_render_env_var
 
 logger = logging.getLogger('deepcuts')
 
@@ -224,10 +225,14 @@ class AIService:
                     self.ACTIVE_MODEL = model_id
                     self._validate_model_config()
                     os.environ["ACTIVE_MODEL"] = model_id
+                    persist = await update_render_env_var("ACTIVE_MODEL", model_id)
+                    if not persist["success"]:
+                        logger.warning(f"Working model {model_id} found but failed to persist to Render: {persist.get('error')}")
                     return {
                         "success": True,
                         "model_id": model_id,
                         "model_name": get_model_info(model_id)["name"] if get_model_info(model_id) else model_id,
+                        "persisted": persist.get("success", False),
                     }
             finally:
                 if self.ACTIVE_MODEL != model_id:
@@ -376,6 +381,7 @@ async def set_active_model(model_id: str) -> dict[str, Any]:
     try:
         os.environ["ACTIVE_MODEL"] = model_id
         ai_service.refresh_model()
+        persist = await update_render_env_var("ACTIVE_MODEL", model_id)
 
         model_info = get_model_info(model_id)
         return {
@@ -383,6 +389,7 @@ async def set_active_model(model_id: str) -> dict[str, Any]:
             "model_id": model_id,
             "model_name": model_info["name"] if model_info else model_id,
             "is_free": model_info["free"] if model_info else False,
+            "persisted": persist.get("success", False),
         }
     except Exception as e:
         logger.error(f"Error setting active model: {e}")
