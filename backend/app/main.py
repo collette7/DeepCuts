@@ -77,6 +77,8 @@ supabase: Client = create_client(supabase_url, supabase_key)
 
 # Initialize AI service with Supabase client for runtime config
 ai_service.supabase = supabase_admin
+refreshed_model = ai_service.refresh_model()
+logger.info(f"AI model refreshed from Supabase: {refreshed_model}")
 
 
 @app.get("/")
