@@ -22,6 +22,11 @@ from app.services.ai import (
     get_model_info,
     set_active_model,
 )
+
+def safe_error_message(technical_detail: str | None) -> str:
+    if settings.ENVIRONMENT == "production":
+        return "Something went wrong. Our AI models are temporarily unavailable — please try again soon."
+    return technical_detail or "AI service error"
 from app.services.evaluator import evaluator
 from app.services.favorites import favorites_service
 from app.services.search_sessions import search_session_service
@@ -155,9 +160,14 @@ async def verify_ai_model():
 async def auto_fix_ai_model():
     result = await ai_service.find_working_model()
     if result["success"]:
+        model_id = result["model_id"]
+        persist = await set_active_model(supabase_admin, model_id)
+        if not persist["success"]:
+            logger.warning(f"Auto-fix found working model {model_id} but failed to persist: {persist.get('error')}")
         return {
             "status": "fixed",
             "message": f"Switched to working model {result['model_name']}",
+            "persisted": persist.get("success", False),
             **result
         }
     return {
@@ -657,7 +667,7 @@ async def search_albums(
     if not ai_service.is_ready:
         ready_error = ai_service.get_ready_error()
         logger.error(f"AI service not ready: {ready_error}")
-        raise HTTPException(status_code=503, detail=ready_error or "AI service is not configured")
+        raise HTTPException(status_code=503, detail=safe_error_message(ready_error))
 
     try:
         max_retries = 2
@@ -726,7 +736,7 @@ async def search_albums(
 
         if not recommendations:
             detail = ai_error or "AI service returned no recommendations. Check your model configuration."
-            raise HTTPException(status_code=503, detail=detail)
+            raise HTTPException(status_code=503, detail=safe_error_message(detail))
 
         # Convert to AlbumData format
         if recommendations:
@@ -763,9 +773,11 @@ async def search_albums(
         # Limit results for response
         limited_recommendations = recommendations[:request.max_results]
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Search error for query '{request.query}': {e}")
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_error_message(str(e)))
 
     processing_time = int((time.time() - start_time) * 1000)
 
