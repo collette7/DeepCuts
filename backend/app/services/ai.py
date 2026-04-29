@@ -114,15 +114,12 @@ class AIService:
             self.claude_configured = False
 
     def _get_active_model(self) -> str:
-        """Get active model from Supabase settings or fall back to env var."""
         import time
 
-        # Check cache first
         if self._model_cache and self._cache_time:
             if time.time() - self._cache_time < self._cache_ttl:
                 return self._model_cache
 
-        # Try to get from Supabase
         if self.supabase:
             try:
                 result = self.supabase.table('app_settings').select('value').eq('key', 'active_model').single().execute()
@@ -133,7 +130,6 @@ class AIService:
             except Exception as e:
                 logger.debug(f"Could not get model from Supabase: {e}")
 
-        # Fall back to env var
         return os.getenv("ACTIVE_MODEL", "claude-sonnet-4-5-20250929")
 
     def refresh_model(self):
