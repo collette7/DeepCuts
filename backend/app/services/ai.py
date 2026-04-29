@@ -74,30 +74,19 @@ def get_model_info(model_id: str) -> dict[str, Any] | None:
 
 
 class AIService:
-    def __init__(self, supabase_client=None):
-        self.supabase = supabase_client
-        self._model_cache = None
-        self._cache_time = None
-        self._cache_ttl = 60  # Cache for 60 seconds
-
-        # Get initial model from env or Supabase
-        self.ACTIVE_MODEL = self._get_active_model()
+    def __init__(self):
+        self.ACTIVE_MODEL = os.getenv("ACTIVE_MODEL", "claude-sonnet-4-5-20250929")
         self.model_validated = False
         self.validation_error = None
 
-        # Validate model on startup
         self._validate_model_config()
-
-        # Initialize clients (both, so we can switch at runtime)
         self._init_clients()
 
         logger.info(f"AI Service initialized with model: {self.ACTIVE_MODEL}")
 
     def _init_clients(self):
-        """Initialize AI provider clients."""
         import google.generativeai as genai
 
-        # Initialize Gemini
         gemini_key = os.getenv("GEMINI_API_KEY")
         if gemini_key:
             genai.configure(api_key=gemini_key)
@@ -105,7 +94,6 @@ class AIService:
         else:
             self.gemini_configured = False
 
-        # Initialize Claude
         claude_key = os.getenv("CLAUDE_API_KEY")
         if claude_key:
             self.claude_client = anthropic.Anthropic(api_key=claude_key)
@@ -113,30 +101,8 @@ class AIService:
         else:
             self.claude_configured = False
 
-    def _get_active_model(self) -> str:
-        import time
-
-        if self._model_cache and self._cache_time:
-            if time.time() - self._cache_time < self._cache_ttl:
-                return self._model_cache
-
-        if self.supabase:
-            try:
-                result = self.supabase.table('app_settings').select('value').eq('key', 'active_model').single().execute()
-                if result.data and result.data.get('value'):
-                    self._model_cache = result.data['value']
-                    self._cache_time = time.time()
-                    return self._model_cache
-            except Exception as e:
-                logger.debug(f"Could not get model from Supabase: {e}")
-
-        return os.getenv("ACTIVE_MODEL", "claude-sonnet-4-5-20250929")
-
     def refresh_model(self):
-        """Refresh the active model from config (call this to pick up changes)."""
-        self._model_cache = None
-        self._cache_time = None
-        new_model = self._get_active_model()
+        new_model = os.getenv("ACTIVE_MODEL", "claude-sonnet-4-5-20250929")
         if new_model != self.ACTIVE_MODEL:
             logger.info(f"Switching model from {self.ACTIVE_MODEL} to {new_model}")
             self.ACTIVE_MODEL = new_model
@@ -257,6 +223,7 @@ class AIService:
                 if result["valid"]:
                     self.ACTIVE_MODEL = model_id
                     self._validate_model_config()
+                    os.environ["ACTIVE_MODEL"] = model_id
                     return {
                         "success": True,
                         "model_id": model_id,
@@ -398,9 +365,7 @@ Present your final recommendations in <recommendations> tags using this exact XM
             return []
 
 
-async def set_active_model(supabase_client, model_id: str) -> dict[str, Any]:
-    """Set the active model in Supabase settings."""
-    # Validate model
+async def set_active_model(model_id: str) -> dict[str, Any]:
     if model_id in DEPRECATED_MODELS:
         return {"success": False, "error": f"Model '{model_id}' is deprecated"}
 
@@ -409,14 +374,7 @@ async def set_active_model(supabase_client, model_id: str) -> dict[str, Any]:
         return {"success": False, "error": f"Model '{model_id}' is not in the known valid models list"}
 
     try:
-        # Upsert the setting
-        supabase_client.table('app_settings').upsert({
-            "key": "active_model",
-            "value": model_id,
-        }, on_conflict="key").execute()
-
-        # Refresh the AI service model
-        ai_service.supabase = supabase_client
+        os.environ["ACTIVE_MODEL"] = model_id
         ai_service.refresh_model()
 
         model_info = get_model_info(model_id)

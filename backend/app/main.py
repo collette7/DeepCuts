@@ -75,10 +75,7 @@ if not supabase_url or not supabase_key:
 
 supabase: Client = create_client(supabase_url, supabase_key)
 
-# Initialize AI service with Supabase client for runtime config
-ai_service.supabase = supabase_admin
-refreshed_model = ai_service.refresh_model()
-logger.info(f"AI model refreshed from Supabase: {refreshed_model}")
+logger.info(f"AI service ready with model: {ai_service.ACTIVE_MODEL}")
 
 
 @app.get("/")
@@ -162,14 +159,9 @@ async def verify_ai_model():
 async def auto_fix_ai_model():
     result = await ai_service.find_working_model()
     if result["success"]:
-        model_id = result["model_id"]
-        persist = await set_active_model(supabase_admin, model_id)
-        if not persist["success"]:
-            logger.warning(f"Auto-fix found working model {model_id} but failed to persist: {persist.get('error')}")
         return {
             "status": "fixed",
             "message": f"Switched to working model {result['model_name']}",
-            "persisted": persist.get("success", False),
             **result
         }
     return {
@@ -216,7 +208,7 @@ async def update_active_model(model_id: str):
     Args:
         model_id: The model ID to switch to (e.g., 'gemini-2.5-flash', 'claude-3-haiku-20240307')
     """
-    result = await set_active_model(supabase_admin, model_id)
+    result = await set_active_model(model_id)
 
     if result["success"]:
         return {
@@ -230,11 +222,6 @@ async def update_active_model(model_id: str):
 
 @app.post("/api/v1/settings/model/refresh")
 async def refresh_model_config():
-    """
-    Force refresh the AI model configuration from Supabase.
-    Use this after changing the model in the Supabase dashboard.
-    """
-    ai_service.supabase = supabase_admin
     new_model = ai_service.refresh_model()
     model_info = get_model_info(new_model)
 
