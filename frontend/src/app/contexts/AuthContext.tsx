@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { setCurrentSession } from '@/lib/session-store'
 
 interface AuthContextType {
   user: User | null
@@ -37,12 +38,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (error) {
           console.error('Session error:', error)
-          // If there's an error getting the session, clear it
           setSession(null)
           setUser(null)
+          setCurrentSession(null)
         } else {
           setSession(session)
           setUser(session?.user ?? null)
+          setCurrentSession(session)
         }
       } catch (error) {
         console.error('Failed to get session:', error)
@@ -59,15 +61,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (event, session) => {
         console.log('Auth state change:', event, session?.user?.email)
         
-        // Handle token refresh errors
         if (event === 'TOKEN_REFRESHED' && !session) {
           console.warn('Token refresh failed, clearing session')
           clearSession()
+          setCurrentSession(null)
           return
         }
-        
+
         setSession(session)
         setUser(session?.user ?? null)
+        setCurrentSession(session)
         setLoading(false)
       }
     )

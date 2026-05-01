@@ -1,11 +1,9 @@
 import { handleAuthError, isRefreshTokenError } from './auth-error-handler';
+import { getCurrentSession } from './session-store';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 class ApiClient {
-    // client for FastAPI 
-    // source of truth for all comms with backend
-
     private async getAuthHeaders(): Promise<HeadersInit> {
         const headers: Record<string, string> = {
             'Content-Type': 'application/json'
@@ -13,31 +11,38 @@ class ApiClient {
 
         try {
             const { supabase } = await import('@/lib/supabase');
-            const { data: { session }, error } = await supabase.auth.getSession();
-            
-            if (error) {
-                console.warn('Auth session error:', error);
-                
-                // Handle refresh token errors
-                if (isRefreshTokenError(error)) {
-                    await handleAuthError(error);
-                }
-                
+
+            const cachedSession = getCurrentSession();
+            if (cachedSession?.access_token) {
+                headers['Authorization'] = `Bearer ${cachedSession.access_token}`;
                 return headers;
             }
-            
-            if (session?.access_token) {
-                headers['Authorization'] = `Bearer ${session.access_token}`;
+
+            let result = await supabase.auth.getSession();
+
+            if (result.error || !result.data.session) {
+                await new Promise(r => setTimeout(r, 500));
+                result = await supabase.auth.getSession();
+            }
+
+            if (result.error) {
+                console.warn('Auth session error:', result.error);
+                if (isRefreshTokenError(result.error)) {
+                    await handleAuthError(result.error);
+                }
+                return headers;
+            }
+
+            if (result.data.session?.access_token) {
+                headers['Authorization'] = `Bearer ${result.data.session.access_token}`;
             }
         } catch (error) {
             console.error('Error getting auth headers:', error);
-            
-            // Handle refresh token errors
             if (isRefreshTokenError(error)) {
                 await handleAuthError(error);
             }
         }
-        
+
         return headers;
     }
 
@@ -129,7 +134,7 @@ class ApiClient {
 
             if (!response.ok) {
                 if (response.status === 401) {
-                    throw new Error('Please sign in to save favorites');
+                    throw new Error('Session expired. Please sign in again to save favorites.');
                 }
                 const errorData = await response.json().catch(() => null);
                 throw new Error(errorData?.detail || `Failed to add favorite (${response.status})`);
