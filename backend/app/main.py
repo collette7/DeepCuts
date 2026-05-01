@@ -631,7 +631,8 @@ async def verify_album_exists(title: str, artist: str) -> bool:
         except Exception as e:
             logger.error(f"Discogs verification error: {e}")
 
-    return True
+    logger.warning(f"Could not verify album exists: {title} by {artist}")
+    return False
 
 
 @app.post("/api/v1/search")
@@ -671,6 +672,7 @@ async def search_albums(
         best_filtered: list[dict[str, str]] = []
         best_raw_count = 0
         best_raw_response = ""
+        best_verified_map: dict[str, bool] = {}
         feedback = ""
         ai_error = None
 
@@ -693,11 +695,16 @@ async def search_albums(
                     ai_error = verify.get("error", "AI model returned no response")
                 break
 
-            # Verify each album exists on Discogs, filter out fakes
+            # Verify each album exists on Discogs/Spotify, filter out fakes
             filtered_albums: list[dict[str, str]] = []
             verified_recommendations: list[AlbumData] = []
+            verified_map: dict[str, bool] = {}
+
             for album in recommendations:
                 is_verified = await verify_album_exists(album.title, album.artist)
+                album_key = f"{album.title} by {album.artist}"
+                verified_map[album_key] = is_verified
+
                 if is_verified:
                     verified_recommendations.append(album)
                 else:
@@ -717,12 +724,14 @@ async def search_albums(
                 best_filtered = filtered_albums
                 best_raw_count = raw_count
                 best_raw_response = raw_response
+                best_verified_map = verified_map
 
             if len(verified_recommendations) == 10:
                 best_recommendations = verified_recommendations
                 best_filtered = filtered_albums
                 best_raw_count = raw_count
                 best_raw_response = raw_response
+                best_verified_map = verified_map
                 logger.info("Achieved 10 verified albums")
                 break
 
@@ -730,7 +739,11 @@ async def search_albums(
                 if not verified_recommendations:
                     feedback = "All albums failed verification. Please provide real, verifiable albums."
                 else:
-                    evaluation = evaluator.evaluate(recommendations, request.query)
+                    evaluation = evaluator.evaluate(
+                        recommendations,
+                        request.query,
+                        verified_map=verified_map
+                    )
                     feedback = evaluator.get_feedback_prompt(recommendations, evaluation)
                     logger.info(f"Retrying with feedback: {feedback[:200]}...")
             else:
