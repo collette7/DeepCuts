@@ -1041,6 +1041,66 @@ async def get_session_analytics(session_id: str):
     return search_session_service.get_session_analytics(session_id)
 
 
+@app.get("/api/v1/analytics/search-results")
+async def get_search_results(
+    limit: int = 50,
+    authorization: str = Header(None)
+):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authorization required")
+
+    try:
+        token = authorization.replace("Bearer ", "")
+        user_response = supabase_admin.auth.get_user(token)
+        if not user_response.user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user_email = user_response.user.email
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Authentication failed") from None
+
+    result = (
+        supabase_admin.table("search_results")
+        .select("*")
+        .eq("user_email", user_email)
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return {"results": result.data or []}
+
+
+@app.get("/api/v1/analytics/search-summary")
+async def get_search_summary(
+    limit: int = 50,
+    authorization: str = Header(None)
+):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authorization required")
+
+    try:
+        token = authorization.replace("Bearer ", "")
+        user_response = supabase_admin.auth.get_user(token)
+        if not user_response.user:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user_email = user_response.user.email
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Authentication failed") from None
+
+    result = (
+        supabase_admin.table("search_summary")
+        .select("*")
+        .eq("user_email", user_email)
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return {"summaries": result.data or []}
+
+
 @app.get("/debug/ai-test")
 async def debug_ai_test():
     """Debug endpoint to test AI service configuration"""
