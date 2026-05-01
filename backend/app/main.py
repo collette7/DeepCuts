@@ -840,6 +840,8 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
     discogs_key = os.getenv("DISCOGS_KEY")
     discogs_secret = os.getenv("DISCOGS_SECRET")
 
+    logger.info(f"Discogs search requested: query='{request.query}', type={request.type}, per_page={request.per_page}")
+
     if not discogs_key or not discogs_secret:
         logger.error("Discogs API credentials missing: DISCOGS_KEY and/or DISCOGS_SECRET not set")
         raise HTTPException(
@@ -861,20 +863,28 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
                 "User-Agent": "DeepCuts/1.0 (contact@deepcuts.com)"
             }
 
-            response = await client.get(url, params=params, headers=headers)
+            logger.info(f"Calling Discogs API: {url} with query='{request.query}'")
+            response = await client.get(url, params=params, headers=headers, timeout=10.0)
+            logger.info(f"Discogs API response status: {response.status_code}")
 
             if response.status_code == 200:
                 data = response.json()
+                raw_results = data.get("results", [])
+                logger.info(f"Discogs returned {len(raw_results)} raw results")
+
                 cleaned_results = []
                 seen_titles = set()
+                skipped_count = 0
 
-                for result in data.get("results", []):
+                for result in raw_results:
                     if "title" not in result:
+                        skipped_count += 1
                         continue
 
                     raw_title = result["title"]
 
                     if " - " not in raw_title:
+                        skipped_count += 1
                         continue
 
                     full_title = clean_discogs_title(raw_title)
@@ -888,6 +898,7 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
                         display_title = full_title
 
                     if full_title.lower() in seen_titles:
+                        skipped_count += 1
                         continue
                     seen_titles.add(full_title.lower())
 
@@ -903,14 +914,16 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
                         ))
                     except Exception as model_error:
                         logger.warning(f"Skipping invalid Discogs result: {model_error}")
+                        skipped_count += 1
                         continue
 
+                logger.info(f"Discogs search complete: {len(cleaned_results)} results after filtering ({skipped_count} skipped)")
                 return SuggestionResponse(
                     results=cleaned_results,
                     pagination=data.get("pagination", {})
                 )
             else:
-                logger.error(f"Discogs API returned {response.status_code}: {response.text[:200]}")
+                logger.error(f"Discogs API returned {response.status_code}: {response.text[:500]}")
                 raise HTTPException(status_code=response.status_code, detail="Discogs API error")
 
     except HTTPException:
