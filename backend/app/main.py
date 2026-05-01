@@ -841,10 +841,10 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
     discogs_secret = os.getenv("DISCOGS_SECRET")
 
     if not discogs_key or not discogs_secret:
-        # Return empty results if no API
-        return SuggestionResponse(
-            results=[],
-            pagination={"per_page": request.per_page, "pages": 0, "page": 1, "items": 0}
+        logger.error("Discogs API credentials missing: DISCOGS_KEY and/or DISCOGS_SECRET not set")
+        raise HTTPException(
+            status_code=503,
+            detail="Discogs search is temporarily unavailable. Missing API credentials."
         )
 
     try:
