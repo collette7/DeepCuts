@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import Client, create_client
 
@@ -637,6 +637,7 @@ async def verify_album_exists(title: str, artist: str) -> bool:
 @app.post("/api/v1/search")
 async def search_albums(
     request: SearchRequest,
+    http_request: Request,
     authorization: str = Header(None)
 ) -> SearchResponse:
     """Get album recommendations based on user query."""
@@ -653,6 +654,9 @@ async def search_albums(
         except Exception as e:
             logger.info(f"Search: Could not authenticate user: {e}")
 
+    ip_address = http_request.client.host if http_request.client else None
+    user_agent = http_request.headers.get("user-agent")
+
     session_id = None
 
     if not ai_service.is_ready:
@@ -661,24 +665,27 @@ async def search_albums(
         raise HTTPException(status_code=503, detail=safe_error_message(ready_error))
 
     try:
-        max_retries = 2
+        max_attempts = 5
         attempt = 0
-        recommendations = []
-        filtered_albums = []
-        raw_count = 0
+        best_recommendations: list[AlbumData] = []
+        best_filtered: list[dict[str, str]] = []
+        best_raw_count = 0
+        best_raw_response = ""
         feedback = ""
         ai_error = None
 
-        while attempt < max_retries:
+        while attempt < max_attempts:
             attempt += 1
-            logger.info(f"AI recommendation attempt {attempt}/{max_retries}")
+            logger.info(f"AI recommendation attempt {attempt}/{max_attempts}")
 
-            recommendations = await ai_service.get_album_recommendations(request.query, feedback)
+            result = await ai_service.get_album_recommendations(request.query, feedback)
+            recommendations = result.albums
+            raw_response = result.raw_response
             raw_count = len(recommendations)
 
             if not recommendations or raw_count == 0:
                 logger.warning(f"No recommendations from AI for query: {request.query}")
-                if attempt < max_retries:
+                if attempt < max_attempts:
                     feedback = "Your previous response contained no valid recommendations. Please provide 10 real albums."
                     continue
                 verify = await ai_service.verify_model_exists()
@@ -687,8 +694,8 @@ async def search_albums(
                 break
 
             # Verify each album exists on Discogs, filter out fakes
-            filtered_albums = []
-            verified_recommendations = []
+            filtered_albums: list[dict[str, str]] = []
+            verified_recommendations: list[AlbumData] = []
             for album in recommendations:
                 is_verified = await verify_album_exists(album.title, album.artist)
                 if is_verified:
@@ -704,51 +711,58 @@ async def search_albums(
             removed_count = raw_count - len(verified_recommendations)
             if removed_count > 0:
                 logger.info(f"Removed {removed_count} fake albums from {raw_count} AI recommendations")
-            recommendations = verified_recommendations
 
-            if recommendations:
-                evaluation = evaluator.evaluate(recommendations, request.query)
-                logger.info(f"Album evaluation score: {evaluation['score']}/100")
+            if len(verified_recommendations) > len(best_recommendations):
+                best_recommendations = verified_recommendations
+                best_filtered = filtered_albums
+                best_raw_count = raw_count
+                best_raw_response = raw_response
 
-                if evaluation["passed"]:
-                    break
+            if len(verified_recommendations) == 10:
+                best_recommendations = verified_recommendations
+                best_filtered = filtered_albums
+                best_raw_count = raw_count
+                best_raw_response = raw_response
+                logger.info("Achieved 10 verified albums")
+                break
 
-                if attempt < max_retries:
+            if attempt < max_attempts:
+                if not verified_recommendations:
+                    feedback = "All albums failed verification. Please provide real, verifiable albums."
+                else:
+                    evaluation = evaluator.evaluate(recommendations, request.query)
                     feedback = evaluator.get_feedback_prompt(recommendations, evaluation)
                     logger.info(f"Retrying with feedback: {feedback[:200]}...")
-                else:
-                    logger.warning("Max retries reached. Using best effort results.")
-                    break
             else:
-                if attempt < max_retries:
-                    feedback = "All albums failed verification. Please provide real, verifiable albums."
-                    continue
-                break
+                logger.warning(f"Max attempts reached. Using best effort with {len(best_recommendations)} verified albums.")
+
+        recommendations = best_recommendations
+        filtered_albums = best_filtered
+        raw_count = best_raw_count
+        raw_response = best_raw_response
 
         if not recommendations:
             detail = ai_error or "AI service returned no recommendations. Check your model configuration."
             raise HTTPException(status_code=503, detail=safe_error_message(detail))
 
         # Convert to AlbumData format
-        if recommendations:
-            quick_recommendations = []
-            for album in recommendations:
-                quick_album = AlbumData(
-                    id=album.id,
-                    title=album.title,
-                    artist=album.artist,
-                    year=album.year,
-                    genre=album.genre,
-                    spotify_preview_url=None,
-                    spotify_url=None,
-                    discogs_url=album.discogs_url,
-                    cover_url=None,
-                    reasoning=album.reasoning
-                )
-                quick_recommendations.append(quick_album)
-            recommendations = quick_recommendations
+        quick_recommendations = []
+        for album in recommendations:
+            quick_album = AlbumData(
+                id=album.id,
+                title=album.title,
+                artist=album.artist,
+                year=album.year,
+                genre=album.genre,
+                spotify_preview_url=None,
+                spotify_url=None,
+                discogs_url=album.discogs_url,
+                cover_url=None,
+                reasoning=album.reasoning
+            )
+            quick_recommendations.append(quick_album)
+        recommendations = quick_recommendations
 
-        # Create search session for analytics
         session_id = search_session_service.create_session(
             query=request.query,
             albums=recommendations,
@@ -756,6 +770,9 @@ async def search_albums(
             ai_model=ai_service.ACTIVE_MODEL,
             raw_results_count=raw_count,
             filtered_count=len(filtered_albums),
+            ip_address=ip_address,
+            user_agent=user_agent,
+            raw_response=raw_response,
         )
 
         if session_id and filtered_albums:
@@ -1038,15 +1055,14 @@ async def debug_ai_test():
             "gemini_key_preview": os.getenv("GEMINI_API_KEY", "")[:10] + "..." if os.getenv("GEMINI_API_KEY") else None,
         }
 
-        # Test a simple AI call
         try:
-            test_recommendations = await ai_service.get_album_recommendations("Miles Davis Kind of Blue")
+            test_result = await ai_service.get_album_recommendations("Miles Davis Kind of Blue")
             debug_info["ai_test_success"] = True
-            debug_info["ai_test_result_count"] = len(test_recommendations)
-            if test_recommendations:
+            debug_info["ai_test_result_count"] = len(test_result.albums)
+            if test_result.albums:
                 debug_info["ai_test_first_result"] = {
-                    "title": test_recommendations[0].title,
-                    "artist": test_recommendations[0].artist
+                    "title": test_result.albums[0].title,
+                    "artist": test_result.albums[0].artist
                 }
         except Exception as ai_error:
             debug_info["ai_test_success"] = False

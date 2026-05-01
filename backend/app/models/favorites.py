@@ -8,7 +8,7 @@ class AddToFavoritesRequest(BaseModel):
     """Request to save an album to favorites"""
     album_data: dict = Field(..., description="Full album data to save and favorite")
     source_album_data: dict | None = Field(None, description="The source album data that led to this recommendation")
-    search_session_id: UUID | None = Field(None, description="The search session that led to this favorite")
+    search_session_id: UUID | None = Field(None, description="The search input session that led to this favorite")
 
 
 class FavoriteActionResponse(BaseModel):
