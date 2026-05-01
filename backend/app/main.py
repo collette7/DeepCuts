@@ -672,7 +672,6 @@ async def search_albums(
         best_filtered: list[dict[str, str]] = []
         best_raw_count = 0
         best_raw_response = ""
-        best_verified_map: dict[str, bool] = {}
         feedback = ""
         ai_error = None
 
@@ -724,14 +723,12 @@ async def search_albums(
                 best_filtered = filtered_albums
                 best_raw_count = raw_count
                 best_raw_response = raw_response
-                best_verified_map = verified_map
 
             if len(verified_recommendations) == 10:
                 best_recommendations = verified_recommendations
                 best_filtered = filtered_albums
                 best_raw_count = raw_count
                 best_raw_response = raw_response
-                best_verified_map = verified_map
                 logger.info("Achieved 10 verified albums")
                 break
 
