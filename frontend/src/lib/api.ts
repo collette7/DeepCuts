@@ -1,5 +1,4 @@
 import { handleAuthError, isRefreshTokenError } from './auth-error-handler';
-import { getCurrentSession } from './session-store';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
@@ -11,30 +10,18 @@ class ApiClient {
 
         try {
             const { supabase } = await import('@/lib/supabase');
+            const { data: { session }, error } = await supabase.auth.getSession();
 
-            const cachedSession = getCurrentSession();
-            if (cachedSession?.access_token) {
-                headers['Authorization'] = `Bearer ${cachedSession.access_token}`;
-                return headers;
-            }
-
-            let result = await supabase.auth.getSession();
-
-            if (result.error || !result.data.session) {
-                await new Promise(r => setTimeout(r, 500));
-                result = await supabase.auth.getSession();
-            }
-
-            if (result.error) {
-                console.warn('Auth session error:', result.error);
-                if (isRefreshTokenError(result.error)) {
-                    await handleAuthError(result.error);
+            if (error) {
+                console.warn('Auth session error:', error);
+                if (isRefreshTokenError(error)) {
+                    await handleAuthError(error);
                 }
                 return headers;
             }
 
-            if (result.data.session?.access_token) {
-                headers['Authorization'] = `Bearer ${result.data.session.access_token}`;
+            if (session?.access_token) {
+                headers['Authorization'] = `Bearer ${session.access_token}`;
             }
         } catch (error) {
             console.error('Error getting auth headers:', error);
