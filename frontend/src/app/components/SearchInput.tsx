@@ -50,13 +50,15 @@ export default function SearchInput({
     }
 
     timeoutRef.current = setTimeout(async () => {
-      if (searchQuery.length < 2) {
+      if (searchQuery.length < 3) {
         setResults([]);
         setShowResults(false);
         return;
       }
 
       const cacheKey = searchQuery.toLowerCase();
+
+      // Exact cache hit
       if (cache.has(cacheKey)) {
         const cachedResults = cache.get(cacheKey) || [];
         setResults(cachedResults);
@@ -64,10 +66,19 @@ export default function SearchInput({
         return;
       }
 
+      // Prefix cache hit: if a longer query is cached, use it
+      for (const [key, value] of cache.entries()) {
+        if (cacheKey.startsWith(key) && value.length > 0) {
+          setResults(value.slice(0, 5));
+          setShowResults(true);
+          return;
+        }
+      }
+
       setDropdownLoading(true);
       try {
         const data: SuggestionResponse = await apiClient.searchDiscogs(searchQuery);
-        
+
         if (data.results && data.results.length > 0) {
           // Deduplicate by normalizing titles
           const deduplicatedResults = data.results.reduce((acc: SuggestionResult[], current) => {
@@ -78,20 +89,20 @@ export default function SearchInput({
                 .replace(/[^\w\s]/g, '')
                 .trim();
             };
-            
+
             const currentNormalized = normalizeTitle(current.title);
-            const isDuplicate = acc.some(existing => 
+            const isDuplicate = acc.some(existing =>
               normalizeTitle(existing.title) === currentNormalized
             );
-            
+
             if (!isDuplicate) {
               acc.push(current);
             }
-            
+
             return acc;
           }, []);
-          
-          const limitedResults = deduplicatedResults.slice(0, 5); 
+
+          const limitedResults = deduplicatedResults.slice(0, 5);
           setCache(prev => new Map(prev.set(cacheKey, limitedResults)));
           setResults(limitedResults);
           setShowResults(true);
@@ -106,7 +117,7 @@ export default function SearchInput({
       } finally {
         setDropdownLoading(false);
       }
-    }, 300);
+    }, 600);
   }, [cache]);
 
   useEffect(() => {

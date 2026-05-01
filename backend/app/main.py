@@ -922,6 +922,12 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
                     results=cleaned_results,
                     pagination=data.get("pagination", {})
                 )
+            elif response.status_code == 429:
+                logger.warning(f"Discogs rate limit hit for query='{request.query}'")
+                raise HTTPException(
+                    status_code=429,
+                    detail="Search rate limit reached. Please wait a moment and try again."
+                )
             else:
                 logger.error(f"Discogs API returned {response.status_code}: {response.text[:500]}")
                 raise HTTPException(status_code=response.status_code, detail="Discogs API error")
