@@ -33,6 +33,8 @@ export default function SearchInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isSearchingRef = useRef(false);
   const closingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const hideDropdown = useCallback(() => {
@@ -50,15 +52,16 @@ export default function SearchInput({
     }
 
     timeoutRef.current = setTimeout(async () => {
-      if (searchQuery.length < 3) {
-        setResults([]);
-        setShowResults(false);
+      if (searchQuery.length < 3 || isSearchingRef.current) {
+        if (searchQuery.length < 3) {
+          setResults([]);
+          setShowResults(false);
+        }
         return;
       }
 
       const cacheKey = searchQuery.toLowerCase();
 
-      // Exact cache hit
       if (cache.has(cacheKey)) {
         const cachedResults = cache.get(cacheKey) || [];
         setResults(cachedResults);
@@ -66,21 +69,21 @@ export default function SearchInput({
         return;
       }
 
-      // Prefix cache hit: if a longer query is cached, use it
-      for (const [key, value] of cache.entries()) {
-        if (cacheKey.startsWith(key) && value.length > 0) {
-          setResults(value.slice(0, 5));
-          setShowResults(true);
-          return;
-        }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
+      abortControllerRef.current = new AbortController();
 
+      isSearchingRef.current = true;
       setDropdownLoading(true);
+
       try {
-        const data: SuggestionResponse = await apiClient.searchDiscogs(searchQuery);
+        const data: SuggestionResponse = await apiClient.searchDiscogs(
+          searchQuery,
+          abortControllerRef.current.signal
+        );
 
         if (data.results && data.results.length > 0) {
-          // Deduplicate by normalizing titles
           const deduplicatedResults = data.results.reduce((acc: SuggestionResult[], current) => {
             const normalizeTitle = (title: string) => {
               return title
@@ -111,13 +114,17 @@ export default function SearchInput({
           setShowResults(false);
         }
       } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
         console.error('Search error:', error);
         setResults([]);
         setShowResults(false);
       } finally {
+        isSearchingRef.current = false;
         setDropdownLoading(false);
       }
-    }, 600);
+    }, 800);
   }, [cache]);
 
   useEffect(() => {
