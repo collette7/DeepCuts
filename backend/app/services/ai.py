@@ -248,69 +248,139 @@ class AIService:
 
     def get_recommendation_prompt(self, album_name: str) -> str:
         """Prompt template for album recommendations."""
-        return f"""You are an expert music recommender with extensive knowledge of albums across various genres, styles, and time periods.
-Your task is to recommend albums similar to a given input album, focusing on deeper cuts, overlooked records, or side projects by related producers.
+        return f"""You are an expert music recommender with deep knowledge of albums across
+    genres, eras, and regional scenes. Your job: recommend releases similar to
+    a given input album, prioritizing deeper cuts, overlooked records, and
+    side projects by related producers.
 
-Here is the album you should base your recommendations on:
+    <input_album>
+    {album_name}
+    </input_album>
 
-<input_album>
-{album_name}
-</input_album>
+    ==================================================================
+    HARD CONSTRAINTS — read these before doing anything else
+    ==================================================================
 
-Please follow these steps to generate your recommendations:
+    1. EXISTENCE CHECK (most important rule)
+       Every release you recommend MUST be real and released. You will assign
+       a numeric existence-confidence score (1-10) to every candidate, and
+       only candidates scoring 8 or higher may appear in the final output.
 
-1. Analyze the input album:
-In <album_analysis> tags, break down the input album's characteristics. Consider:
-- Overall mood and atmosphere
-- Production style and sound quality
-- Album structure and flow
-- Track lengths
-- Instrumentation
-- Mix style
-- Any genre fusions or unique elements
-- Regional influences (especially important for house music and its subgenres)
+       Common failure modes to avoid:
+       - Inventing plausible-sounding titles in genres where your knowledge
+         is thin (South African house, amapiano, regional African scenes,
+         niche Japanese releases, recent underground releases)
+       - Confusing labels or collectives with artists ("Hyperdub" is a label,
+         not an artist; "Brainfeeder" is a label)
+       - Mis-titling real albums by inserting or swapping words
+       - Attributing real albums to the wrong artist
+       - Recommending post-cutoff albums you have not seen confirmed
 
-For each element, rate its importance to the album's sound on a scale of 1-10, with 10 being extremely important. Provide specific examples from the input album for each characteristic. Be specific about electronic music genres, avoiding overgeneralization. For house music, particularly styles like South African house, emphasize its energizing qualities.
+       When in doubt, replace an uncertain pick with an older, well-documented
+       release you are certain about. A correct boring pick beats a fabricated
+       exciting one.
 
-List out each characteristic with its importance rating and example, numbering them for clarity. It's OK for this section to be quite long.
+    2. NO SINGLES. LPs, EPs, and mixtapes are all acceptable.
 
-2. Search for similar albums:
-In <recommendation_search> tags, document your process of finding and scoring similar albums:
+    3. PRESERVE ORIGINAL TITLE LANGUAGE
+       Use the title as originally released. Do not translate Japanese,
+       Portuguese, French, Zulu, etc. titles into English.
 
-a) Create a scoring rubric based on your analysis, assigning point values to each characteristic based on its importance.
+    4. SPECIFIC GENRES
+       Never use bare "pop", "rock", "jazz", "electronic", "hip hop", or "r&b".
+       Use precise subgenre labels: "amapiano", "broken beat", "spiritual
+       jazz", "city pop", "deep house", "gqom", "Afro-tech", "kwaito",
+       "UK bass", "shoegaze", "post-punk", etc.
 
-b) For each potential recommendation:
-- Apply the scoring rubric, explaining your reasoning for each point awarded
-- Calculate a total "similarity score" based on how well it matches the important elements from your analysis
-- Prioritize albums with comparable musical qualities, deeper cuts, overlooked records, side projects by related producers, and albums that a fan of the given album would likely obsess over
-- Explicitly check that recommended albums are not just similarly named but musically similar to the input album
+    ==================================================================
+    PROCESS
+    ==================================================================
 
-c) List at least 15 potential recommendations with their similarity scores and point breakdowns
+    Step 1 — Analyze the input album
+    In <album_analysis> tags:
+      a) State the album's artist, year, label, and primary scene/region.
+         Assign your existence confidence for the INPUT album (1-10). If
+         below 8, say so and stop — do not invent recommendations for an
+         album you cannot verify.
+      b) Rate each of the following 1-10 for how central it is to the
+         album's identity, with a one-line concrete example from the record:
+           - Mood/atmosphere
+           - Production style (analog/digital, lo-fi/hi-fi, dry/reverb-soaked)
+           - Rhythmic character (BPM range, swing, polyrhythm, log drum, etc.)
+           - Instrumentation and timbre
+           - Vocal treatment (if any)
+           - Structural/arrangement tendencies (track length, builds, repetition)
+           - Regional/scene influence (specific: "Pretoria amapiano",
+             "Detroit second-wave techno", "Bristol post-trip-hop")
+           - Genre fusions or unusual elements
 
-3. Generate and format recommendations:
-Present the top 10 album recommendations based on your similarity scoring. Use the following format for each recommendation:
+    Step 2 — Generate candidates with confidence scoring
+    In <recommendation_search> tags:
+      a) Build a similarity rubric weighted by the importance ratings above.
+      b) Propose 18-25 candidate releases. For EACH candidate, output exactly:
 
-<recommendations>
-<album>
-    <title>Album Name</title>
-    <artist>Artist Name</artist>
-    <year>Year</year>
-    <genre>Primary Genre</genre>
-    <explanation>1-2 short sentences on why this matches the input album's qualities</explanation>
-</album>
-<!-- Repeat for all 10 recommendations -->
-</recommendations>
+         Title | Artist | Year | Label | Format (LP / EP / mixtape)
+         Existence confidence: N/10
+         Evidence: <one specific fact anchoring this release in your knowledge —
+           e.g., "follow-up to <prior album>, released on <label>",
+           "produced by <name>, features <track>", "won <award> in <year>".
+           Vague evidence ("I've heard of this") caps confidence at 7.>
+         Similarity score: N/10
+         Similarity reasoning: <one sentence>
 
-CRITICAL RULES:
-- Only recommend full-length studio albums (LPs), NOT singles or EPs
-- Focus on hidden gems and lesser-known releases
-- Emphasize musical similarities over superficial genre categorization
-- Be specific about genres and subgenres
-- Provide specific, concrete details rather than vague descriptions
-- For album titles: use the title as it was originally released. If the original release title is in English, use English. If it is in Japanese, use Japanese. If it is in another language, use that language. Do NOT translate titles to English unless the original release was in English.
-- Do NOT use placeholder or example data like "Example Album" or "Example Artist". Provide REAL album titles and artist names only. Every recommendation must be an actual released album that exists.
+      c) Calibration guide for existence confidence:
+           10    = Canonical release you can describe in detail (specific
+                   tracks, production credits, reception)
+           8-9   = Confident: you know the artist's discography well and
+                   this release fits, with at least one specific anchoring fact
+           6-7   = Probable but hazy: you recognize artist + general era
+                   but cannot cite specifics. NOT ELIGIBLE for final list.
+           3-5   = Plausible guess based on pattern-matching scene
+                   conventions. NOT ELIGIBLE.
+           1-2   = Likely fabricated. NOT ELIGIBLE.
 
-Ensure that your recommendations are diverse while still maintaining a strong connection to the original album's qualities. Focus on albums that share musical similarities rather than just belonging to the same genre. Look for hidden gems and lesser-known releases that true fans of the given album would appreciate."""
+         Be honest. It is better to score yourself a 7 and drop the pick
+         than to inflate to 9 and ship a fabrication.
+
+      d) Drop every candidate scoring below 8 on existence. If this leaves
+         fewer than 10, generate more candidates until you have 10 that all
+         score 8+. Do not lower the threshold.
+
+      e) Verify each survivor is musically similar to the input, not just
+         superficially adjacent (shared label, scene, or collaborator does
+         not by itself mean musically similar).
+
+    Step 3 — Output the final 10
+    Use exactly this format. No commentary outside the tags.
+
+    <recommendations>
+    <album>
+        <title>Real Release Title</title>
+        <artist>Real Artist Name</artist>
+        <year>YYYY</year>
+        <genre>Specific subgenre</genre>
+        <explanation>2 sentences citing concrete shared musical traits —
+        name production techniques, instrumentation, rhythmic feel, or
+        arrangement choices. Do NOT use the words "similar", "like",
+        "same vibe", or "feels like".</explanation>
+    </album>
+    ... (10 total)
+    </recommendations>
+
+    ==================================================================
+    SELF-CHECK BEFORE RETURNING
+    ==================================================================
+
+    [ ] All 10 entries scored 8+ on existence confidence
+    [ ] No labels or collectives listed as artists
+    [ ] No translated titles
+    [ ] No generic single-word genres
+    [ ] At least 8 distinct artists across the 10 picks
+    [ ] Year range spans more than 5 years
+    [ ] Each explanation names concrete musical details, not vibes
+    [ ] No explanation contains "similar", "like", "same", "vibe", "feels like"
+
+    If any check fails, fix it before returning."""
 
     def parse_recommendations(self, response_text: str) -> list[AlbumData]:
         """Parse the XML"""
