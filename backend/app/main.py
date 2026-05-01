@@ -555,7 +555,15 @@ def fuzzy_match(query: str, target: str, threshold: float = 0.65) -> bool:
 
 
 async def verify_album_exists(title: str, artist: str) -> bool:
-    """Verify album exists on Spotify or Discogs."""
+    """Verify album exists on Spotify or Discogs.
+
+    Returns False only when APIs respond successfully but find no match.
+    Returns True when APIs fail (network, rate limit, timeout) to avoid
+    false negatives blocking real recommendations.
+    """
+    # Track whether we actually performed a successful search
+    searched = False
+
     spotify_access_token = get_spotify_token()
 
     if spotify_access_token:
@@ -566,9 +574,10 @@ async def verify_album_exists(title: str, artist: str) -> bool:
                 headers = {"Authorization": f"Bearer {spotify_access_token}"}
                 params = {"q": search_query, "type": "album", "limit": 5}
 
-                response = await client.get(search_url, headers=headers, params=params, timeout=10.0)
+                response = await client.get(search_url, headers=headers, params=params, timeout=5.0)
 
                 if response.status_code == 200:
+                    searched = True
                     data = response.json()
                     albums = data.get("albums", {}).get("items", [])
 
@@ -586,7 +595,8 @@ async def verify_album_exists(title: str, artist: str) -> bool:
                         if title_match and artist_match:
                             return True
         except Exception as e:
-            logger.error(f"Spotify verification error: {e}")
+            logger.warning(f"Spotify verification failed (network/error), assuming album is real: {e}")
+            return True
 
     discogs_key = os.getenv("DISCOGS_KEY")
     discogs_secret = os.getenv("DISCOGS_SECRET")
@@ -605,9 +615,14 @@ async def verify_album_exists(title: str, artist: str) -> bool:
                 }
                 headers = {"User-Agent": "DeepCuts/1.0 (contact@deepcuts.com)"}
 
-                response = await client.get(url, params=params, headers=headers, timeout=10.0)
+                response = await client.get(url, params=params, headers=headers, timeout=5.0)
+
+                if response.status_code == 429:
+                    logger.warning("Discogs rate limit hit during verification, assuming album is real")
+                    return True
 
                 if response.status_code == 200:
+                    searched = True
                     data = response.json()
                     results = data.get("results", [])
 
@@ -630,10 +645,15 @@ async def verify_album_exists(title: str, artist: str) -> bool:
                             if title_match and artist_match:
                                 return True
         except Exception as e:
-            logger.error(f"Discogs verification error: {e}")
+            logger.warning(f"Discogs verification failed (network/error), assuming album is real: {e}")
+            return True
 
-    logger.warning(f"Could not verify album exists: {title} by {artist}")
-    return False
+    if searched:
+        logger.info(f"Album not found after searching: {title} by {artist}")
+        return False
+
+    logger.warning(f"No verification APIs available, assuming album is real: {title} by {artist}")
+    return True
 
 
 @app.post("/api/v1/search")
@@ -1019,6 +1039,16 @@ async def remove_favorite(
 ) -> FavoriteActionResponse:
     """Remove an album"""
     return await favorites_service.remove_album(user_id, album_id)
+
+
+@app.patch("/api/v1/favorites/update/{album_id}")
+async def update_favorite(
+    album_id: str,
+    request: AddToFavoritesRequest,
+    user_email: str = Depends(get_current_user)
+) -> FavoriteActionResponse:
+    """Update album metadata for a favorite."""
+    return await favorites_service.update_favorite(user_email, album_id, request.album_data)
 
 
 @app.get("/api/v1/favorites")

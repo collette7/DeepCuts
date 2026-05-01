@@ -190,6 +190,37 @@ class FavoritesService:
         """Remove album method for authenticated endpoints"""
         return await self.remove_from_favorites(user_id, album_id)
 
+    async def update_favorite(self, user_email: str, album_id: str, album_data: dict) -> FavoriteActionResponse:
+        """Update album metadata for a favorite entry."""
+        try:
+            user_result = self.supabase.table('users').select('id').eq('email', user_email).execute()
+            if not user_result.data:
+                return FavoriteActionResponse(success=False, message="User not found")
+
+            user_uuid = user_result.data[0]['id']
+
+            fav_result = self.supabase.table('favorites').select('id').eq('user_id', user_uuid).eq('album_id', album_id).execute()
+            if not fav_result.data:
+                return FavoriteActionResponse(success=False, message="Favorite not found")
+
+            update_data = {}
+            if 'spotify_url' in album_data:
+                update_data['spotify_url'] = album_data['spotify_url']
+            if 'spotify_preview_url' in album_data:
+                update_data['spotify_preview_url'] = album_data['spotify_preview_url']
+            if 'discogs_url' in album_data:
+                update_data['discogs_id'] = album_data['discogs_url']
+            if 'cover_url' in album_data:
+                update_data['cover_url'] = album_data['cover_url']
+
+            if update_data:
+                self.supabase.table('albums').update(update_data).eq('id', album_id).execute()
+
+            return FavoriteActionResponse(success=True, message="Favorite updated")
+        except Exception as e:
+            print(f"Error updating favorite: {e}")
+            return FavoriteActionResponse(success=False, message=f"Failed to update favorite: {str(e)}")
+
     async def get_favorites_with_album_details(self, user_email: str, user_token: str = None):
         """Get favorites with details method for authenticated endpoints"""
         try:
