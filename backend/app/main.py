@@ -869,44 +869,55 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
                 seen_titles = set()
 
                 for result in data.get("results", []):
-                    if "title" in result:
-                        raw_title = result["title"]
+                    if "title" not in result:
+                        continue
 
-                        if " - " not in raw_title:
-                            continue
+                    raw_title = result["title"]
 
-                        full_title = clean_discogs_title(raw_title)
+                    if " - " not in raw_title:
+                        continue
 
-                        if " - " in full_title:
-                            artist_part = full_title.split(" - ", 1)[0].strip()
-                            album_only = full_title.split(" - ", 1)[1].strip()
-                            display_title = album_only
-                        else:
-                            artist_part = ""
-                            display_title = full_title
+                    full_title = clean_discogs_title(raw_title)
 
-                        if full_title.lower() in seen_titles:
-                            continue
-                        seen_titles.add(full_title.lower())
+                    if " - " in full_title:
+                        artist_part = full_title.split(" - ", 1)[0].strip()
+                        album_only = full_title.split(" - ", 1)[1].strip()
+                        display_title = album_only
+                    else:
+                        artist_part = ""
+                        display_title = full_title
 
-                        result["title"] = display_title
-                        result["artist"] = artist_part
-                        result["search_query"] = full_title
-                    cleaned_results.append(SuggestionResult(**result))
+                    if full_title.lower() in seen_titles:
+                        continue
+                    seen_titles.add(full_title.lower())
+
+                    try:
+                        cleaned_results.append(SuggestionResult(
+                            id=result.get("id", 0),
+                            type=result.get("type", "release"),
+                            title=display_title,
+                            artist=artist_part,
+                            search_query=full_title,
+                            year=str(result.get("year", "")),
+                            thumb=result.get("thumb")
+                        ))
+                    except Exception as model_error:
+                        logger.warning(f"Skipping invalid Discogs result: {model_error}")
+                        continue
 
                 return SuggestionResponse(
                     results=cleaned_results,
                     pagination=data.get("pagination", {})
                 )
             else:
+                logger.error(f"Discogs API returned {response.status_code}: {response.text[:200]}")
                 raise HTTPException(status_code=response.status_code, detail="Discogs API error")
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Discogs search error for '{request.query}': {e}")
-        return SuggestionResponse(
-            results=[],
-            pagination={"per_page": request.per_page, "pages": 0, "page": 1, "items": 0}
-        )
+        logger.error(f"Discogs search error for '{request.query}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Search service temporarily unavailable")
 
 
 def get_current_user(authorization: str = Header(None)) -> str:

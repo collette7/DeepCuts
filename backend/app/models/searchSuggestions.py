@@ -12,8 +12,8 @@ class SuggestionRequest(BaseModel):
 
 class SuggestionResult(BaseModel):
     """Individual search suggestion result"""
-    id: int
-    type: str
+    id: int = 0
+    type: str = "release"
     title: str
     artist: str | None = None
     search_query: str
