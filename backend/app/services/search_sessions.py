@@ -25,17 +25,25 @@ class SearchSessionService:
         ai_model: str | None = None,
         raw_results_count: int = 0,
         filtered_count: int = 0,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        raw_response: str | None = None,
     ) -> str | None:
+        if not albums:
+            return None
         try:
             session_data = {
                 "query": query,
                 "user_email": user_email,
+                "ip_address": ip_address,
+                "user_agent": user_agent,
                 "ai_model": ai_model,
                 "results_count": len(albums),
                 "raw_results_count": raw_results_count,
                 "filtered_count": filtered_count,
+                "raw_response": raw_response,
             }
-            result = self.supabase.table("search_sessions").insert(session_data).execute()
+            result = self.supabase.table("search_input").insert(session_data).execute()
             if not result.data:
                 return None
             session_id = result.data[0]["id"]
@@ -54,7 +62,7 @@ class SearchSessionService:
                     if a.title and a.artist
                 ]
                 if album_rows:
-                    self.supabase.table("search_session_albums").insert(album_rows).execute()
+                    self.supabase.table("search_output").insert(album_rows).execute()
 
             return session_id
 
@@ -129,10 +137,10 @@ class SearchSessionService:
     ) -> list[dict[str, Any]]:
         try:
             q = (
-                self.supabase.table("search_sessions")
+                self.supabase.table("search_input")
                 .select(
                     "id, query, user_email, ai_model, results_count, raw_results_count, filtered_count, created_at,"
-                    " search_session_albums(id, album_title, album_artist, album_year, album_genre, rank, is_verified, verification_source),"
+                    " search_output(id, album_title, album_artist, album_year, album_genre, rank, is_verified, verification_source),"
                     " search_session_clicks!inner(id, album_title, album_artist, action, created_at)"
                 )
                 .order("created_at", desc=True)
@@ -149,10 +157,10 @@ class SearchSessionService:
     def get_session_analytics(self, session_id: str) -> dict[str, Any]:
         try:
             session = (
-                self.supabase.table("search_sessions")
+                self.supabase.table("search_input")
                 .select(
                     "*,"
-                    " search_session_albums(id, album_title, album_artist, album_year, album_genre, rank, is_verified, verification_source),"
+                    " search_output(id, album_title, album_artist, album_year, album_genre, rank, is_verified, verification_source),"
                     " search_session_clicks(id, album_title, album_artist, action, created_at),"
                     " search_session_filtered_albums(id, album_title, album_artist, filter_reason)"
                 )

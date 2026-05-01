@@ -2,6 +2,7 @@ import logging
 import os
 import re
 import uuid
+from dataclasses import dataclass
 from typing import Any
 
 import anthropic
@@ -10,6 +11,12 @@ from app.models.albums import AlbumData
 from app.services.render_api import update_render_env_var
 
 logger = logging.getLogger('deepcuts')
+
+
+@dataclass
+class RecommendationResult:
+    albums: list[AlbumData]
+    raw_response: str
 
 # Known valid models - update these when providers deprecate/add models
 # Source: https://docs.anthropic.com/en/docs/about-claude/models/overview
@@ -335,7 +342,7 @@ Present your final recommendations in <recommendations> tags using this exact XM
 
         return recommendations
 
-    async def get_album_recommendations(self, album_name: str, feedback: str = "") -> list[AlbumData]:
+    async def get_album_recommendations(self, album_name: str, feedback: str = "") -> RecommendationResult:
         try:
             prompt = self.get_recommendation_prompt(album_name)
 
@@ -363,11 +370,11 @@ Present your final recommendations in <recommendations> tags using this exact XM
             recommendations = self.parse_recommendations(response_text)
             logger.info(f"Parsed {len(recommendations)} recommendations from AI response")
 
-            return recommendations
+            return RecommendationResult(albums=recommendations, raw_response=response_text)
 
         except Exception as e:
             logger.error(f"Error getting recommendations from AI: {e}", exc_info=True)
-            return []
+            return RecommendationResult(albums=[], raw_response="")
 
 
 async def set_active_model(model_id: str) -> dict[str, Any]:
