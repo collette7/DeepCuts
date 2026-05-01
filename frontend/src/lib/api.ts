@@ -83,25 +83,24 @@ class ApiClient {
         }
     }
 
-    async searchDiscogs(query: string) {
-        //Search Discogs for autocomplete
+    async searchDiscogs(query: string, signal?: AbortSignal) {
         try {
-            // Sanitize query input
             const sanitizedQuery = query.trim().slice(0, 200);
             if (!sanitizedQuery) {
                 throw new Error('Query cannot be empty');
             }
-            
+
             const response = await fetch(`${API_BASE_URL}/api/v1/discogs/search`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     query: sanitizedQuery,
                     type: 'release',
-                    per_page: 10 
-                })
+                    per_page: 10
+                }),
+                signal
             });
 
             if (!response.ok) {
