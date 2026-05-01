@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import re
@@ -666,7 +667,7 @@ async def search_albums(
         raise HTTPException(status_code=503, detail=safe_error_message(ready_error))
 
     try:
-        max_attempts = 5
+        max_attempts = 3
         attempt = 0
         best_recommendations: list[AlbumData] = []
         best_filtered: list[dict[str, str]] = []
@@ -675,9 +676,16 @@ async def search_albums(
         feedback = ""
         ai_error = None
 
+        # Global 45-second timeout for entire search operation
+        search_deadline = time.time() + 45
+
         while attempt < max_attempts:
             attempt += 1
             logger.info(f"AI recommendation attempt {attempt}/{max_attempts}")
+
+            if time.time() > search_deadline:
+                logger.warning("Search deadline exceeded, returning best effort results")
+                break
 
             result = await ai_service.get_album_recommendations(request.query, feedback)
             recommendations = result.albums
@@ -694,20 +702,29 @@ async def search_albums(
                     ai_error = verify.get("error", "AI model returned no response")
                 break
 
-            # Verify each album exists on Discogs/Spotify, filter out fakes
+            # Verify all albums in parallel (was sequential — 10× slower)
+            verification_tasks = [
+                verify_album_exists(album.title, album.artist)
+                for album in recommendations
+            ]
+            verification_results = await asyncio.gather(*verification_tasks, return_exceptions=True)
+
             filtered_albums: list[dict[str, str]] = []
             verified_recommendations: list[AlbumData] = []
             verified_map: dict[str, bool] = {}
 
-            for album in recommendations:
-                is_verified = await verify_album_exists(album.title, album.artist)
+            for album, result in zip(recommendations, verification_results):
                 album_key = f"{album.title} by {album.artist}"
+                is_verified = result if not isinstance(result, Exception) else False
                 verified_map[album_key] = is_verified
 
                 if is_verified:
                     verified_recommendations.append(album)
                 else:
-                    logger.info(f"Filtered out fake album: {album.title} by {album.artist}")
+                    if isinstance(result, Exception):
+                        logger.warning(f"Verification error for {album.title}: {result}")
+                    else:
+                        logger.info(f"Filtered out fake album: {album.title} by {album.artist}")
                     filtered_albums.append({
                         "title": album.title,
                         "artist": album.artist,
@@ -864,7 +881,7 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
             }
 
             logger.info(f"Calling Discogs API: {url} with query='{request.query}'")
-            response = await client.get(url, params=params, headers=headers, timeout=10.0)
+            response = await client.get(url, params=params, headers=headers, timeout=5.0)
             logger.info(f"Discogs API response status: {response.status_code}")
 
             if response.status_code == 200:
