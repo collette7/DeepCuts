@@ -917,7 +917,7 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
         raise
     except Exception as e:
         logger.error(f"Discogs search error for '{request.query}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Search service temporarily unavailable")
+        raise HTTPException(status_code=500, detail="Search service temporarily unavailable") from e
 
 
 def get_current_user(authorization: str = Header(None)) -> str:
