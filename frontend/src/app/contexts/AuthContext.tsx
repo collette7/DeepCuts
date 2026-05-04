@@ -70,7 +70,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     )
 
-    return () => subscription.unsubscribe()
+    // Listen for session expiration events from API client
+    const handleSessionExpired = () => {
+      clearSession()
+    }
+    window.addEventListener('auth:sessionExpired', handleSessionExpired)
+
+    return () => {
+      subscription.unsubscribe()
+      window.removeEventListener('auth:sessionExpired', handleSessionExpired)
+    }
   }, [])
 
   const signUp = async (email: string, password?: string) => {
