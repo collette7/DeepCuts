@@ -158,6 +158,33 @@ async def verify_ai_model():
         }
 
 
+@app.get("/api/v1/health/ai/claude-test")
+async def test_claude_key():
+    """Diagnose why the Claude API key is failing."""
+    import os
+    key = os.getenv("CLAUDE_API_KEY")
+    if not key:
+        return {"status": "error", "message": "CLAUDE_API_KEY env var is not set"}
+
+    if not key.startswith("sk-ant-"):
+        return {"status": "error", "message": f"Key format looks wrong. Expected 'sk-ant-' prefix, got '{key[:10]}...'"}
+
+    try:
+        client = anthropic.Anthropic(api_key=key)
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=5,
+            messages=[{"role": "user", "content": "hi"}]
+        )
+        return {"status": "ok", "message": "Claude key is valid and working", "response": msg.content[0].text}
+    except anthropic.AuthenticationError as e:
+        return {"status": "error", "message": "Authentication failed — key is invalid or revoked", "detail": str(e)}
+    except anthropic.NotFoundError as e:
+        return {"status": "error", "message": "Model not found — key may be valid but model ID is wrong", "detail": str(e)}
+    except Exception as e:
+        return {"status": "error", "message": f"Unexpected error: {type(e).__name__}", "detail": str(e)}
+
+
 @app.post("/api/v1/health/ai/auto-fix")
 async def auto_fix_ai_model():
     result = await ai_service.find_working_model()
