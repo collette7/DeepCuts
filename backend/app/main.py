@@ -5,6 +5,7 @@ import re
 import time
 from typing import Any
 
+import anthropic
 import httpx
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
