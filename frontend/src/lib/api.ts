@@ -3,6 +3,16 @@ import { handleAuthError, isRefreshTokenError } from './auth-error-handler';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 class ApiClient {
+    private async handleSessionExpired(): Promise<void> {
+        const { supabase } = await import('@/lib/supabase');
+        await supabase.auth.signOut();
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('supabase.auth.token');
+            sessionStorage.removeItem('supabase.auth.token');
+            window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
+        }
+    }
+
     private async getAuthHeaders(): Promise<HeadersInit> {
         const headers: Record<string, string> = {
             'Content-Type': 'application/json'
@@ -120,6 +130,7 @@ class ApiClient {
 
             if (!response.ok) {
                 if (response.status === 401) {
+                    await this.handleSessionExpired();
                     throw new Error('Session expired. Please sign in again to save favorites.');
                 }
                 const errorData = await response.json().catch(() => null);
