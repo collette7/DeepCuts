@@ -445,12 +445,31 @@ class AIService:
 
         return recommendations
 
-    async def get_album_recommendations(self, album_name: str, feedback: str = "") -> RecommendationResult:
+    async def get_album_recommendations(
+        self,
+        album_name: str,
+        feedback: str = "",
+        exclude: list[str] | None = None,
+    ) -> RecommendationResult:
         try:
             prompt = self.get_recommendation_prompt(album_name)
 
             if feedback:
                 prompt += f"\n\n{feedback}"
+
+            if exclude:
+                formatted = []
+                for key in exclude:
+                    if "|" in key:
+                        t, a = key.split("|", 1)
+                        formatted.append(f"- {t.strip()} by {a.strip()}")
+                    else:
+                        formatted.append(f"- {key.strip()}")
+                prompt += (
+                    "\n\nDo NOT recommend any of these albums (the user has already seen them):\n"
+                    + "\n".join(formatted)
+                    + "\n\nReturn entirely new recommendations."
+                )
 
             if self.is_gemini:
                 response = self.client.generate_content(prompt)
