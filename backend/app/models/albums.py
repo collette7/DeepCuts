@@ -59,6 +59,15 @@ class SearchRequest(BaseModel):
         default=True,
         description="Include Discogs marketplace links"
     )
+    exclude: list[str] = Field(
+        default_factory=list,
+        max_length=100,
+        description=(
+            "Album keys formatted as 'title|artist' to exclude from results. "
+            "Used by the 'find more results' flow to avoid returning albums the "
+            "user has already seen."
+        ),
+    )
 
 
 class SearchResponse(BaseModel):
@@ -71,3 +80,19 @@ class SearchResponse(BaseModel):
     total_found: int = Field(..., description="Total number")
     processing_time_ms: int = Field(..., description="Time taken to process request")
     session_id: str | None = Field(None, description="Search session ID for analytics")
+    attempted_count: int = Field(
+        default=0,
+        description="Number of albums the AI returned before verification.",
+    )
+    verified_count: int = Field(
+        default=0,
+        description="Number of albums that passed Spotify/Discogs verification (= len(recommendations)).",
+    )
+    filtered: list[dict[str, str]] = Field(
+        default_factory=list,
+        description=(
+            "Albums the AI returned but verification rejected, with 'title', "
+            "'artist', and 'reason'. Useful for showing 'we excluded N likely-fake "
+            "results' in the UI."
+        ),
+    )
