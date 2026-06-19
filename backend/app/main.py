@@ -24,7 +24,6 @@ from app.services.ai import (
     get_model_info,
     set_active_model,
 )
-from app.services.evaluator import evaluator
 from app.services.favorites import favorites_service
 from app.services.search_sessions import search_session_service
 
@@ -715,109 +714,62 @@ async def search_albums(
         raise HTTPException(status_code=503, detail=safe_error_message(ready_error))
 
     try:
-        max_attempts = 3
-        attempt = 0
-        best_recommendations: list[AlbumData] = []
-        best_filtered: list[dict[str, str]] = []
-        best_raw_count = 0
-        best_raw_response = ""
-        feedback = ""
         ai_error = None
-
-        # Global 45-second timeout for entire search operation
         search_deadline = time.time() + 45
 
-        while attempt < max_attempts:
-            attempt += 1
-            logger.info(f"AI recommendation attempt {attempt}/{max_attempts}")
+        if time.time() > search_deadline:
+            raise HTTPException(status_code=504, detail="Search timed out before starting.")
 
-            if time.time() > search_deadline:
-                logger.warning("Search deadline exceeded, returning best effort results")
-                break
-
-            result = await ai_service.get_album_recommendations(request.query, feedback)
-            recommendations = result.albums
-            raw_response = result.raw_response
-            raw_count = len(recommendations)
-
-            if not recommendations or raw_count == 0:
-                logger.warning(f"No recommendations from AI for query: {request.query}")
-                if attempt < max_attempts:
-                    feedback = "Your previous response contained no valid recommendations. Please provide 10 real albums."
-                    continue
-                verify = await ai_service.verify_model_exists()
-                if not verify["valid"]:
-                    ai_error = verify.get("error", "AI model returned no response")
-                break
-
-            # Verify all albums in parallel (was sequential — 10× slower)
-            verification_tasks = [
-                verify_album_exists(album.title, album.artist)
-                for album in recommendations
-            ]
-            verification_results = await asyncio.gather(*verification_tasks, return_exceptions=True)
-
-            filtered_albums: list[dict[str, str]] = []
-            verified_recommendations: list[AlbumData] = []
-            verified_map: dict[str, bool] = {}
-
-            for album, result in zip(recommendations, verification_results):
-                album_key = f"{album.title} by {album.artist}"
-                is_verified = result if not isinstance(result, Exception) else False
-                verified_map[album_key] = is_verified
-
-                if is_verified:
-                    verified_recommendations.append(album)
-                else:
-                    if isinstance(result, Exception):
-                        logger.warning(f"Verification error for {album.title}: {result}")
-                    else:
-                        logger.info(f"Filtered out fake album: {album.title} by {album.artist}")
-                    filtered_albums.append({
-                        "title": album.title,
-                        "artist": album.artist,
-                        "reason": "not_found",
-                    })
-
-            removed_count = raw_count - len(verified_recommendations)
-            if removed_count > 0:
-                logger.info(f"Removed {removed_count} fake albums from {raw_count} AI recommendations")
-
-            if len(verified_recommendations) > len(best_recommendations):
-                best_recommendations = verified_recommendations
-                best_filtered = filtered_albums
-                best_raw_count = raw_count
-                best_raw_response = raw_response
-
-            if len(verified_recommendations) == 10:
-                best_recommendations = verified_recommendations
-                best_filtered = filtered_albums
-                best_raw_count = raw_count
-                best_raw_response = raw_response
-                logger.info("Achieved 10 verified albums")
-                break
-
-            if attempt < max_attempts:
-                if not verified_recommendations:
-                    feedback = "All albums failed verification. Please provide real, verifiable albums."
-                else:
-                    evaluation = evaluator.evaluate(
-                        recommendations,
-                        request.query,
-                        verified_map=verified_map
-                    )
-                    feedback = evaluator.get_feedback_prompt(recommendations, evaluation)
-                    logger.info(f"Retrying with feedback: {feedback[:200]}...")
-            else:
-                logger.warning(f"Max attempts reached. Using best effort with {len(best_recommendations)} verified albums.")
-
-        recommendations = best_recommendations
-        filtered_albums = best_filtered
-        raw_count = best_raw_count
-        raw_response = best_raw_response
+        result = await ai_service.get_album_recommendations(
+            request.query,
+            exclude=request.exclude,
+        )
+        recommendations: list[AlbumData] = result.albums
+        raw_response = result.raw_response
+        raw_count = len(recommendations)
 
         if not recommendations:
-            detail = ai_error or "AI service returned no recommendations. Check your model configuration."
+            verify = await ai_service.verify_model_exists()
+            if not verify["valid"]:
+                ai_error = verify.get("error", "AI model returned no response")
+            else:
+                ai_error = "AI returned no recommendations for this query. Try rephrasing."
+            raise HTTPException(status_code=503, detail=safe_error_message(ai_error))
+
+        excluded_keys = {key.strip().lower() for key in request.exclude}
+        if excluded_keys:
+            recommendations = [
+                a for a in recommendations
+                if f"{a.title}|{a.artist}".lower() not in excluded_keys
+            ]
+
+        verification_tasks = [
+            verify_album_exists(album.title, album.artist)
+            for album in recommendations
+        ]
+        verification_results = await asyncio.gather(*verification_tasks, return_exceptions=True)
+
+        filtered_albums: list[dict[str, str]] = []
+        verified_recommendations: list[AlbumData] = []
+
+        for album, vr in zip(recommendations, verification_results, strict=True):
+            is_verified = vr if not isinstance(vr, Exception) else False
+            if is_verified:
+                verified_recommendations.append(album)
+            else:
+                if isinstance(vr, Exception):
+                    logger.warning(f"Verification error for {album.title}: {vr}")
+                filtered_albums.append({
+                    "title": album.title,
+                    "artist": album.artist,
+                    "reason": "not_found",
+                })
+
+        recommendations = verified_recommendations
+        raw_count_after_filter = raw_count
+
+        if not recommendations:
+            detail = ai_error or "AI service returned no verifiable recommendations."
             raise HTTPException(status_code=503, detail=safe_error_message(detail))
 
         # Convert to AlbumData format
@@ -870,6 +822,9 @@ async def search_albums(
         total_found=len(limited_recommendations),
         processing_time_ms=processing_time,
         session_id=session_id,
+        attempted_count=raw_count_after_filter,
+        verified_count=len(limited_recommendations),
+        filtered=filtered_albums,
     )
 
 
