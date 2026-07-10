@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 
@@ -175,6 +177,25 @@ class TestEscapeFilterValue:
 
     def test_apostrophe_needs_no_escaping_for_double_quoted_filter(self):
         assert escape_filter_value("Guns N' Roses") == '"Guns N\' Roses"'
+
+
+class TestRequestPasswordReset:
+    async def test_sends_reset_request(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/collections/users/request-password-reset"
+            assert json.loads(request.content) == {"email": "a@b.com"}
+            return httpx.Response(204)
+
+        client = make_client(handler)
+        await client.request_password_reset("users", "a@b.com")
+
+    async def test_raises_on_failure(self):
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(400, json={"message": "invalid email"})
+
+        client = make_client(handler)
+        with pytest.raises(PocketBaseError):
+            await client.request_password_reset("users", "a@b.com")
 
 
 class TestCollectionHelpers:

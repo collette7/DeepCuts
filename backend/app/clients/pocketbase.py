@@ -112,6 +112,18 @@ class PocketBaseClient:
             return None
         return response.json().get("record")
 
+    async def request_password_reset(self, collection: str, email: str) -> None:
+        """Trigger PocketBase's password-reset email for an auth collection record."""
+        response = await self._send(
+            "POST",
+            f"/api/collections/{collection}/request-password-reset",
+            json={"email": email},
+        )
+        if response.status_code not in (200, 204):
+            raise PocketBaseError(
+                f"Failed to request password reset for {email}: {response.status_code} {response.text}"
+            )
+
     # --- Generic collection helpers ---
 
     async def list_records(self, collection: str, **params: Any) -> list[dict[str, Any]]:
