@@ -189,6 +189,39 @@ class TestGetUserFavorites:
         assert result.success is True
         assert result.total == 0
 
+    async def test_returns_all_favorites_beyond_a_single_page(self):
+        # Regression test: get_user_favorites must page through every
+        # result, not just PocketBase's default 30-per-page. A user with
+        # more favorites than one page previously never saw the rest.
+        pages = {
+            1: {
+                "items": [
+                    {"id": f"fav-{i}", "created": "2026-01-01", "expand": {"album": {"id": f"a{i}", "title": f"T{i}", "artist": "X"}}}
+                    for i in range(30)
+                ],
+                "page": 1,
+                "totalPages": 2,
+            },
+            2: {
+                "items": [
+                    {"id": "fav-30", "created": "2026-01-01", "expand": {"album": {"id": "a30", "title": "T30", "artist": "X"}}}
+                ],
+                "page": 2,
+                "totalPages": 2,
+            },
+        }
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/api/collections/favorites/records":
+                page = int(request.url.params.get("page", "1"))
+                return httpx.Response(200, json=pages[page])
+            raise AssertionError(f"unexpected request: {request.method} {request.url.path}")
+
+        service = make_service(admin_auth_or(handler))
+        result = await service.get_user_favorites("user-1")
+
+        assert result.total == 31
+
 
 class TestUpdateFavorite:
     async def test_updates_album_fields_for_owned_favorite(self):
