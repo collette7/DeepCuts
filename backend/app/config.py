@@ -9,9 +9,9 @@ class Settings:
     PROJECT_VERSION: str = "0.0.1"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
 
-    SUPABASE_URL: str | None = os.getenv("SUPABASE_URL")
-    SUPABASE_PUBLISHABLE_KEY: str | None = os.getenv("SUPABASE_PUBLISHABLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
-    SUPABASE_SECRET_KEY: str | None = os.getenv("SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    POCKETBASE_URL: str | None = os.getenv("POCKETBASE_URL")
+    POCKETBASE_ADMIN_EMAIL: str | None = os.getenv("POCKETBASE_ADMIN_EMAIL")
+    POCKETBASE_ADMIN_PASSWORD: str | None = os.getenv("POCKETBASE_ADMIN_PASSWORD")
 
     # CORS settings
     def get_cors_origins(self) -> list[str]:

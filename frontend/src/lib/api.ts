@@ -1,42 +1,29 @@
 import { handleAuthError, isRefreshTokenError } from './auth-error-handler';
+import { pb } from './pocketbase';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 class ApiClient {
-    private async handleSessionExpired(): Promise<void> {
-        const { supabase } = await import('@/lib/supabase');
-        await supabase.auth.signOut();
+    private handleSessionExpired(): void {
+        pb.authStore.clear();
         if (typeof window !== 'undefined') {
-            localStorage.removeItem('supabase.auth.token');
-            sessionStorage.removeItem('supabase.auth.token');
             window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
         }
     }
 
-    private async getAuthHeaders(): Promise<HeadersInit> {
+    private getAuthHeaders(): HeadersInit {
         const headers: Record<string, string> = {
             'Content-Type': 'application/json'
         };
 
         try {
-            const { supabase } = await import('@/lib/supabase');
-            const { data: { session }, error } = await supabase.auth.getSession();
-
-            if (error) {
-                console.warn('Auth session error:', error);
-                if (isRefreshTokenError(error)) {
-                    await handleAuthError(error);
-                }
-                return headers;
-            }
-
-            if (session?.access_token) {
-                headers['Authorization'] = `Bearer ${session.access_token}`;
+            if (pb.authStore.isValid && pb.authStore.token) {
+                headers['Authorization'] = `Bearer ${pb.authStore.token}`;
             }
         } catch (error) {
             console.error('Error getting auth headers:', error);
             if (isRefreshTokenError(error)) {
-                await handleAuthError(error);
+                handleAuthError(error);
             }
         }
 
@@ -120,7 +107,7 @@ class ApiClient {
         try {
             const response = await fetch(`${API_BASE_URL}/api/v1/favorites/add`, {
                 method: 'POST',
-                headers: await this.getAuthHeaders(),
+                headers: this.getAuthHeaders(),
                 body: JSON.stringify({ 
                     album_data: albumData,
                     source_album_data: sourceAlbumData,
@@ -130,7 +117,7 @@ class ApiClient {
 
             if (!response.ok) {
                 if (response.status === 401) {
-                    await this.handleSessionExpired();
+                    this.handleSessionExpired();
                     throw new Error('Session expired. Please sign in again to save favorites.');
                 }
                 const errorData = await response.json().catch(() => null);
@@ -150,7 +137,7 @@ class ApiClient {
             const sanitizedAlbumId = encodeURIComponent(albumId);
             const response = await fetch(`${API_BASE_URL}/api/v1/favorites/remove/${sanitizedAlbumId}`, {
                 method: 'DELETE',
-                headers: await this.getAuthHeaders()
+                headers: this.getAuthHeaders()
             });
 
             if (!response.ok) {
@@ -170,7 +157,7 @@ class ApiClient {
             const sanitizedAlbumId = encodeURIComponent(albumId);
             const response = await fetch(`${API_BASE_URL}/api/v1/favorites/update/${sanitizedAlbumId}`, {
                 method: 'PATCH',
-                headers: await this.getAuthHeaders(),
+                headers: this.getAuthHeaders(),
                 body: JSON.stringify({ album_data: albumData })
             });
 
@@ -194,7 +181,7 @@ class ApiClient {
 
     async getFavoritesWithDetails(): Promise<FavoritesWithDetailsResponse> {
         try {
-            const headers = await this.getAuthHeaders();
+            const headers = this.getAuthHeaders();
             
             // Add timeout to prevent hanging requests
             const controller = new AbortController();
@@ -308,7 +295,7 @@ class ApiClient {
         try {
             await fetch(`${API_BASE_URL}/api/v1/analytics/track-click`, {
                 method: 'POST',
-                headers: await this.getAuthHeaders(),
+                headers: this.getAuthHeaders(),
                 body: JSON.stringify({
                     session_id: sessionId,
                     title: album.title,

@@ -1,206 +1,189 @@
-import os
+import logging
 
-from dotenv import load_dotenv
-from supabase import Client, create_client
+from app.clients.pocketbase import (
+    PocketBaseError,
+    escape_filter_value,
+    get_shared_pocketbase_client,
+)
+from app.models.favorites import AddToFavoritesRequest, FavoriteActionResponse, UserFavoritesList
 
-from ..models.favorites import AddToFavoritesRequest, FavoriteActionResponse, UserFavoritesList
+logger = logging.getLogger('deepcuts')
 
-load_dotenv()
+_ALBUM_METADATA_FIELDS = [
+    ('year', 'release_year'),
+    ('genre', 'genre'),
+    ('discogs_id', 'discogs_id'),
+    ('cover_url', 'cover_url'),
+    ('spotify_preview_url', 'spotify_preview_url'),
+    ('spotify_url', 'spotify_url'),
+]
 
 
 class FavoritesService:
     def __init__(self):
-        self.url = os.getenv("SUPABASE_URL")
-        self.service_key = os.getenv("SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        if not self.url or not self.service_key:
-            raise ValueError("Missing SUPABASE_URL or SUPABASE_SECRET_KEY")
-        self.supabase = create_client(self.url, self.service_key)
+        self.client = get_shared_pocketbase_client()
 
-    def _get_authenticated_client(self, user_token: str) -> Client:
-        """Get a Supabase client with user's access token for RLS"""
-        if not self.url or not user_token:
-            return self.supabase
-        # For now, we'll just use the service role client since we're handling auth differently
-        # In the future, this could be updated to use user tokens with RLS
-        return self.supabase
+    async def _find_album_by_title_artist(self, title: str, artist: str) -> dict | None:
+        """Case-insensitive exact match on (title, artist), mirroring the
+        original Supabase .ilike().ilike() lookup. PocketBase's `~` filter
+        operator is a substring/LIKE match rather than exact equality, so
+        candidates are narrowed via `~` then confirmed with an exact
+        case-insensitive comparison in Python.
+        """
+        candidates = await self.client.list_records(
+            "albums",
+            filter=f"title ~ {escape_filter_value(title)} && artist ~ {escape_filter_value(artist)}",
+        )
+        title_l, artist_l = title.strip().lower(), artist.strip().lower()
+        for candidate in candidates:
+            if candidate['title'].strip().lower() == title_l and candidate['artist'].strip().lower() == artist_l:
+                return candidate
+        return None
 
-    async def ensure_user_exists(self, user_id: str, user_email: str) -> bool:
-        """Ensure user exists in the users table"""
+    async def _find_or_create_album(self, title: str, artist: str, album_data: dict) -> str | None:
+        existing = await self._find_album_by_title_artist(title, artist)
+
+        if existing:
+            update_fields = {
+                dst: album_data[src]
+                for src, dst in _ALBUM_METADATA_FIELDS
+                if album_data.get(src)
+            }
+            if update_fields:
+                try:
+                    await self.client.update_record("albums", existing['id'], update_fields)
+                except PocketBaseError as e:
+                    logger.error(f"Error updating album metadata: {e}")
+            return existing['id']
+
+        insert_data = {'title': title, 'artist': artist}
+        insert_data.update({
+            dst: album_data[src]
+            for src, dst in _ALBUM_METADATA_FIELDS
+            if album_data.get(src)
+        })
         try:
-            # Check if user already exists
-            existing_user = self.supabase.table('users').select('id').eq('email', user_email).execute()
-
-            if not existing_user.data:
-                # Create user if they don't exist
-                self.supabase.table('users').insert({
-                    'email': user_email
-                }).execute()
-
-                # Get the created user
-                existing_user = self.supabase.table('users').select('id').eq('email', user_email).execute()
-
-            return existing_user.data[0]['id'] if existing_user.data else None
-        except Exception as e:
-            print(f"Error ensuring user exists: {e}")
+            created = await self.client.create_record("albums", insert_data)
+            return created['id']
+        except PocketBaseError as e:
+            logger.error(f"Error inserting album: {e}")
             return None
 
     async def add_to_favorites(self, user_id: str, user_email: str, request: AddToFavoritesRequest) -> FavoriteActionResponse:
-        """Add an album to user's favorites"""
-        try:
-            # Ensure user exists and get their UUID
-            user_uuid = await self.ensure_user_exists(user_id, user_email)
-            if not user_uuid:
-                return FavoriteActionResponse(success=False, message="Failed to create/verify user")
+        """Add an album to the user's favorites.
 
+        ``user_id`` is the caller's PocketBase user record id. ``user_email``
+        is accepted for call-site parity with the pre-migration signature but
+        isn't needed here — PocketBase's `users` collection is the single
+        source of identity now, so there's no separate public.users lookup.
+        """
+        try:
             album_data = request.album_data
             title = album_data['title'].strip()
             artist = album_data['artist'].strip()
 
-            existing = self.supabase.table('albums').select('id').ilike('title', title).ilike('artist', artist).limit(1).execute()
+            album_id = await self._find_or_create_album(title, artist, album_data)
+            if not album_id:
+                return FavoriteActionResponse(success=False, message="Failed to save album")
 
-            if existing.data:
-                album_uuid = existing.data[0]['id']
-                update_fields = {}
-                for src, dst in [('year', 'release_year'), ('genre', 'genre'), ('discogs_id', 'discogs_id'),
-                                 ('cover_url', 'cover_url'), ('spotify_preview_url', 'spotify_preview_url'),
-                                 ('spotify_url', 'spotify_url')]:
-                    if album_data.get(src):
-                        update_fields[dst] = album_data[src]
-                if update_fields:
-                    try:
-                        self.supabase.table('albums').update(update_fields).eq('id', album_uuid).execute()
-                    except Exception as e:
-                        print(f"Error updating album metadata: {e}")
-            else:
-                album_insert_data = {'title': title, 'artist': artist}
-                for src, dst in [('year', 'release_year'), ('genre', 'genre'), ('discogs_id', 'discogs_id'),
-                                 ('cover_url', 'cover_url'), ('spotify_preview_url', 'spotify_preview_url'),
-                                 ('spotify_url', 'spotify_url')]:
-                    if album_data.get(src):
-                        album_insert_data[dst] = album_data[src]
-                try:
-                    album_result = self.supabase.table('albums').insert(album_insert_data).execute()
-                    album_uuid = album_result.data[0]['id']
-                except Exception as e:
-                    print(f"Error inserting album: {e}")
-                    return FavoriteActionResponse(success=False, message="Failed to save album")
-
-            # Check if already favorited
-            existing = self.supabase.table('favorites').select('id').eq('user_id', user_uuid).eq('album_id', album_uuid).execute()
-
-            if existing.data:
+            existing = await self.client.list_records(
+                "favorites",
+                filter=f"user = {escape_filter_value(user_id)} && album = {escape_filter_value(album_id)}",
+            )
+            if existing:
                 return FavoriteActionResponse(success=True, message="Album already in favorites")
 
-            favorite_data = {
-                'user_id': user_uuid,
-                'album_id': album_uuid
-            }
+            favorite_data = {'user': user_id, 'album': album_id}
             if album_data.get('reasoning'):
                 favorite_data['reasoning'] = album_data['reasoning']
 
-            try:
-                self.supabase.table('favorites').insert(favorite_data).execute()
-            except Exception as e:
-                error_msg = str(e)
-                if 'reasoning' in error_msg and 'reasoning' in favorite_data:
-                    favorite_data.pop('reasoning', None)
-                    self.supabase.table('favorites').insert(favorite_data).execute()
-                else:
-                    raise
-
+            await self.client.create_record("favorites", favorite_data)
             return FavoriteActionResponse(success=True, message="Album added to favorites")
 
-        except Exception as e:
-            print(f"Error adding to favorites: {e}")
-            return FavoriteActionResponse(success=False, message=f"Failed to add to favorites: {str(e)}")
+        except PocketBaseError as e:
+            logger.error(f"Error adding to favorites: {e}")
+            return FavoriteActionResponse(success=False, message=f"Failed to add to favorites: {e}")
 
     async def remove_from_favorites(self, user_id: str, album_id: str) -> FavoriteActionResponse:
-        """Remove an album from user's favorites"""
+        """Remove an album from the user's favorites.
+
+        ``user_id`` is the caller's PocketBase user record id.
+        """
         try:
-            # Get user UUID by email (using user_id as email for now)
-            user_result = self.supabase.table('users').select('id').eq('email', user_id).execute()
-            if not user_result.data:
-                return FavoriteActionResponse(success=False, message="User not found")
-
-            user_uuid = user_result.data[0]['id']
-
-
-            # Get all user favorites and remove the matching one
-            favorites = self.supabase.table('favorites').select('id, albums!favorites_album_id_fkey(*)').eq('user_id', user_uuid).execute()
-
-            favorite_to_delete = None
-            for favorite in favorites.data:
-                # Match by album ID (this is a simplified approach)
-                if str(favorite['albums']['id']) == album_id:
-                    favorite_to_delete = favorite['id']
-                    break
-
-            if favorite_to_delete:
-                self.supabase.table('favorites').delete().eq('id', favorite_to_delete).execute()
-                return FavoriteActionResponse(success=True, message="Album removed from favorites")
-            else:
+            existing = await self.client.list_records(
+                "favorites",
+                filter=f"user = {escape_filter_value(user_id)} && album = {escape_filter_value(album_id)}",
+            )
+            if not existing:
                 return FavoriteActionResponse(success=False, message="Album not found in favorites")
 
-        except Exception as e:
-            print(f"Error removing from favorites: {e}")
-            return FavoriteActionResponse(success=False, message=f"Failed to remove from favorites: {str(e)}")
+            await self.client.delete_record("favorites", existing[0]['id'])
+            return FavoriteActionResponse(success=True, message="Album removed from favorites")
 
-    async def get_user_favorites(self, user_email: str, user_token: str = None) -> UserFavoritesList:
-        """Get all favorited albums for a user with full album details"""
+        except PocketBaseError as e:
+            logger.error(f"Error removing from favorites: {e}")
+            return FavoriteActionResponse(success=False, message=f"Failed to remove from favorites: {e}")
+
+    async def get_user_favorites(self, user_id: str, user_token: str | None = None) -> UserFavoritesList:
+        """Get all favorited albums for a user, with full album details.
+
+        ``user_token`` is accepted for call-site parity with the
+        pre-migration signature (previously used to build an RLS-scoped
+        Supabase client); PocketBase rules are enforced server-side via the
+        admin client here since FastAPI already authenticated the caller.
+        """
+        del user_token  # unused; see docstring
         try:
-            # Use authenticated client if token provided (for RLS)
-            client = self._get_authenticated_client(user_token) if user_token else self.supabase
+            favorites = await self.client.list_records(
+                "favorites",
+                filter=f"user = {escape_filter_value(user_id)}",
+                sort="-created",
+                expand="album",
+            )
 
-            # Get user UUID by email
-            user_result = client.table('users').select('id').eq('email', user_email).execute()
-            if not user_result.data:
-                return UserFavoritesList(success=True, favorites=[], total=0)
+            results = []
+            for fav in favorites:
+                album = fav.get('expand', {}).get('album')
+                if not album:
+                    continue
+                results.append({
+                    'id': fav['id'],
+                    'saved_at': fav['created'],
+                    'reasoning': fav.get('reasoning', ''),
+                    'albums': album,
+                })
 
-            user_uuid = user_result.data[0]['id']
+            return UserFavoritesList(success=True, favorites=results, total=len(results))
 
-            # Try to select with reasoning first, fall back without it if column doesn't exist
-            try:
-                result = client.table('favorites').select(
-                    'id, saved_at, reasoning, albums!favorites_album_id_fkey(*)'
-                ).eq('user_id', user_uuid).order('saved_at', desc=True).execute()
-            except Exception as e:
-                # If reasoning column doesn't exist, select without it
-                print(f"Reasoning column might not exist, falling back: {e}")
-                result = client.table('favorites').select(
-                    'id, saved_at, albums!favorites_album_id_fkey(*)'
-                ).eq('user_id', user_uuid).order('saved_at', desc=True).execute()
-
-            favorites = result.data or []
-            return UserFavoritesList(success=True, favorites=favorites, total=len(favorites))
-
-        except Exception as e:
-            print(f"Error getting favorites: {e}")
+        except PocketBaseError as e:
+            logger.error(f"Error getting favorites: {e}")
             return UserFavoritesList(success=False, favorites=[], total=0)
 
-
     async def save_album(self, user_id: str, album_data: dict) -> FavoriteActionResponse:
-        """Save album method for authenticated endpoints - converts user_id to email lookup"""
+        """Save album method for authenticated endpoints."""
         try:
-            return await self.add_to_favorites(user_id, user_id, AddToFavoritesRequest(album_data=album_data))
-        except Exception as e:
-            print(f"Error in save_album: {e}")
-            return FavoriteActionResponse(success=False, message=f"Failed to save album: {str(e)}")
+            return await self.add_to_favorites(user_id, "", AddToFavoritesRequest(album_data=album_data))
+        except PocketBaseError as e:
+            logger.error(f"Error in save_album: {e}")
+            return FavoriteActionResponse(success=False, message=f"Failed to save album: {e}")
 
     async def remove_album(self, user_id: str, album_id: str) -> FavoriteActionResponse:
-        """Remove album method for authenticated endpoints"""
+        """Remove album method for authenticated endpoints."""
         return await self.remove_from_favorites(user_id, album_id)
 
-    async def update_favorite(self, user_email: str, album_id: str, album_data: dict) -> FavoriteActionResponse:
-        """Update album metadata for a favorite entry."""
+    async def update_favorite(self, user_id: str, album_id: str, album_data: dict) -> FavoriteActionResponse:
+        """Update album metadata for a favorite entry.
+
+        ``user_id`` is the caller's PocketBase user record id; only used to
+        confirm the favorite belongs to them before updating the shared
+        album record.
+        """
         try:
-            user_result = self.supabase.table('users').select('id').eq('email', user_email).execute()
-            if not user_result.data:
-                return FavoriteActionResponse(success=False, message="User not found")
-
-            user_uuid = user_result.data[0]['id']
-
-            fav_result = self.supabase.table('favorites').select('id').eq('user_id', user_uuid).eq('album_id', album_id).execute()
-            if not fav_result.data:
+            existing = await self.client.list_records(
+                "favorites",
+                filter=f"user = {escape_filter_value(user_id)} && album = {escape_filter_value(album_id)}",
+            )
+            if not existing:
                 return FavoriteActionResponse(success=False, message="Favorite not found")
 
             update_data = {}
@@ -214,33 +197,26 @@ class FavoritesService:
                 update_data['cover_url'] = album_data['cover_url']
 
             if update_data:
-                self.supabase.table('albums').update(update_data).eq('id', album_id).execute()
+                await self.client.update_record("albums", album_id, update_data)
 
             return FavoriteActionResponse(success=True, message="Favorite updated")
-        except Exception as e:
-            print(f"Error updating favorite: {e}")
-            return FavoriteActionResponse(success=False, message=f"Failed to update favorite: {str(e)}")
+        except PocketBaseError as e:
+            logger.error(f"Error updating favorite: {e}")
+            return FavoriteActionResponse(success=False, message=f"Failed to update favorite: {e}")
 
-    async def get_favorites_with_album_details(self, user_email: str, user_token: str = None):
-        """Get favorites with details method for authenticated endpoints"""
+    async def get_favorites_with_album_details(self, user_id: str, user_token: str | None = None):
+        """Get favorites with details, for authenticated endpoints."""
         try:
-            favorites_result = await self.get_user_favorites(user_email, user_token)
+            favorites_result = await self.get_user_favorites(user_id, user_token)
 
-            # Return favorites without Spotify enrichment - frontend handles this progressively
             return {
                 "success": favorites_result.success,
                 "favorites": favorites_result.favorites if favorites_result.success else [],
-                "total": favorites_result.total
+                "total": favorites_result.total,
             }
-        except Exception as e:
-            print(f"Error in get_favorites_with_album_details: {e}")
-            return {
-                "success": False,
-                "favorites": [],
-                "total": 0
-            }
+        except PocketBaseError as e:
+            logger.error(f"Error in get_favorites_with_album_details: {e}")
+            return {"success": False, "favorites": [], "total": 0}
 
 
-
-# Create a global instance
 favorites_service = FavoritesService()
