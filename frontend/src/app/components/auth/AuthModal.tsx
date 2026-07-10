@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { X, Mail } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { pb } from '@/lib/pocketbase'
+import { useAuth } from '@/app/contexts/AuthContext'
 import LoginForm from './LoginForm'
 import SignupForm from './SignupForm'
 import './AuthModal.scss'
@@ -14,10 +15,13 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ isOpen, onClose, defaultView = 'login' }: AuthModalProps) {
-  const [currentView, setCurrentView] = useState<'login' | 'signup' | 'verify-email'>(defaultView)
+  const [currentView, setCurrentView] = useState<'login' | 'signup' | 'verify-email' | 'forgot-password'>(defaultView)
   const [userEmail, setUserEmail] = useState('')
   const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetStatus, setResetStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const { requestPasswordReset } = useAuth()
 
   useEffect(() => {
     setCurrentView(defaultView)
@@ -49,23 +53,29 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'login' }: Au
     if (resendStatus === 'sending') return
     setResendStatus('sending')
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: userEmail,
-      })
-      setResendStatus(error ? 'error' : 'sent')
+      await pb.collection('users').requestVerification(userEmail)
+      setResendStatus('sent')
     } catch {
       setResendStatus('error')
     }
+  }
+
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (resetStatus === 'sending') return
+    setResetStatus('sending')
+    const { error } = await requestPasswordReset(resetEmail)
+    setResetStatus(error ? 'error' : 'sent')
   }
 
   const renderContent = () => {
     switch (currentView) {
       case 'login':
         return (
-          <LoginForm 
+          <LoginForm
             onSuccess={handleSuccess}
             onSwitchToSignup={() => setCurrentView('signup')}
+            onForgotPassword={() => setCurrentView('forgot-password')}
           />
         )
       case 'signup':
@@ -113,6 +123,48 @@ export default function AuthModal({ isOpen, onClose, defaultView = 'login' }: Au
               Close
             </button>
           </div>
+        )
+      case 'forgot-password':
+        return (
+          <form onSubmit={handleForgotPasswordSubmit} className="auth-form">
+            <h2>Reset your password</h2>
+
+            {resetStatus === 'sent' ? (
+              <div className="email-verification-message">
+                <p>If an account exists for:</p>
+                <strong>{resetEmail}</strong>
+                <p>we&apos;ve sent a link to reset your password.</p>
+              </div>
+            ) : (
+              <>
+                <div className="auth-form-group">
+                  <label htmlFor="reset-email">Email address</label>
+                  <input
+                    type="email"
+                    id="reset-email"
+                    className="auth-form-input"
+                    placeholder="Enter your account email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    required
+                    disabled={resetStatus === 'sending'}
+                  />
+                </div>
+                {resetStatus === 'error' && (
+                  <div className="auth-error-message">Something went wrong. Please try again.</div>
+                )}
+                <button type="submit" className="btn btn-primary btn-full" disabled={resetStatus === 'sending'}>
+                  {resetStatus === 'sending' ? 'Sending...' : 'Send reset link'}
+                </button>
+              </>
+            )}
+
+            <div className="auth-help-links">
+              <button type="button" className="auth-help-link" onClick={() => setCurrentView('login')}>
+                Back to log in
+              </button>
+            </div>
+          </form>
         )
       default:
         return null
