@@ -1,5 +1,9 @@
-// Global auth error handler for dealing with refresh token issues
-import { supabase } from './supabase'
+// Global auth error handler for dealing with an invalid/expired session.
+// PocketBase doesn't have Supabase's separate refresh-token concept — its
+// tokens are self-contained JWTs, and a 401 on an authenticated request
+// (or on authRefresh()) is the equivalent "session is no longer valid"
+// signal.
+import { pb } from './pocketbase'
 
 export class AuthError extends Error {
   constructor(message: string, public code?: string) {
@@ -10,41 +14,19 @@ export class AuthError extends Error {
 
 export function isRefreshTokenError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
-  
-  const errorObj = error as { message?: string; code?: string }
-  
-  return (
-    (typeof errorObj.message === 'string' && (
-      errorObj.message.includes('refresh_token_not_found') ||
-      errorObj.message.includes('Invalid Refresh Token') ||
-      errorObj.message.includes('Refresh Token Not Found')
-    )) ||
-    errorObj.code === 'refresh_token_not_found'
-  )
+
+  const errorObj = error as { status?: number }
+  return errorObj.status === 401
 }
 
-export async function handleAuthError(error: unknown): Promise<void> {
+export function handleAuthError(error: unknown): void {
   if (isRefreshTokenError(error)) {
-    const errorMessage = error && typeof error === 'object' && 'message' in error 
-      ? (error as { message: string }).message 
-      : 'Unknown refresh token error'
-    console.warn('Refresh token error detected, signing out user:', errorMessage)
-    
-    try {
-      // Sign out the user to clear invalid session
-      await supabase.auth.signOut()
-      
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('supabase.auth.token')
-        sessionStorage.removeItem('supabase.auth.token')
-      }
-      
-      // Optionally reload the page to reset the app state
-      if (typeof window !== 'undefined') {
-        window.location.reload()
-      }
-    } catch (signOutError) {
-      console.error('Error during auth cleanup:', signOutError)
+    console.warn('Session invalid, signing out user')
+
+    pb.authStore.clear()
+
+    if (typeof window !== 'undefined') {
+      window.location.reload()
     }
   }
 }

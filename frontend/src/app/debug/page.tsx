@@ -16,8 +16,7 @@ export default function DebugPage() {
     }
 
     setEnvVars({
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'NOT SET',
-      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET',
+      pocketbaseUrl: process.env.NEXT_PUBLIC_POCKETBASE_URL ? 'SET' : 'NOT SET',
       apiUrl: process.env.NEXT_PUBLIC_API_URL ? 'SET' : 'NOT SET',
     })
   }, [isDev, router])
