@@ -134,7 +134,7 @@ class FavoritesService:
         """
         del user_token  # unused; see docstring
         try:
-            favorites = await self.client.list_records(
+            favorites = await self.client.list_all_records(
                 "favorites",
                 filter=f"user = {escape_filter_value(user_id)}",
                 sort="-created",
