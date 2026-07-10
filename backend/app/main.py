@@ -5,15 +5,17 @@ import re
 import time
 from typing import Any
 
-import anthropic
 import httpx
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from supabase import Client, create_client
 
+from app.clients.pocketbase import (
+    PocketBaseError,
+    escape_filter_value,
+    get_shared_pocketbase_client,
+)
 from app.config import settings
-from app.database import supabase_admin
 from app.models.albums import AlbumData, SearchRequest, SearchResponse
 from app.models.favorites import AddToFavoritesRequest, FavoriteActionResponse, UserFavoritesList
 from app.models.searchSuggestions import SuggestionRequest, SuggestionResponse, SuggestionResult
@@ -24,6 +26,7 @@ from app.services.ai import (
     get_model_info,
     set_active_model,
 )
+from app.services.auth import get_current_user as authenticate_token
 from app.services.favorites import favorites_service
 from app.services.search_sessions import search_session_service
 
@@ -67,16 +70,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Connect to Supabase
-supabase_url = os.getenv("SUPABASE_URL")
-supabase_key = os.getenv("SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-
-# Validate env
-if not supabase_url or not supabase_key:
-    logger.error("Missing required environment variables: SUPABASE_URL or SUPABASE_SECRET_KEY")
-    raise Exception("Missing SUPABASE_URL or SUPABASE_SECRET_KEY environment variables")
-
-supabase: Client = create_client(supabase_url, supabase_key)
+pocketbase_client = get_shared_pocketbase_client()
 
 logger.info(f"AI service ready with model: {ai_service.ACTIVE_MODEL}")
 
@@ -84,20 +78,18 @@ logger.info(f"AI service ready with model: {ai_service.ACTIVE_MODEL}")
 @app.get("/")
 async def root():
     """Health check."""
-    # Test Supabase connection
-    supabase_status = "unknown"
+    pocketbase_status = "unknown"
     try:
-        # Try a simple query to test the connection
-        supabase_admin.table('users').select('id').limit(1).execute()
-        supabase_status = "connected"
-    except Exception as e:
-        supabase_status = f"error: {str(e)[:50]}"
+        await pocketbase_client.list_records("albums", perPage=1)
+        pocketbase_status = "connected"
+    except PocketBaseError as e:
+        pocketbase_status = f"error: {str(e)[:50]}"
 
     return {
         "message": f"Welcome to {settings.PROJECT_NAME}",
         "version": settings.PROJECT_VERSION,
         "status": "healthy",
-        "supabase_status": supabase_status,
+        "pocketbase_status": pocketbase_status,
         "features": {
             "ai_search": "enabled",
             "spotify_integration": "enabled",
@@ -156,33 +148,6 @@ async def verify_ai_model():
             "message": result.get("error", "Model verification failed"),
             **result
         }
-
-
-@app.get("/api/v1/health/ai/claude-test")
-async def test_claude_key():
-    """Diagnose why the Claude API key is failing."""
-    import os
-    key = os.getenv("CLAUDE_API_KEY")
-    if not key:
-        return {"status": "error", "message": "CLAUDE_API_KEY env var is not set"}
-
-    if not key.startswith("sk-ant-"):
-        return {"status": "error", "message": f"Key format looks wrong. Expected 'sk-ant-' prefix, got '{key[:10]}...'"}
-
-    try:
-        client = anthropic.Anthropic(api_key=key)
-        msg = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=5,
-            messages=[{"role": "user", "content": "hi"}]
-        )
-        return {"status": "ok", "message": "Claude key is valid and working", "response": msg.content[0].text}
-    except anthropic.AuthenticationError as e:
-        return {"status": "error", "message": "Authentication failed — key is invalid or revoked", "detail": str(e)}
-    except anthropic.NotFoundError as e:
-        return {"status": "error", "message": "Model not found — key may be valid but model ID is wrong", "detail": str(e)}
-    except Exception as e:
-        return {"status": "error", "message": f"Unexpected error: {type(e).__name__}", "detail": str(e)}
 
 
 @app.post("/api/v1/health/ai/auto-fix")
@@ -268,15 +233,14 @@ async def refresh_model_config():
 async def get_random_albums(limit: int = 10):
     """Get random albums from the Sessions database."""
     try:
-        # Get all albums then randomly sample them
-        result = supabase_admin.table('albums').select('*').execute()
+        all_albums = await pocketbase_client.list_all_records('albums')
 
-        if not result.data:
+        if not all_albums:
             return {"albums": [], "total": 0}
 
         # Randomly sample albums
         import random
-        random_albums = random.sample(result.data, min(limit, len(result.data)))
+        random_albums = random.sample(all_albums, min(limit, len(all_albums)))
 
         # Convert to AlbumData format
         albums = []
@@ -697,11 +661,10 @@ async def search_albums(
     if authorization and authorization.startswith("Bearer "):
         try:
             token = authorization.replace("Bearer ", "")
-            user_response = supabase_admin.auth.get_user(token)
-            if user_response.user:
-                user_email = user_response.user.email
-        except Exception as e:
-            logger.info(f"Search: Could not authenticate user: {e}")
+            user = await authenticate_token(token)
+            user_email = user.email
+        except HTTPException as e:
+            logger.info(f"Search: Could not authenticate user: {e.detail}")
 
     ip_address = http_request.client.host if http_request.client else None
     user_agent = http_request.headers.get("user-agent")
@@ -790,7 +753,7 @@ async def search_albums(
             quick_recommendations.append(quick_album)
         recommendations = quick_recommendations
 
-        session_id = search_session_service.create_session(
+        session_id = await search_session_service.create_session(
             query=request.query,
             albums=recommendations,
             user_email=user_email,
@@ -803,7 +766,7 @@ async def search_albums(
         )
 
         if session_id and filtered_albums:
-            search_session_service.track_filtered_albums(session_id, filtered_albums)
+            await search_session_service.track_filtered_albums(session_id, filtered_albums)
 
         # Limit results for response
         limited_recommendations = recommendations[:request.max_results]
@@ -959,27 +922,17 @@ async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
         raise HTTPException(status_code=500, detail="Search service temporarily unavailable") from e
 
 
-def get_current_user(authorization: str = Header(None)) -> str:
-    """Get current user"""
+async def get_current_user(authorization: str = Header(None)) -> str:
+    """FastAPI dependency: verify the bearer token, return the PocketBase user id."""
     if not authorization:
         raise HTTPException(status_code=401, detail="Authorization header required")
 
-    # Extract token
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid authorization format")
 
     token = authorization.replace("Bearer ", "")
-
-    try:
-        # Verify token with Supabase and get user
-        user_response = supabase_admin.auth.get_user(token)
-        if not user_response.user:
-            raise HTTPException(status_code=401, detail="Invalid token")
-
-        return user_response.user.email
-    except Exception as e:
-        logger.error(f"Authentication failed: {e}")
-        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}") from e
+    user = await authenticate_token(token)
+    return user.id
 
 
 @app.post("/api/v1/favorites/add")
@@ -992,27 +945,18 @@ async def add_favorite(
         raise HTTPException(status_code=401, detail="Authorization header required")
 
     token = authorization.replace("Bearer ", "")
+    user = await authenticate_token(token)
 
-    try:
-        # Verify token with Supabase and get user
-        user_response = supabase_admin.auth.get_user(token)
-        if not user_response.user:
-            raise HTTPException(status_code=401, detail="Invalid token")
-
-        user = user_response.user
-        result = await favorites_service.add_to_favorites(user.id, user.email, request)
-        if result.success and request.search_session_id:
-            search_session_service.track_favorite(
-                session_id=str(request.search_session_id),
-                album_title=request.album_data.get('title', ''),
-                album_artist=request.album_data.get('artist', ''),
-                user_email=user.email
-            )
-        return result
-
-    except Exception as e:
-        logger.error(f"Authentication failed: {e}")
-        raise HTTPException(status_code=401, detail="Authentication failed") from e
+    result = await favorites_service.add_to_favorites(user.id, user.email, request)
+    if result.success and request.search_session_id:
+        await search_session_service.track_favorite(
+            session_id=str(request.search_session_id),
+            album_title=request.album_data.get('title', ''),
+            album_artist=request.album_data.get('artist', ''),
+            favorited=True,
+            user_email=user.email
+        )
+    return result
 
 
 @app.delete("/api/v1/favorites/remove/{album_id}")
@@ -1028,30 +972,30 @@ async def remove_favorite(
 async def update_favorite(
     album_id: str,
     request: AddToFavoritesRequest,
-    user_email: str = Depends(get_current_user)
+    user_id: str = Depends(get_current_user)
 ) -> FavoriteActionResponse:
     """Update album metadata for a favorite."""
-    return await favorites_service.update_favorite(user_email, album_id, request.album_data)
+    return await favorites_service.update_favorite(user_id, album_id, request.album_data)
 
 
 @app.get("/api/v1/favorites")
 async def get_user_favorites(
-    user_email: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user),
     authorization: str = Header(None)
 ) -> UserFavoritesList:
     """Get all of a user's favorite albums"""
     token = authorization.replace("Bearer ", "") if authorization else None
-    return await favorites_service.get_user_favorites(user_email, token)
+    return await favorites_service.get_user_favorites(user_id, token)
 
 
 @app.get("/api/v1/favorites/with-details")
 async def get_favorites_with_details(
-    user_email: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user),
     authorization: str = Header(None)
 ) -> dict[str, Any]:
     """Get user's favorites"""
     token = authorization.replace("Bearer ", "") if authorization else None
-    return await favorites_service.get_favorites_with_album_details(user_email, token)
+    return await favorites_service.get_favorites_with_album_details(user_id, token)
 
 
 @app.post("/api/v1/analytics/track-click")
@@ -1066,13 +1010,12 @@ async def track_album_click(
     if authorization and authorization.startswith("Bearer "):
         try:
             token = authorization.replace("Bearer ", "")
-            user_response = supabase_admin.auth.get_user(token)
-            if user_response.user:
-                user_email = user_response.user.email
-        except Exception:
+            user = await authenticate_token(token)
+            user_email = user.email
+        except HTTPException:
             pass
 
-    search_session_service.track_click(
+    await search_session_service.track_click(
         session_id=session_id,
         album_title=title,
         album_artist=artist,
@@ -1090,25 +1033,52 @@ async def get_search_sessions(
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Authorization required")
 
-    try:
-        token = authorization.replace("Bearer ", "")
-        user_response = supabase_admin.auth.get_user(token)
-        if not user_response.user:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        user_email = user_response.user.email
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=401, detail="Authentication failed") from None
+    user = await authenticate_token(authorization.replace("Bearer ", ""))
 
-    sessions = search_session_service.get_sessions(user_email=user_email, limit=limit)
+    sessions = await search_session_service.get_sessions(user_email=user.email, limit=limit)
     return {"sessions": sessions}
 
 
 @app.get("/api/v1/analytics/sessions/{session_id}")
-async def get_session_analytics(session_id: str):
-    """Get detailed analytics for a single search session."""
-    return search_session_service.get_session_analytics(session_id)
+async def get_session_analytics(
+    session_id: str,
+    authorization: str = Header(None),
+):
+    """Get detailed analytics for a single search session. Requires auth and ownership."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authorization required")
+
+    user = await authenticate_token(authorization.replace("Bearer ", ""))
+
+    analytics = await search_session_service.get_session_analytics(session_id)
+    if not analytics:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if analytics.get("user_email") != user.email:
+        raise HTTPException(status_code=403, detail="Not authorized to view this session")
+
+    return analytics
+
+
+async def _fetch_sessions_with_outputs(user_email: str, limit: int) -> list[dict[str, Any]]:
+    """Fetch a user's search_inputs (sessions) with their search_outputs.
+
+    Replicates the LEFT JOIN + user_email filter the old search_results/
+    search_summary Postgres views did — session-level rows up to `limit`,
+    each carrying its outputs list for the caller to flatten or aggregate.
+    """
+    sessions = await pocketbase_client.list_records(
+        "search_inputs",
+        filter=f"user_email = {escape_filter_value(user_email)}",
+        sort="-created",
+        perPage=limit,
+    )
+    for session in sessions:
+        session["outputs"] = await pocketbase_client.list_records(
+            "search_outputs",
+            filter=f"session = {escape_filter_value(session['id'])}",
+            sort="rank",
+        )
+    return sessions
 
 
 @app.get("/api/v1/analytics/search-results")
@@ -1116,29 +1086,37 @@ async def get_search_results(
     limit: int = 50,
     authorization: str = Header(None)
 ):
+    """Row-per-output analytics, replacing the old search_results SQL view."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Authorization required")
 
-    try:
-        token = authorization.replace("Bearer ", "")
-        user_response = supabase_admin.auth.get_user(token)
-        if not user_response.user:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        user_email = user_response.user.email
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=401, detail="Authentication failed") from None
+    user = await authenticate_token(authorization.replace("Bearer ", ""))
+    sessions = await _fetch_sessions_with_outputs(user.email, limit)
 
-    result = (
-        supabase_admin.table("search_results")
-        .select("*")
-        .eq("user_email", user_email)
-        .order("created_at", desc=True)
-        .limit(limit)
-        .execute()
-    )
-    return {"results": result.data or []}
+    rows = []
+    for session in sessions:
+        for output in session["outputs"] or [{}]:
+            rows.append({
+                "input_id": session["id"],
+                "query": session["query"],
+                "user_email": session.get("user_email"),
+                "ip_address": session.get("ip_address"),
+                "user_agent": session.get("user_agent"),
+                "ai_model": session.get("ai_model"),
+                "results_count": session.get("results_count"),
+                "raw_results_count": session.get("raw_results_count"),
+                "filtered_count": session.get("filtered_count"),
+                "created_at": session["created"],
+                "output_id": output.get("id"),
+                "album_title": output.get("album_title"),
+                "album_artist": output.get("album_artist"),
+                "album_year": output.get("album_year"),
+                "album_genre": output.get("album_genre"),
+                "rank": output.get("rank"),
+                "is_verified": output.get("is_verified"),
+                "verification_source": output.get("verification_source"),
+            })
+    return {"results": rows[:limit]}
 
 
 @app.get("/api/v1/analytics/search-summary")
@@ -1146,68 +1124,27 @@ async def get_search_summary(
     limit: int = 50,
     authorization: str = Header(None)
 ):
+    """Per-session summary analytics, replacing the old search_summary SQL view."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Authorization required")
 
-    try:
-        token = authorization.replace("Bearer ", "")
-        user_response = supabase_admin.auth.get_user(token)
-        if not user_response.user:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        user_email = user_response.user.email
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=401, detail="Authentication failed") from None
+    user = await authenticate_token(authorization.replace("Bearer ", ""))
+    sessions = await _fetch_sessions_with_outputs(user.email, limit)
 
-    result = (
-        supabase_admin.table("search_summary")
-        .select("*")
-        .eq("user_email", user_email)
-        .order("created_at", desc=True)
-        .limit(limit)
-        .execute()
-    )
-    return {"summaries": result.data or []}
-
-
-@app.get("/debug/ai-test")
-async def debug_ai_test():
-    """Debug endpoint to test AI service configuration"""
-    try:
-        import os
-
-        debug_info = {
-            "active_model": os.getenv("ACTIVE_MODEL"),
-            "has_claude_key": bool(os.getenv("CLAUDE_API_KEY")),
-            "has_gemini_key": bool(os.getenv("GEMINI_API_KEY")),
-            "claude_key_preview": os.getenv("CLAUDE_API_KEY", "")[:10] + "..." if os.getenv("CLAUDE_API_KEY") else None,
-            "gemini_key_preview": os.getenv("GEMINI_API_KEY", "")[:10] + "..." if os.getenv("GEMINI_API_KEY") else None,
-        }
-
-        try:
-            test_result = await ai_service.get_album_recommendations("Miles Davis Kind of Blue")
-            debug_info["ai_test_success"] = True
-            debug_info["ai_test_result_count"] = len(test_result.albums)
-            if test_result.albums:
-                debug_info["ai_test_first_result"] = {
-                    "title": test_result.albums[0].title,
-                    "artist": test_result.albums[0].artist
-                }
-        except Exception as ai_error:
-            debug_info["ai_test_success"] = False
-            debug_info["ai_test_error"] = str(ai_error)
-
-        return debug_info
-
-    except Exception as e:
-        return {"error": str(e)}
-
-
-
-
-
-
-
+    summaries = []
+    for session in sessions:
+        outputs = session["outputs"]
+        summaries.append({
+            "id": session["id"],
+            "query": session["query"],
+            "user_email": session.get("user_email"),
+            "ai_model": session.get("ai_model"),
+            "results_count": session.get("results_count"),
+            "filtered_count": session.get("filtered_count"),
+            "created_at": session["created"],
+            "output_count": len(outputs),
+            "albums": [f"{o['album_title']} by {o['album_artist']}" for o in outputs] if outputs else None,
+        })
+    return {"summaries": summaries}
 
 

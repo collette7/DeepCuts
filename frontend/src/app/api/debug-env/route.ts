@@ -7,8 +7,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'NOT SET',
-    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET',
+    pocketbaseUrl: process.env.NEXT_PUBLIC_POCKETBASE_URL ? 'SET' : 'NOT SET',
     apiUrl: process.env.NEXT_PUBLIC_API_URL ? 'SET' : 'NOT SET',
     nodeEnv: process.env.NODE_ENV,
   })

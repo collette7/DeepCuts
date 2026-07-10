@@ -1,19 +1,12 @@
-import os
+from unittest.mock import AsyncMock
 
-os.environ.setdefault("SUPABASE_URL", "http://test.invalid")
-os.environ.setdefault("SUPABASE_PUBLISHABLE_KEY", "test-anon-key")
-os.environ.setdefault("SUPABASE_SECRET_KEY", "test-service-key")
-os.environ.setdefault("ACTIVE_MODEL", "claude-haiku-4-5-20251001")
+import pytest
+from fastapi.testclient import TestClient
 
-from unittest.mock import AsyncMock  # noqa: E402
-
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
-
-from app import main as main_module  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models.albums import AlbumData  # noqa: E402
-from app.services.ai import RecommendationResult  # noqa: E402
+from app import main as main_module
+from app.main import app
+from app.models.albums import AlbumData
+from app.services.ai import RecommendationResult
 
 
 @pytest.fixture

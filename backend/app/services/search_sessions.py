@@ -1,23 +1,29 @@
-import os
+import logging
 from typing import Any
 
-from dotenv import load_dotenv
-from supabase import create_client
+from app.clients.pocketbase import (
+    PocketBaseError,
+    escape_filter_value,
+    get_shared_pocketbase_client,
+)
+from app.models.albums import AlbumData
 
-from ..models.albums import AlbumData
+logger = logging.getLogger('deepcuts')
 
-load_dotenv()
+# get_sessions emulates Supabase's `search_session_clicks!inner(...)` (only
+# return sessions that have at least one click) by over-fetching candidate
+# sessions and filtering in Python, since PocketBase's relation expansion is
+# always a left join. This multiplier bounds how many extra candidates we're
+# willing to check per request; small hobby-scale traffic makes this cheap.
+_SESSIONS_OVERFETCH_MULTIPLIER = 5
+_SESSIONS_OVERFETCH_CAP = 200
 
 
 class SearchSessionService:
     def __init__(self):
-        self.url = os.getenv("SUPABASE_URL")
-        self.key = os.getenv("SUPABASE_SECRET_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-        if not self.url or not self.key:
-            raise ValueError("Missing SUPABASE_URL or SUPABASE_SECRET_KEY")
-        self.supabase = create_client(self.url, self.key)
+        self.client = get_shared_pocketbase_client()
 
-    def create_session(
+    async def create_session(
         self,
         query: str,
         albums: list[AlbumData],
@@ -32,7 +38,7 @@ class SearchSessionService:
         if not albums:
             return None
         try:
-            session_data = {
+            session = await self.client.create_record("search_inputs", {
                 "query": query,
                 "user_email": user_email,
                 "ip_address": ip_address,
@@ -42,75 +48,64 @@ class SearchSessionService:
                 "raw_results_count": raw_results_count,
                 "filtered_count": filtered_count,
                 "raw_response": raw_response,
-            }
-            result = self.supabase.table("search_input").insert(session_data).execute()
-            if not result.data:
-                return None
-            session_id = result.data[0]["id"]
+            })
+            session_id = session["id"]
 
-            if albums:
-                album_rows = [
-                    {
-                        "session_id": session_id,
-                        "album_title": a.title,
-                        "album_artist": a.artist,
-                        "album_year": a.year,
-                        "album_genre": a.genre,
-                        "rank": i + 1,
-                    }
-                    for i, a in enumerate(albums)
-                    if a.title and a.artist
-                ]
-                if album_rows:
-                    self.supabase.table("search_output").insert(album_rows).execute()
+            for i, a in enumerate(albums):
+                if not a.title or not a.artist:
+                    continue
+                await self.client.create_record("search_outputs", {
+                    "session": session_id,
+                    "album_title": a.title,
+                    "album_artist": a.artist,
+                    "album_year": a.year,
+                    "album_genre": a.genre,
+                    "rank": i + 1,
+                })
 
             return session_id
 
-        except Exception as e:
-            print(f"Error creating search session: {e}")
+        except PocketBaseError as e:
+            logger.error(f"Error creating search session: {e}")
             return None
 
-    def track_filtered_albums(
+    async def track_filtered_albums(
         self,
         session_id: str,
         filtered_albums: list[dict[str, str]],
     ) -> None:
         try:
-            if filtered_albums:
-                rows = [
-                    {
-                        "session_id": session_id,
-                        "album_title": a.get("title"),
-                        "album_artist": a.get("artist"),
-                        "filter_reason": a.get("reason", "not_found"),
-                    }
-                    for a in filtered_albums
-                    if a.get("title") and a.get("artist")
-                ]
-                if rows:
-                    self.supabase.table("search_session_filtered_albums").insert(rows).execute()
-        except Exception as e:
-            print(f"Error tracking filtered albums: {e}")
+            for a in filtered_albums:
+                if not a.get("title") or not a.get("artist"):
+                    continue
+                await self.client.create_record("filtered_albums", {
+                    "session": session_id,
+                    "album_title": a.get("title"),
+                    "album_artist": a.get("artist"),
+                    "filter_reason": a.get("reason", "not_found"),
+                })
+        except PocketBaseError as e:
+            logger.error(f"Error tracking filtered albums: {e}")
 
-    def track_click(
+    async def track_click(
         self,
-        session_id: str,
+        session_id: str | None,
         album_title: str,
         album_artist: str,
         user_email: str | None = None,
     ) -> None:
         try:
-            self.supabase.table("search_session_clicks").insert({
-                "session_id": session_id,
+            await self.client.create_record("search_clicks", {
+                "session": session_id,
                 "album_title": album_title,
                 "album_artist": album_artist,
                 "action": "click",
                 "user_email": user_email,
-            }).execute()
-        except Exception as e:
-            print(f"Error tracking click: {e}")
+            })
+        except PocketBaseError as e:
+            logger.error(f"Error tracking click: {e}")
 
-    def track_favorite(
+    async def track_favorite(
         self,
         session_id: str | None,
         album_title: str,
@@ -120,73 +115,104 @@ class SearchSessionService:
     ) -> None:
         try:
             if session_id:
-                self.supabase.table("search_session_clicks").insert({
-                    "session_id": session_id,
+                await self.client.create_record("search_clicks", {
+                    "session": session_id,
                     "album_title": album_title,
                     "album_artist": album_artist,
                     "action": "favorite" if favorited else "unfavorite",
                     "user_email": user_email,
-                }).execute()
-        except Exception as e:
-            print(f"Error tracking favorite: {e}")
+                })
+        except PocketBaseError as e:
+            logger.error(f"Error tracking favorite: {e}")
 
-    def get_sessions(
+    async def get_sessions(
         self,
         user_email: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         try:
-            q = (
-                self.supabase.table("search_input")
-                .select(
-                    "id, query, user_email, ai_model, results_count, raw_results_count, filtered_count, created_at,"
-                    " search_output(id, album_title, album_artist, album_year, album_genre, rank, is_verified, verification_source),"
-                    " search_session_clicks!inner(id, album_title, album_artist, action, created_at)"
-                )
-                .order("created_at", desc=True)
-                .limit(limit)
-            )
+            overfetch = min(limit * _SESSIONS_OVERFETCH_MULTIPLIER, _SESSIONS_OVERFETCH_CAP)
+            params: dict[str, Any] = {"sort": "-created", "perPage": overfetch}
             if user_email:
-                q = q.eq("user_email", user_email)
-            result = q.execute()
-            return result.data or []
-        except Exception as e:
-            print(f"Error fetching sessions: {e}")
+                params["filter"] = f"user_email = {escape_filter_value(user_email)}"
+
+            candidates = await self.client.list_records("search_inputs", **params)
+
+            results = []
+            for session in candidates:
+                clicks = await self.client.list_records(
+                    "search_clicks", filter=f"session = {escape_filter_value(session['id'])}"
+                )
+                if not clicks:
+                    continue
+
+                outputs = await self.client.list_records(
+                    "search_outputs", filter=f"session = {escape_filter_value(session['id'])}"
+                )
+
+                results.append({
+                    "id": session["id"],
+                    "query": session["query"],
+                    "user_email": session.get("user_email"),
+                    "ai_model": session.get("ai_model"),
+                    "results_count": session.get("results_count"),
+                    "raw_results_count": session.get("raw_results_count"),
+                    "filtered_count": session.get("filtered_count"),
+                    "created_at": session["created"],
+                    "search_output": outputs,
+                    "search_session_clicks": clicks,
+                })
+
+                if len(results) >= limit:
+                    break
+
+            return results
+        except PocketBaseError as e:
+            logger.error(f"Error fetching sessions: {e}")
             return []
 
-    def get_session_analytics(self, session_id: str) -> dict[str, Any]:
+    async def get_session_analytics(self, session_id: str) -> dict[str, Any]:
         try:
-            session = (
-                self.supabase.table("search_input")
-                .select(
-                    "*,"
-                    " search_output(id, album_title, album_artist, album_year, album_genre, rank, is_verified, verification_source),"
-                    " search_session_clicks(id, album_title, album_artist, action, created_at),"
-                    " search_session_filtered_albums(id, album_title, album_artist, filter_reason)"
-                )
-                .eq("id", session_id)
-                .single()
-                .execute()
-            )
-            if not session.data:
+            session = await self.client.get_record("search_inputs", session_id)
+            if not session:
                 return {}
 
-            clicks = [c for c in session.data.get("search_session_clicks", []) if c.get("action") == "click"]
-            favorites = [c for c in session.data.get("search_session_clicks", []) if c.get("action") in ("favorite", "unfavorite")]
-            filtered = session.data.get("search_session_filtered_albums", [])
-            raw_count = session.data.get("raw_results_count", 0)
+            outputs = await self.client.list_records(
+                "search_outputs", filter=f"session = {escape_filter_value(session_id)}"
+            )
+            all_clicks = await self.client.list_records(
+                "search_clicks", filter=f"session = {escape_filter_value(session_id)}"
+            )
+            filtered = await self.client.list_records(
+                "filtered_albums", filter=f"session = {escape_filter_value(session_id)}"
+            )
+
+            clicks = [c for c in all_clicks if c.get("action") == "click"]
+            favorites = [c for c in all_clicks if c.get("action") in ("favorite", "unfavorite")]
+            raw_count = session.get("raw_results_count", 0)
+            results_count = session.get("results_count", 1)
 
             return {
-                **session.data,
+                "id": session["id"],
+                "query": session["query"],
+                "user_email": session.get("user_email"),
+                "ai_model": session.get("ai_model"),
+                "results_count": session.get("results_count"),
+                "raw_results_count": raw_count,
+                "filtered_count": session.get("filtered_count"),
+                "created_at": session["created"],
+                "search_output": outputs,
+                "search_session_clicks": all_clicks,
+                "search_session_filtered_albums": filtered,
                 "total_clicks": len(clicks),
                 "total_favorites": len([f for f in favorites if f.get("action") == "favorite"]),
                 "total_filtered": len(filtered),
-                "click_rate": len(clicks) / max(session.data.get("results_count", 1), 1),
-                "favorite_rate": len([f for f in favorites if f.get("action") == "favorite"]) / max(session.data.get("results_count", 1), 1),
+                "click_rate": len(clicks) / max(results_count, 1),
+                "favorite_rate": len([f for f in favorites if f.get("action") == "favorite"]) / max(results_count, 1),
                 "filter_rate": len(filtered) / max(raw_count, 1) if raw_count else 0,
             }
-        except Exception as e:
-            print(f"Error fetching session analytics: {e}")
+        except PocketBaseError as e:
+            logger.error(f"Error fetching session analytics: {e}")
             return {}
 
 

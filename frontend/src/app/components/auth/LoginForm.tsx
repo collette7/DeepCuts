@@ -7,9 +7,10 @@ import './LoginForm.scss'
 interface LoginFormProps {
   onSuccess?: () => void
   onSwitchToSignup?: () => void
+  onForgotPassword?: () => void
 }
 
-export default function LoginForm({ onSuccess, onSwitchToSignup }: LoginFormProps) {
+export default function LoginForm({ onSuccess, onSwitchToSignup, onForgotPassword }: LoginFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -78,6 +79,14 @@ export default function LoginForm({ onSuccess, onSwitchToSignup }: LoginFormProp
       <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
         {loading ? 'Logging in...' : 'Log in'}
       </button>
+
+      {onForgotPassword && (
+        <div className="auth-help-links">
+          <button type="button" className="auth-help-link" onClick={onForgotPassword}>
+            Forgot your password?
+          </button>
+        </div>
+      )}
 
       <div className="auth-divider"></div>
 

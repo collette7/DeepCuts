@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { AlbumData } from '@/lib/api';
-import { User } from '@supabase/supabase-js';
+import { type AuthenticatedUser } from '@/lib/pocketbase';
 import { X, ExternalLink, UserPlus } from 'lucide-react';
 import './AlbumDetails.scss';
 
@@ -10,7 +10,7 @@ interface AlbumDetailsProps {
   album: AlbumData | null;
   isOpen: boolean;
   onClose: () => void;
-  user?: User | null;
+  user?: AuthenticatedUser | null;
   onAuthRequired?: () => void;
   hiderecommendationReason?: boolean;
 }
