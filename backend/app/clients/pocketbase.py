@@ -99,9 +99,12 @@ class PocketBaseClient:
     # --- Auth ---
 
     async def verify_user_token(self, token: str) -> dict[str, Any] | None:
-        """Verify a user's auth token and return their record, or None if invalid/expired."""
+        """Verify a user's auth token and return their record, or None if invalid/expired.
+
+        PocketBase's auth-refresh endpoint is POST-only; GET returns 404.
+        """
         response = await self._send(
-            "GET",
+            "POST",
             "/api/collections/users/auth-refresh",
             headers={"Authorization": token},
         )
@@ -120,6 +123,36 @@ class PocketBaseClient:
                 f"Failed to list {collection}: {response.status_code} {response.text}"
             )
         return response.json().get("items", [])
+
+    async def list_all_records(
+        self, collection: str, page_size: int = 200, **params: Any
+    ) -> list[dict[str, Any]]:
+        """List every record in a collection, paging through results.
+
+        `list_records` returns a single page (PocketBase defaults to 30 per
+        page); this loops until all pages are fetched. Use for collections
+        expected to be small enough to hold fully in memory.
+        """
+        params.pop("page", None)
+        params["perPage"] = page_size
+
+        all_items: list[dict[str, Any]] = []
+        page = 1
+        while True:
+            response = await self._admin_request(
+                "GET", f"/api/collections/{collection}/records", params={**params, "page": page}
+            )
+            if response.status_code != 200:
+                raise PocketBaseError(
+                    f"Failed to list {collection}: {response.status_code} {response.text}"
+                )
+            data = response.json()
+            all_items.extend(data.get("items", []))
+            if page >= data.get("totalPages", 1):
+                break
+            page += 1
+
+        return all_items
 
     async def get_record(self, collection: str, record_id: str, **params: Any) -> dict[str, Any] | None:
         response = await self._admin_request(
@@ -161,6 +194,17 @@ class PocketBaseClient:
             raise PocketBaseError(
                 f"Failed to delete {collection}/{record_id}: {response.status_code} {response.text}"
             )
+
+
+def escape_filter_value(value: str) -> str:
+    """Quote and escape a string for safe interpolation into a PocketBase
+    filter expression. PocketBase's REST `filter` param has no placeholder
+    substitution (that's a client-side SDK convenience the official JS/Dart
+    SDKs provide) — callers building filter strings by hand must escape
+    quotes themselves or a value like `Guns N' Roses` breaks the filter
+    parser (or worse, lets one field's value inject extra conditions).
+    """
+    return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
 
 
 def get_pocketbase_client() -> PocketBaseClient:

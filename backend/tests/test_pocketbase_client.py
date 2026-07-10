@@ -6,6 +6,7 @@ from app.clients.pocketbase import (
     PocketBaseClient,
     PocketBaseError,
     PocketBaseUnavailableError,
+    escape_filter_value,
 )
 
 
@@ -22,6 +23,7 @@ def make_client(handler) -> PocketBaseClient:
 class TestVerifyUserToken:
     async def test_returns_record_for_valid_token(self):
         def handler(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"  # PocketBase's auth-refresh is POST-only, GET returns 404
             assert request.url.path == "/api/collections/users/auth-refresh"
             assert request.headers["authorization"] == "user-token"
             return httpx.Response(200, json={"record": {"id": "u1", "email": "a@b.com"}})
@@ -127,6 +129,52 @@ class TestAdminAuthentication:
         client = make_client(handler)
         with pytest.raises(PocketBaseAuthError):
             await client.list_records("albums")
+
+
+class TestListAllRecords:
+    async def test_aggregates_across_pages(self):
+        pages = {
+            1: {"items": [{"id": "a1"}], "page": 1, "totalPages": 2},
+            2: {"items": [{"id": "a2"}], "page": 2, "totalPages": 2},
+        }
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/api/collections/_superusers/auth-with-password":
+                return httpx.Response(200, json={"token": "admin-token"})
+            page = int(request.url.params.get("page", "1"))
+            return httpx.Response(200, json=pages[page])
+
+        client = make_client(handler)
+        result = await client.list_all_records("albums")
+        assert result == [{"id": "a1"}, {"id": "a2"}]
+
+    async def test_single_page_stops_immediately(self):
+        request_count = {"list": 0}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/api/collections/_superusers/auth-with-password":
+                return httpx.Response(200, json={"token": "admin-token"})
+            request_count["list"] += 1
+            return httpx.Response(200, json={"items": [{"id": "a1"}], "page": 1, "totalPages": 1})
+
+        client = make_client(handler)
+        result = await client.list_all_records("albums")
+        assert result == [{"id": "a1"}]
+        assert request_count["list"] == 1
+
+
+class TestEscapeFilterValue:
+    def test_wraps_plain_value_in_quotes(self):
+        assert escape_filter_value("OK Computer") == '"OK Computer"'
+
+    def test_escapes_embedded_double_quote(self):
+        assert escape_filter_value('Say "hello"') == '"Say \\"hello\\""'
+
+    def test_escapes_embedded_backslash(self):
+        assert escape_filter_value("a\\b") == '"a\\\\b"'
+
+    def test_apostrophe_needs_no_escaping_for_double_quoted_filter(self):
+        assert escape_filter_value("Guns N' Roses") == '"Guns N\' Roses"'
 
 
 class TestCollectionHelpers:
