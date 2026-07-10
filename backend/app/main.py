@@ -5,7 +5,6 @@ import re
 import time
 from typing import Any
 
-import anthropic
 import httpx
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -156,33 +155,6 @@ async def verify_ai_model():
             "message": result.get("error", "Model verification failed"),
             **result
         }
-
-
-@app.get("/api/v1/health/ai/claude-test")
-async def test_claude_key():
-    """Diagnose why the Claude API key is failing."""
-    import os
-    key = os.getenv("CLAUDE_API_KEY")
-    if not key:
-        return {"status": "error", "message": "CLAUDE_API_KEY env var is not set"}
-
-    if not key.startswith("sk-ant-"):
-        return {"status": "error", "message": f"Key format looks wrong. Expected 'sk-ant-' prefix, got '{key[:10]}...'"}
-
-    try:
-        client = anthropic.Anthropic(api_key=key)
-        msg = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=5,
-            messages=[{"role": "user", "content": "hi"}]
-        )
-        return {"status": "ok", "message": "Claude key is valid and working", "response": msg.content[0].text}
-    except anthropic.AuthenticationError as e:
-        return {"status": "error", "message": "Authentication failed — key is invalid or revoked", "detail": str(e)}
-    except anthropic.NotFoundError as e:
-        return {"status": "error", "message": "Model not found — key may be valid but model ID is wrong", "detail": str(e)}
-    except Exception as e:
-        return {"status": "error", "message": f"Unexpected error: {type(e).__name__}", "detail": str(e)}
 
 
 @app.post("/api/v1/health/ai/auto-fix")
@@ -1169,45 +1141,5 @@ async def get_search_summary(
         .execute()
     )
     return {"summaries": result.data or []}
-
-
-@app.get("/debug/ai-test")
-async def debug_ai_test():
-    """Debug endpoint to test AI service configuration"""
-    try:
-        import os
-
-        debug_info = {
-            "active_model": os.getenv("ACTIVE_MODEL"),
-            "has_claude_key": bool(os.getenv("CLAUDE_API_KEY")),
-            "has_gemini_key": bool(os.getenv("GEMINI_API_KEY")),
-            "claude_key_preview": os.getenv("CLAUDE_API_KEY", "")[:10] + "..." if os.getenv("CLAUDE_API_KEY") else None,
-            "gemini_key_preview": os.getenv("GEMINI_API_KEY", "")[:10] + "..." if os.getenv("GEMINI_API_KEY") else None,
-        }
-
-        try:
-            test_result = await ai_service.get_album_recommendations("Miles Davis Kind of Blue")
-            debug_info["ai_test_success"] = True
-            debug_info["ai_test_result_count"] = len(test_result.albums)
-            if test_result.albums:
-                debug_info["ai_test_first_result"] = {
-                    "title": test_result.albums[0].title,
-                    "artist": test_result.albums[0].artist
-                }
-        except Exception as ai_error:
-            debug_info["ai_test_success"] = False
-            debug_info["ai_test_error"] = str(ai_error)
-
-        return debug_info
-
-    except Exception as e:
-        return {"error": str(e)}
-
-
-
-
-
-
-
 
 
