@@ -12,8 +12,11 @@ def pb_client():
     url = os.getenv("POCKETBASE_URL")
     admin_email = os.getenv("POCKETBASE_ADMIN_EMAIL")
     admin_password = os.getenv("POCKETBASE_ADMIN_PASSWORD")
-    if not url or not admin_email or not admin_password:
-        pytest.skip("POCKETBASE_URL/POCKETBASE_ADMIN_EMAIL/POCKETBASE_ADMIN_PASSWORD not set")
+    # conftest.py sets these to a fake "test.invalid" sentinel so app.config
+    # (and anything importing it) doesn't fail-fast during normal unit test
+    # collection — that sentinel means "not really configured", same as unset.
+    if not url or not admin_email or not admin_password or url == "http://test.invalid":
+        pytest.skip("POCKETBASE_URL/POCKETBASE_ADMIN_EMAIL/POCKETBASE_ADMIN_PASSWORD not set to a real instance")
     return PocketBaseClient(base_url=url, admin_email=admin_email, admin_password=admin_password)
 
 
