@@ -1,0 +1,38 @@
+name: Export Legacy Favorites
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install export dependency
+        run: pip install httpx==0.27.0
+
+      - name: Export Supabase favorites
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: >-
+          python backend/scripts/export_supabase_favorites.py
+          "$RUNNER_TEMP/supabase_favorites_export.json"
+
+      - name: Upload private migration artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-favorites-export
+          path: ${{ runner.temp }}/supabase_favorites_export.json
+          retention-days: 1
+          if-no-files-found: error
