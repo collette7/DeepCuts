@@ -88,9 +88,9 @@ jobs:
     - name: Backend - Import validation
       if: matrix.component == 'backend'
       env:
-        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        POCKETBASE_URL: http://pocketbase.test
+        POCKETBASE_ADMIN_EMAIL: admin@test.invalid
+        POCKETBASE_ADMIN_PASSWORD: test-password
         CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: |
@@ -165,9 +165,9 @@ jobs:
 
     - name: Test backend startup
       env:
-        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        POCKETBASE_URL: http://pocketbase.test
+        POCKETBASE_ADMIN_EMAIL: admin@test.invalid
+        POCKETBASE_ADMIN_PASSWORD: test-password
         CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         ACTIVE_MODEL: "gemini-2.5-flash"
