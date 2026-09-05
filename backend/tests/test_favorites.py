@@ -26,6 +26,15 @@ def admin_auth_or(handler):
     return wrapped
 
 
+def test_add_request_accepts_pocketbase_session_id():
+    request = AddToFavoritesRequest(
+        album_data={"title": "OK Computer", "artist": "Radiohead"},
+        search_session_id="2pz8kq4r7m1vn6x",
+    )
+
+    assert request.search_session_id == "2pz8kq4r7m1vn6x"
+
+
 class TestAddToFavorites:
     async def test_creates_new_album_and_favorite(self):
         created_album = {"id": "album-1", "title": "OK Computer", "artist": "Radiohead"}
