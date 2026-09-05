@@ -57,8 +57,8 @@ jobs:
     - name: Frontend - Build test
       if: matrix.component == 'frontend'
       env:
-        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        NEXT_PUBLIC_POCKETBASE_URL: https://pocketbase.test
+        NEXT_PUBLIC_API_URL: http://api.test
       run: |
         cd frontend
         npm run build
@@ -157,8 +157,8 @@ jobs:
         
     - name: Build frontend
       env:
-        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        NEXT_PUBLIC_POCKETBASE_URL: https://pocketbase.test
+        NEXT_PUBLIC_API_URL: http://api.test
       run: |
         cd frontend
         npm run build
