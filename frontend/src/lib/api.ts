@@ -124,7 +124,11 @@ class ApiClient {
                 throw new Error(errorData?.detail || `Failed to add favorite (${response.status})`);
             }
             
-            return await response.json();
+            const result: FavoriteActionResponse = await response.json();
+            if (!result.success) {
+                throw new Error(result.message);
+            }
+            return result;
         } catch (error) {
             console.error('Add to favorites error:', error);
             throw error;
@@ -144,7 +148,11 @@ class ApiClient {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
-            return await response.json();
+            const result: FavoriteActionResponse = await response.json();
+            if (!result.success) {
+                throw new Error(result.message);
+            }
+            return result;
         } catch (error) {
             console.error('Remove from favorites error:', error);
             throw error;
@@ -379,5 +387,3 @@ export interface FavoriteActionResponse {
     success: boolean;
     message: string;
 }
-
-    
