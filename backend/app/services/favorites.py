@@ -102,7 +102,7 @@ class FavoritesService:
 
         except PocketBaseError as e:
             logger.error(f"Error adding to favorites: {e}")
-            return FavoriteActionResponse(success=False, message=f"Failed to add to favorites: {e}")
+            return FavoriteActionResponse(success=False, message="Failed to add to favorites")
 
     async def remove_from_favorites(self, user_id: str, album_id: str) -> FavoriteActionResponse:
         """Remove an album from the user's favorites.
@@ -122,7 +122,7 @@ class FavoritesService:
 
         except PocketBaseError as e:
             logger.error(f"Error removing from favorites: {e}")
-            return FavoriteActionResponse(success=False, message=f"Failed to remove from favorites: {e}")
+            return FavoriteActionResponse(success=False, message="Failed to remove from favorites")
 
     async def get_user_favorites(self, user_id: str, user_token: str | None = None) -> UserFavoritesList:
         """Get all favorited albums for a user, with full album details.
@@ -165,7 +165,7 @@ class FavoritesService:
             return await self.add_to_favorites(user_id, "", AddToFavoritesRequest(album_data=album_data))
         except PocketBaseError as e:
             logger.error(f"Error in save_album: {e}")
-            return FavoriteActionResponse(success=False, message=f"Failed to save album: {e}")
+            return FavoriteActionResponse(success=False, message="Failed to save album")
 
     async def remove_album(self, user_id: str, album_id: str) -> FavoriteActionResponse:
         """Remove album method for authenticated endpoints."""
@@ -202,7 +202,7 @@ class FavoritesService:
             return FavoriteActionResponse(success=True, message="Favorite updated")
         except PocketBaseError as e:
             logger.error(f"Error updating favorite: {e}")
-            return FavoriteActionResponse(success=False, message=f"Failed to update favorite: {e}")
+            return FavoriteActionResponse(success=False, message="Failed to update favorite")
 
     async def get_favorites_with_album_details(self, user_id: str, user_token: str | None = None):
         """Get favorites with details, for authenticated endpoints."""

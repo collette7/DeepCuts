@@ -105,6 +105,10 @@ class SearchSessionService:
         except PocketBaseError as e:
             logger.error(f"Error tracking click: {e}")
 
+    async def session_belongs_to_user(self, session_id: str, user_email: str) -> bool:
+        session = await self.client.get_record("search_inputs", session_id)
+        return bool(session and session.get("user_email") == user_email)
+
     async def track_favorite(
         self,
         session_id: str | None,
