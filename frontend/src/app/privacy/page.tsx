@@ -40,7 +40,9 @@ export default function PrivacyPage() {
 
           <section>
             <h2>Contact</h2>
-            <p>Send privacy questions to contact@deepcuts.casa.</p>
+            <p>
+              Send privacy questions to <a href="mailto:contact@deepcuts.casa">contact@deepcuts.casa</a>.
+            </p>
           </section>
         </article>
       </div>
