@@ -6,11 +6,16 @@ from dataclasses import dataclass
 from typing import Any
 
 import anthropic
+import anyio
 
 from app.models.albums import AlbumData
 from app.services.render_api import update_render_env_var
 
 logger = logging.getLogger('deepcuts')
+
+AI_TIMEOUT_SECONDS = 40
+AI_CONCURRENCY_LIMIT = 2
+_ai_capacity_limiter = anyio.CapacityLimiter(AI_CONCURRENCY_LIMIT)
 
 
 @dataclass
@@ -98,15 +103,18 @@ class AIService:
         gemini_key = os.getenv("GEMINI_API_KEY")
         if gemini_key:
             genai.configure(api_key=gemini_key)
+            self.gemini_client = genai.GenerativeModel(self.ACTIVE_MODEL)
             self.gemini_configured = True
         else:
+            self.gemini_client = None
             self.gemini_configured = False
 
         claude_key = os.getenv("CLAUDE_API_KEY")
         if claude_key:
-            self.claude_client = anthropic.Anthropic(api_key=claude_key)
+            self.claude_client = anthropic.AsyncAnthropic(api_key=claude_key)
             self.claude_configured = True
         else:
+            self.claude_client = None
             self.claude_configured = False
 
     def refresh_model(self):
@@ -114,6 +122,7 @@ class AIService:
         if new_model != self.ACTIVE_MODEL:
             logger.info(f"Switching model from {self.ACTIVE_MODEL} to {new_model}")
             self.ACTIVE_MODEL = new_model
+            self._init_clients()
             self._validate_model_config()
         return self.ACTIVE_MODEL
 
@@ -126,8 +135,7 @@ class AIService:
     def client(self):
         """Get the appropriate client for the current model."""
         if self.is_gemini:
-            import google.generativeai as genai
-            return genai.GenerativeModel(self.ACTIVE_MODEL)
+            return self.gemini_client
         return self.claude_client
 
     def _validate_model_config(self):
@@ -182,16 +190,18 @@ class AIService:
         }
 
         try:
-            if self.is_gemini:
-                response = self.client.generate_content("test")
-                result["valid"] = response.text is not None
-            else:
-                message = self.client.messages.create(
-                    model=self.ACTIVE_MODEL,
-                    max_tokens=5,
-                    messages=[{"role": "user", "content": "test"}]
-                )
-                result["valid"] = message.content is not None
+            async with _ai_capacity_limiter:
+                with anyio.fail_after(AI_TIMEOUT_SECONDS):
+                    if self.is_gemini:
+                        response = await self.gemini_client.generate_content_async("test")
+                        result["valid"] = response.text is not None
+                    else:
+                        message = await self.claude_client.messages.create(
+                            model=self.ACTIVE_MODEL,
+                            max_tokens=5,
+                            messages=[{"role": "user", "content": "test"}]
+                        )
+                        result["valid"] = message.content is not None
         except Exception as e:
             result["error"] = str(e)
             if "not found" in str(e).lower() or "404" in str(e):
@@ -225,10 +235,13 @@ class AIService:
             if model_id in DEPRECATED_MODELS:
                 continue
             original = self.ACTIVE_MODEL
+            found_working_model = False
             self.ACTIVE_MODEL = model_id
+            self._init_clients()
             try:
                 result = await self.verify_model_exists()
                 if result["valid"]:
+                    found_working_model = True
                     self.ACTIVE_MODEL = model_id
                     self._validate_model_config()
                     os.environ["ACTIVE_MODEL"] = model_id
@@ -242,8 +255,9 @@ class AIService:
                         "persisted": persist.get("success", False),
                     }
             finally:
-                if self.ACTIVE_MODEL != model_id:
+                if not found_working_model:
                     self.ACTIVE_MODEL = original
+                    self._init_clients()
         return {"success": False, "error": "No configured models responded successfully"}
 
     def get_recommendation_prompt(self, album_name: str) -> str:
@@ -471,21 +485,23 @@ class AIService:
                     + "\n\nReturn entirely new recommendations."
                 )
 
-            if self.is_gemini:
-                response = self.client.generate_content(prompt)
-                response_text = response.text
-            else:
-                message = self.client.messages.create(
-                    model=self.ACTIVE_MODEL,
-                    max_tokens=16384,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ]
-                )
-                response_text = message.content[0].text
+            async with _ai_capacity_limiter:
+                with anyio.fail_after(AI_TIMEOUT_SECONDS):
+                    if self.is_gemini:
+                        response = await self.gemini_client.generate_content_async(prompt)
+                        response_text = response.text
+                    else:
+                        message = await self.claude_client.messages.create(
+                            model=self.ACTIVE_MODEL,
+                            max_tokens=4096,
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": prompt
+                                }
+                            ]
+                        )
+                        response_text = message.content[0].text
 
             logger.debug(f"AI Response (first 500 chars): {response_text[:500]}")
 
