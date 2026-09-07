@@ -53,6 +53,14 @@ export default function FavoritesPage() {
         setError('Request timed out. The server may be slow. Please try again.');
         return;
       }
+      if (response.error) {
+        setError(response.error);
+        return;
+      }
+      if (!response.success) {
+        setError('The server could not load your favorites. Please try again.');
+        return;
+      }
       
       if (response.favorites) {
         // Convert favorites to albums array for enrichment
