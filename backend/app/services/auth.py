@@ -37,5 +37,7 @@ async def get_current_user(token: str) -> AuthenticatedUser:
 
     if not record or not record.get("email"):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+    if record.get("verified") is not True:
+        raise HTTPException(status_code=403, detail="Verify your email before signing in")
 
     return AuthenticatedUser(id=record["id"], email=record["email"])
