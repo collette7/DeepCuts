@@ -7,6 +7,11 @@
 .policy-content {
   max-width: 760px;
   margin-inline: auto;
+  padding-inline: v.spacing(6);
+
+  @media (max-width: 640px) {
+    padding-inline: v.spacing(4);
+  }
 }
 
 .policy-eyebrow {
