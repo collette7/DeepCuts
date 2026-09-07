@@ -6,12 +6,12 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint src"
   },
   "dependencies": {
     "lucide-react": "^0.539.0",
+    "next": "15.5.25",
     "pocketbase": "^0.26.2",
-    "next": "15.5.9",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
@@ -21,8 +21,11 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.5.9",
+    "eslint-config-next": "15.5.25",
     "sass": "^1.90.0",
     "typescript": "^5"
+  },
+  "overrides": {
+    "postcss": "^8.5.23"
   }
 }
