@@ -11,16 +11,24 @@
   margin: 0 auto;
   padding: 0 24px;
   text-align: left;
+  display: flex;
+  align-items: center;
+  gap: v.spacing(4);
   
   @media (max-width: 768px) {
     padding: 0 16px;
   }
   
-  p {
+  p,
+  a {
     font-family: 'Saans', sans-serif;
     font-size: 14px;
     color: v.color(gray-600);
     margin: 0;
     font-weight: 300;
+  }
+
+  a:hover {
+    color: v.color(primary);
   }
 }

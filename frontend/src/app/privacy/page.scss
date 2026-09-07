@@ -1,0 +1,43 @@
+@use '../../styles/variables' as v;
+
+.policy-page {
+  padding-block: v.spacing(10);
+}
+
+.policy-content {
+  max-width: 760px;
+}
+
+.policy-eyebrow {
+  color: v.color(primary);
+  font-family: 'DM Mono', monospace;
+  font-size: v.font-size(sm);
+  text-transform: uppercase;
+}
+
+.policy-content h1 {
+  max-width: 640px;
+  margin-block: v.spacing(3) v.spacing(5);
+}
+
+.policy-intro {
+  color: v.color(gray-600);
+  font-size: v.font-size(xl);
+  line-height: 1.5;
+}
+
+.policy-content section {
+  border-top: 1px solid v.color(gray-200);
+  margin-top: v.spacing(8);
+  padding-top: v.spacing(6);
+}
+
+.policy-content h2 {
+  font-size: v.font-size(xl);
+  margin-bottom: v.spacing(3);
+}
+
+.policy-content section p {
+  color: v.color(gray-700);
+  line-height: 1.7;
+}

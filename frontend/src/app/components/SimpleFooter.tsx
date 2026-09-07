@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import './SimpleFooter.scss';
 
 interface SimpleFooterProps {
@@ -13,6 +15,7 @@ export default function SimpleFooter({ className = '' }: SimpleFooterProps) {
     <footer className={`simple-footer ${className}`}>
       <div className="simple-footer-container">
         <p>© {currentYear} DeepCuts. All rights reserved.</p>
+        <Link href="/privacy">Privacy</Link>
       </div>
     </footer>
   );

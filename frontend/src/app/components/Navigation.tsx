@@ -87,6 +87,15 @@ export default function Navigation() {
                       >
                         My Favorites
                       </button>
+                      <button
+                        className="menu-item"
+                        onClick={() => {
+                          router.push('/account');
+                          setIsMenuOpen(false);
+                        }}
+                      >
+                        Account
+                      </button>
                       <div className="menu-divider" />
                       <button 
                         className="menu-item"

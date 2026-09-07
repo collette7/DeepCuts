@@ -1,0 +1,62 @@
+@use '../../styles/variables' as v;
+
+.account-page {
+  padding-block: v.spacing(10);
+}
+
+.account-content {
+  max-width: 760px;
+}
+
+.account-eyebrow {
+  color: v.color(primary);
+  font-family: 'DM Mono', monospace;
+  font-size: v.font-size(sm);
+  text-transform: uppercase;
+}
+
+.account-content h1 {
+  font-size: clamp(1.25rem, 5vw, 2.5rem);
+  overflow-wrap: anywhere;
+  margin-block: v.spacing(3) v.spacing(5);
+}
+
+.account-summary {
+  color: v.color(gray-600);
+  font-size: v.font-size(lg);
+}
+
+.danger-zone {
+  border-top: 1px solid v.color(gray-200);
+  margin-top: v.spacing(10);
+  padding-top: v.spacing(6);
+}
+
+.danger-zone h2 {
+  font-size: v.font-size(xl);
+  margin-bottom: v.spacing(2);
+}
+
+.danger-zone p {
+  color: v.color(gray-600);
+  margin-bottom: v.spacing(5);
+}
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: v.spacing(3);
+}
+
+.account-delete-button {
+  background: v.color(error);
+  color: v.color(white);
+}
+
+.account-delete-button:hover {
+  background: color-mix(in srgb, v.color(error) 82%, black);
+}
+
+.danger-zone .account-error {
+  color: v.color(error);
+}
