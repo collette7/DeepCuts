@@ -36,7 +36,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (pb.authStore.isValid) {
         try {
           await pb.collection('users').authRefresh()
-          setUser(pb.authStore.record as AuthenticatedUser)
+          const refreshedUser = pb.authStore.record as AuthenticatedUser
+          if (refreshedUser.verified) {
+            setUser(refreshedUser)
+          } else {
+            clearSession()
+          }
         } catch {
           clearSession()
         }
@@ -71,6 +76,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       await pb.collection('users').authWithPassword(email, password)
+      const authenticatedUser = pb.authStore.record as AuthenticatedUser
+      if (!authenticatedUser.verified) {
+        clearSession()
+        return { error: new Error('Verify your email before signing in.') }
+      }
       return { error: null }
     } catch (error) {
       return { error }

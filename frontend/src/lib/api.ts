@@ -205,7 +205,13 @@ class ApiClient {
             
             if (!response.ok) {
                 if (response.status === 401) {
-                    return { success: false, favorites: [], total: 0 };
+                    this.handleSessionExpired();
+                    return {
+                        success: false,
+                        favorites: [],
+                        total: 0,
+                        error: 'Your session expired. Please sign in again.',
+                    };
                 }
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
@@ -217,6 +223,9 @@ class ApiClient {
                     album: fav.album || fav.albums,
                     albums: undefined,
                 }));
+            }
+            if (!data.success && !data.error) {
+                data.error = 'The server could not load your favorites.';
             }
             return data;
         } catch (error) {
@@ -313,6 +322,20 @@ class ApiClient {
         } catch {
             // Analytics tracking failures are silent
         }
+    }
+
+    async deleteAccount(): Promise<{ success: boolean; deleted_search_sessions: number }> {
+        const response = await fetch(`${API_BASE_URL}/api/v1/account`, {
+            method: 'DELETE',
+            headers: this.getAuthHeaders(),
+        });
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                this.handleSessionExpired();
+            }
+            throw new Error(`Failed to delete account (${response.status})`);
+        }
+        return response.json();
     }
 
 
