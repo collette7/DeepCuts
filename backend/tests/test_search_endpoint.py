@@ -73,3 +73,13 @@ def test_search_with_exclude_drops_excluded_albums(client):
     assert resp.status_code == 200
     titles = [a["title"] for a in resp.json()["recommendations"]]
     assert "Album 0" not in titles
+
+
+def test_anonymous_search_does_not_persist_history(client, monkeypatch):
+    create_session = AsyncMock(return_value="session-1")
+    monkeypatch.setattr(main_module.search_session_service, "create_session", create_session)
+
+    response = client.post("/api/v1/search", json={"query": "city pop"})
+
+    assert response.status_code == 200
+    create_session.assert_not_awaited()

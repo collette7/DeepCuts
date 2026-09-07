@@ -1,13 +1,13 @@
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SuggestionRequest(BaseModel):
     """Search suggestions request for autocomplete fron Discogs"""
-    query: str
-    type: str = "release"
-    per_page: int = 25
+    query: str = Field(min_length=1, max_length=200)
+    type: Literal["release", "master", "artist", "label"] = "release"
+    per_page: int = Field(default=25, ge=1, le=25)
 
 
 class SuggestionResult(BaseModel):

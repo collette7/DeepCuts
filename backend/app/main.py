@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.clients.pocketbase import (
@@ -16,9 +16,19 @@ from app.clients.pocketbase import (
     get_shared_pocketbase_client,
 )
 from app.config import settings
+from app.models.accounts import AccountDeletionResponse
 from app.models.albums import AlbumData, SearchRequest, SearchResponse
+from app.models.analytics import TrackClickRequest
 from app.models.favorites import AddToFavoritesRequest, FavoriteActionResponse, UserFavoritesList
 from app.models.searchSuggestions import SuggestionRequest, SuggestionResponse, SuggestionResult
+from app.rate_limit import (
+    enforce_analytics_rate_limit,
+    enforce_enrichment_rate_limit,
+    enforce_mutation_rate_limit,
+    enforce_search_rate_limit,
+)
+from app.security import require_admin
+from app.services.accounts import account_service
 from app.services.ai import (
     VALID_CLAUDE_MODELS,
     VALID_GEMINI_MODELS,
@@ -26,6 +36,7 @@ from app.services.ai import (
     get_model_info,
     set_active_model,
 )
+from app.services.auth import AuthenticatedUser
 from app.services.auth import get_current_user as authenticate_token
 from app.services.favorites import favorites_service
 from app.services.search_sessions import search_session_service
@@ -44,16 +55,7 @@ def safe_error_message(technical_detail: str | None) -> str:
 
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.PROJECT_VERSION)
 # Configure CORS
-allowed_origins = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-    "https://www.deepcuts.casa",
-    "https://deepcuts.casa",
-    "https://deep-cuts-blue.vercel.app",
-    "https://*.vercel.app",  # Allow all Vercel preview deployments
-]
+allowed_origins = settings.get_cors_origins()
 
 # Add frontend URL if specified
 frontend_url = os.getenv("FRONTEND_URL")
@@ -65,9 +67,10 @@ logger.info(f"CORS allowed origins: {allowed_origins}")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Admin-Key"],
 )
 
 pocketbase_client = get_shared_pocketbase_client()
@@ -83,12 +86,13 @@ async def root():
         await pocketbase_client.list_records("albums", perPage=1)
         pocketbase_status = "connected"
     except PocketBaseError as e:
-        pocketbase_status = f"error: {str(e)[:50]}"
+        logger.error(f"PocketBase health check failed: {e}")
+        pocketbase_status = "unavailable"
 
     return {
         "message": f"Welcome to {settings.PROJECT_NAME}",
         "version": settings.PROJECT_VERSION,
-        "status": "healthy",
+        "status": "healthy" if pocketbase_status == "connected" else "degraded",
         "pocketbase_status": pocketbase_status,
         "features": {
             "ai_search": "enabled",
@@ -129,7 +133,7 @@ async def ai_health_check():
 
 
 @app.get("/api/v1/health/ai/verify")
-async def verify_ai_model():
+async def verify_ai_model(_admin: None = Depends(require_admin)):
     """
     Verify the AI model by making a test API call.
     This is more expensive but confirms the model actually works.
@@ -151,7 +155,7 @@ async def verify_ai_model():
 
 
 @app.post("/api/v1/health/ai/auto-fix")
-async def auto_fix_ai_model():
+async def auto_fix_ai_model(_admin: None = Depends(require_admin)):
     result = await ai_service.find_working_model()
     if result["success"]:
         return {
@@ -190,12 +194,12 @@ async def get_available_models():
             "claude": VALID_CLAUDE_MODELS,
             "gemini": VALID_GEMINI_MODELS,
         },
-        "note": "Gemini models are free. Change the model via PUT /api/v1/settings/model"
+        "note": "Model changes require administrator authorization."
     }
 
 
 @app.put("/api/v1/settings/model")
-async def update_active_model(model_id: str):
+async def update_active_model(model_id: str, _admin: None = Depends(require_admin)):
     """
     Update the active AI model.
     Changes take effect immediately (within 60 seconds due to caching).
@@ -216,7 +220,7 @@ async def update_active_model(model_id: str):
 
 
 @app.post("/api/v1/settings/model/refresh")
-async def refresh_model_config():
+async def refresh_model_config(_admin: None = Depends(require_admin)):
     new_model = ai_service.refresh_model()
     model_info = get_model_info(new_model)
 
@@ -230,7 +234,10 @@ async def refresh_model_config():
 
 
 @app.get("/api/v1/albums/random")
-async def get_random_albums(limit: int = 10):
+async def get_random_albums(
+    limit: int = Query(default=10, ge=1, le=50),
+    _rate_limit: None = Depends(enforce_enrichment_rate_limit),
+):
     """Get random albums from the Sessions database."""
     try:
         all_albums = await pocketbase_client.list_all_records('albums')
@@ -650,8 +657,8 @@ async def verify_album_exists(title: str, artist: str) -> bool:
 @app.post("/api/v1/search")
 async def search_albums(
     request: SearchRequest,
-    http_request: Request,
-    authorization: str = Header(None)
+    authorization: str = Header(None),
+    _rate_limit: None = Depends(enforce_search_rate_limit),
 ) -> SearchResponse:
     """Get album recommendations based on user query."""
     start_time = time.time()
@@ -665,9 +672,6 @@ async def search_albums(
             user_email = user.email
         except HTTPException as e:
             logger.info(f"Search: Could not authenticate user: {e.detail}")
-
-    ip_address = http_request.client.host if http_request.client else None
-    user_agent = http_request.headers.get("user-agent")
 
     session_id = None
 
@@ -688,7 +692,6 @@ async def search_albums(
             exclude=request.exclude,
         )
         recommendations: list[AlbumData] = result.albums
-        raw_response = result.raw_response
         raw_count = len(recommendations)
 
         if not recommendations:
@@ -753,17 +756,15 @@ async def search_albums(
             quick_recommendations.append(quick_album)
         recommendations = quick_recommendations
 
-        session_id = await search_session_service.create_session(
-            query=request.query,
-            albums=recommendations,
-            user_email=user_email,
-            ai_model=ai_service.ACTIVE_MODEL,
-            raw_results_count=raw_count,
-            filtered_count=len(filtered_albums),
-            ip_address=ip_address,
-            user_agent=user_agent,
-            raw_response=raw_response,
-        )
+        if user_email:
+            session_id = await search_session_service.create_session(
+                query=request.query,
+                albums=recommendations,
+                user_email=user_email,
+                ai_model=ai_service.ACTIVE_MODEL,
+                raw_results_count=raw_count,
+                filtered_count=len(filtered_albums),
+            )
 
         if session_id and filtered_albums:
             await search_session_service.track_filtered_albums(session_id, filtered_albums)
@@ -792,7 +793,12 @@ async def search_albums(
 
 
 @app.get("/api/v1/albums/{album_id}/spotify")
-async def get_album_spotify_data(album_id: str, title: str, artist: str):
+async def get_album_spotify_data(
+    album_id: str,
+    title: str,
+    artist: str,
+    _rate_limit: None = Depends(enforce_enrichment_rate_limit),
+):
     """Get Spotify and Discogs data for a specific album"""
     try:
         spotify_data = await get_spotify_album_data(title, artist)
@@ -817,7 +823,10 @@ async def get_album_spotify_data(album_id: str, title: str, artist: str):
 
 
 @app.post("/api/v1/discogs/search")
-async def search_discogs(request: SuggestionRequest) -> SuggestionResponse:
+async def search_discogs(
+    request: SuggestionRequest,
+    _rate_limit: None = Depends(enforce_enrichment_rate_limit),
+) -> SuggestionResponse:
     """Get search suggestions from Discogs for autocomplete dropdown."""
 
     discogs_key = os.getenv("DISCOGS_KEY")
@@ -935,10 +944,17 @@ async def get_current_user(authorization: str = Header(None)) -> str:
     return user.id
 
 
+async def get_authenticated_user(authorization: str = Header(None)) -> AuthenticatedUser:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authorization header required")
+    return await authenticate_token(authorization.replace("Bearer ", ""))
+
+
 @app.post("/api/v1/favorites/add")
 async def add_favorite(
     request: AddToFavoritesRequest,
-    authorization: str = Header(None)
+    authorization: str = Header(None),
+    _rate_limit: None = Depends(enforce_mutation_rate_limit),
 ) -> FavoriteActionResponse:
     """Save album to user favorites"""
     if not authorization or not authorization.startswith("Bearer "):
@@ -946,6 +962,11 @@ async def add_favorite(
 
     token = authorization.replace("Bearer ", "")
     user = await authenticate_token(token)
+
+    if request.search_session_id and not await search_session_service.session_belongs_to_user(
+        request.search_session_id, user.email
+    ):
+        raise HTTPException(status_code=403, detail="Not authorized to update this session")
 
     result = await favorites_service.add_to_favorites(user.id, user.email, request)
     if result.success and request.search_session_id:
@@ -962,7 +983,8 @@ async def add_favorite(
 @app.delete("/api/v1/favorites/remove/{album_id}")
 async def remove_favorite(
     album_id: str,
-    user_id: str = Depends(get_current_user)
+    user_id: str = Depends(get_current_user),
+    _rate_limit: None = Depends(enforce_mutation_rate_limit),
 ) -> FavoriteActionResponse:
     """Remove an album"""
     return await favorites_service.remove_album(user_id, album_id)
@@ -972,7 +994,8 @@ async def remove_favorite(
 async def update_favorite(
     album_id: str,
     request: AddToFavoritesRequest,
-    user_id: str = Depends(get_current_user)
+    user_id: str = Depends(get_current_user),
+    _rate_limit: None = Depends(enforce_mutation_rate_limit),
 ) -> FavoriteActionResponse:
     """Update album metadata for a favorite."""
     return await favorites_service.update_favorite(user_id, album_id, request.album_data)
@@ -1000,28 +1023,31 @@ async def get_favorites_with_details(
 
 @app.post("/api/v1/analytics/track-click")
 async def track_album_click(
-    session_id: str | None = None,
-    title: str = "",
-    artist: str = "",
-    authorization: str = Header(None)
+    request: TrackClickRequest,
+    user: AuthenticatedUser = Depends(get_authenticated_user),
+    _rate_limit: None = Depends(enforce_analytics_rate_limit),
 ):
     """Track when a user opens album details."""
-    user_email = None
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            token = authorization.replace("Bearer ", "")
-            user = await authenticate_token(token)
-            user_email = user.email
-        except HTTPException:
-            pass
+    if not await search_session_service.session_belongs_to_user(
+        request.session_id, user.email
+    ):
+        raise HTTPException(status_code=403, detail="Not authorized to update this session")
 
     await search_session_service.track_click(
-        session_id=session_id,
-        album_title=title,
-        album_artist=artist,
-        user_email=user_email,
+        session_id=request.session_id,
+        album_title=request.title,
+        album_artist=request.artist,
+        user_email=user.email,
     )
     return {"success": True}
+
+
+@app.delete("/api/v1/account")
+async def delete_account(
+    user: AuthenticatedUser = Depends(get_authenticated_user),
+    _rate_limit: None = Depends(enforce_analytics_rate_limit),
+) -> AccountDeletionResponse:
+    return await account_service.delete_user_data(user)
 
 
 @app.get("/api/v1/analytics/sessions")
@@ -1100,8 +1126,6 @@ async def get_search_results(
                 "input_id": session["id"],
                 "query": session["query"],
                 "user_email": session.get("user_email"),
-                "ip_address": session.get("ip_address"),
-                "user_agent": session.get("user_agent"),
                 "ai_model": session.get("ai_model"),
                 "results_count": session.get("results_count"),
                 "raw_results_count": session.get("raw_results_count"),
@@ -1146,5 +1170,3 @@ async def get_search_summary(
             "albums": [f"{o['album_title']} by {o['album_artist']}" for o in outputs] if outputs else None,
         })
     return {"summaries": summaries}
-
-
