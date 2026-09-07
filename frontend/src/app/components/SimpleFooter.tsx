@@ -16,6 +16,7 @@ export default function SimpleFooter({ className = '' }: SimpleFooterProps) {
       <div className="simple-footer-container">
         <p>© {currentYear} DeepCuts. All rights reserved.</p>
         <Link href="/privacy">Privacy</Link>
+        <a href="mailto:contact@deepcuts.casa">Support</a>
       </div>
     </footer>
   );

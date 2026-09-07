@@ -17,7 +17,7 @@ export default function PrivacyPage() {
             <h2>What we store</h2>
             <p>
               We store your email address, saved albums, and searches made while signed in. We do
-              not store your password. PocketBase manages password authentication.
+              not store your password.
             </p>
           </section>
 
