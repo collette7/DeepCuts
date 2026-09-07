@@ -28,6 +28,7 @@ async def test_user(pb_client):
             "email": "schema-contract-test@deepcuts.casa",
             "password": "TestPass123!",
             "passwordConfirm": "TestPass123!",
+            "verified": True,
         },
     )
     yield user
@@ -71,6 +72,26 @@ class TestCollectionsExist:
 
         for expected in ["username", "preferences", "spotify_user_id", "spotify_access_token"]:
             assert expected in field_names
+
+    async def test_users_collection_requires_verified_accounts(self, pb_client):
+        response = await pb_client._admin_request("GET", "/api/collections/users")
+
+        assert response.json()["authRule"] == "verified = true"
+
+    async def test_pocketbase_rate_limits_use_forwarded_client_ip(self, pb_client):
+        response = await pb_client._admin_request("GET", "/api/settings")
+        settings = response.json()
+
+        assert settings["rateLimits"]["enabled"] is True
+        assert "X-Forwarded-For" in settings["trustedProxy"]["headers"]
+
+    async def test_search_inputs_exclude_unneeded_request_metadata(self, pb_client):
+        response = await pb_client._admin_request("GET", "/api/collections/search_inputs")
+        field_names = {field["name"] for field in response.json()["fields"]}
+
+        assert "ip_address" not in field_names
+        assert "user_agent" not in field_names
+        assert "raw_response" not in field_names
 
 
 class TestUniqueConstraints:
@@ -134,6 +155,7 @@ class TestAccessRules:
                 "email": "schema-contract-other@deepcuts.casa",
                 "password": "OtherPass123!",
                 "passwordConfirm": "OtherPass123!",
+                "verified": True,
             },
         )
         try:
@@ -151,3 +173,34 @@ class TestAccessRules:
             assert other_view.json()["items"] == []
         finally:
             await pb_client.delete_record("users", other_user["id"])
+
+    async def test_search_outputs_are_visible_only_to_session_owner(self, pb_client, test_user):
+        session = await pb_client.create_record(
+            "search_inputs",
+            {"query": "schema contract test", "user_email": test_user["email"]},
+        )
+        await pb_client.create_record(
+            "search_outputs",
+            {"session": session["id"], "album_title": "X", "album_artist": "Y"},
+        )
+        try:
+            anonymous_view = await pb_client._send(
+                "GET", "/api/collections/search_outputs/records"
+            )
+            assert anonymous_view.json()["items"] == []
+
+            owner_token = (
+                await pb_client._send(
+                    "POST",
+                    "/api/collections/users/auth-with-password",
+                    json={"identity": test_user["email"], "password": "TestPass123!"},
+                )
+            ).json()["token"]
+            owner_view = await pb_client._send(
+                "GET",
+                "/api/collections/search_outputs/records",
+                headers={"Authorization": owner_token},
+            )
+            assert len(owner_view.json()["items"]) == 1
+        finally:
+            await pb_client.delete_record("search_inputs", session["id"])

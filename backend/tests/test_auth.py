@@ -29,7 +29,11 @@ def reset_shared_client(monkeypatch):
 
 
 async def test_returns_authenticated_user_for_valid_token(reset_shared_client):
-    reset_shared_client(FakePocketBaseClient(record={"id": "u1", "email": "listener@deepcuts.casa"}))
+    reset_shared_client(
+        FakePocketBaseClient(
+            record={"id": "u1", "email": "listener@deepcuts.casa", "verified": True}
+        )
+    )
 
     user = await get_current_user("valid-token")
 
@@ -47,12 +51,25 @@ async def test_raises_401_for_invalid_token(reset_shared_client):
 
 
 async def test_raises_401_when_record_missing_email(reset_shared_client):
-    reset_shared_client(FakePocketBaseClient(record={"id": "u1"}))
+    reset_shared_client(FakePocketBaseClient(record={"id": "u1", "verified": True}))
 
     with pytest.raises(HTTPException) as exc_info:
         await get_current_user("valid-token")
 
     assert exc_info.value.status_code == 401
+
+
+async def test_raises_403_for_unverified_account(reset_shared_client):
+    reset_shared_client(
+        FakePocketBaseClient(
+            record={"id": "u1", "email": "listener@deepcuts.casa", "verified": False}
+        )
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await get_current_user("valid-token")
+
+    assert exc_info.value.status_code == 403
 
 
 async def test_raises_503_when_pocketbase_unavailable(reset_shared_client):
