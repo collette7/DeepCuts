@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import time
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -13,8 +14,11 @@ from app.services.render_api import update_render_env_var
 
 logger = logging.getLogger('deepcuts')
 
-AI_TIMEOUT_SECONDS = 40
+ANTHROPIC_TIMEOUT_SECONDS = 15
+GEMINI_TIMEOUT_SECONDS = 75
 AI_CONCURRENCY_LIMIT = 2
+FALLBACK_MODEL = "gemini-2.5-flash"
+FALLBACK_RETRY_SECONDS = 300
 _ai_capacity_limiter = anyio.CapacityLimiter(AI_CONCURRENCY_LIMIT)
 
 
@@ -91,6 +95,7 @@ class AIService:
         self.ACTIVE_MODEL = os.getenv("ACTIVE_MODEL", "claude-sonnet-4-5-20250929")
         self.model_validated = False
         self.validation_error = None
+        self._fallback_until = 0.0
 
         self._validate_model_config()
         self._init_clients()
@@ -191,11 +196,14 @@ class AIService:
 
         try:
             async with _ai_capacity_limiter:
-                with anyio.fail_after(AI_TIMEOUT_SECONDS):
-                    if self.is_gemini:
-                        response = await self.gemini_client.generate_content_async("test")
-                        result["valid"] = response.text is not None
-                    else:
+                if self.is_gemini:
+                    response = await self.gemini_client.generate_content_async(
+                        "test",
+                        request_options={"timeout": 15},
+                    )
+                    result["valid"] = response.text is not None
+                else:
+                    with anyio.fail_after(ANTHROPIC_TIMEOUT_SECONDS):
                         message = await self.claude_client.messages.create(
                             model=self.ACTIVE_MODEL,
                             max_tokens=5,
@@ -459,6 +467,33 @@ class AIService:
 
         return recommendations
 
+    async def _generate_response(self, prompt: str) -> str:
+        async with _ai_capacity_limiter:
+            if self.is_gemini:
+                response = await self.gemini_client.generate_content_async(
+                    prompt,
+                    request_options={"timeout": GEMINI_TIMEOUT_SECONDS},
+                )
+                return response.text
+
+            with anyio.fail_after(ANTHROPIC_TIMEOUT_SECONDS):
+                message = await self.claude_client.messages.create(
+                    model=self.ACTIVE_MODEL,
+                    max_tokens=4096,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                return message.content[0].text
+
+    async def _generate_fallback_response(self, prompt: str) -> str:
+        original_model = self.ACTIVE_MODEL
+        self.ACTIVE_MODEL = FALLBACK_MODEL
+        self._init_clients()
+        try:
+            return await self._generate_response(prompt)
+        finally:
+            self.ACTIVE_MODEL = original_model
+            self._init_clients()
+
     async def get_album_recommendations(
         self,
         album_name: str,
@@ -485,23 +520,20 @@ class AIService:
                     + "\n\nReturn entirely new recommendations."
                 )
 
-            async with _ai_capacity_limiter:
-                with anyio.fail_after(AI_TIMEOUT_SECONDS):
-                    if self.is_gemini:
-                        response = await self.gemini_client.generate_content_async(prompt)
-                        response_text = response.text
-                    else:
-                        message = await self.claude_client.messages.create(
-                            model=self.ACTIVE_MODEL,
-                            max_tokens=4096,
-                            messages=[
-                                {
-                                    "role": "user",
-                                    "content": prompt
-                                }
-                            ]
-                        )
-                        response_text = message.content[0].text
+            if not self.is_gemini and time.monotonic() < self._fallback_until:
+                response_text = await self._generate_fallback_response(prompt)
+            else:
+                try:
+                    response_text = await self._generate_response(prompt)
+                except (anthropic.APIError, TimeoutError) as primary_error:
+                    if self.is_gemini or not self.gemini_configured:
+                        raise
+
+                    self._fallback_until = time.monotonic() + FALLBACK_RETRY_SECONDS
+                    logger.warning(
+                        f"Primary AI provider failed; using {FALLBACK_MODEL}: {primary_error}"
+                    )
+                    response_text = await self._generate_fallback_response(prompt)
 
             logger.debug(f"AI Response (first 500 chars): {response_text[:500]}")
 
