@@ -16,6 +16,7 @@ import './page.css';
 import './components/RecommendationsSection.scss';
 
 const MAX_CACHE_ENTRIES = 50;
+const MAX_RESULT_HEADING_LENGTH = 60;
 
 /** Stable identity key for an album — matches by title+artist regardless of ID source */
 const albumKey = (album: AlbumData) =>
@@ -36,6 +37,7 @@ export default function Home() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [resultQuery, setResultQuery] = useState<string | null>(null);
   const [searchCache, setSearchCache] = useState<Map<string, AlbumData[]>>(new Map());
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
@@ -44,6 +46,7 @@ export default function Home() {
       setLoading(true);
       const response = await apiClient.getRandomAlbums(10);
       setAlbums(response.albums);
+      setResultQuery(null);
       
       // Load Spotify data for initial albums in the background
       if (response.albums && response.albums.length > 0) {
@@ -75,6 +78,7 @@ const handleSearch = useCallback(async (query: string) => {
     const cacheKey = query.toLowerCase().trim();
     if (searchCache.has(cacheKey)) {
       setAlbums(searchCache.get(cacheKey) || []);
+      setResultQuery(query);
       return;
     }
     
@@ -85,6 +89,7 @@ const handleSearch = useCallback(async (query: string) => {
     if (searchData.recommendations && searchData.recommendations.length > 0) {
       // Show AI results immediately
       setAlbums(searchData.recommendations);
+      setResultQuery(searchData.query || query);
       setCurrentSessionId(searchData.session_id || null);
       setLoading(false);
       setSearchQuery('');
@@ -273,6 +278,14 @@ const handleToggleFavorite = async (album: AlbumData) => {
   }
 };
 
+const detailedResultHeading = resultQuery
+  ? `${albums.length} albums for “${resultQuery}” lovers`
+  : null;
+const resultHeading = detailedResultHeading
+  ? detailedResultHeading.length <= MAX_RESULT_HEADING_LENGTH
+    ? detailedResultHeading
+    : `${albums.length} albums`
+  : "Today's top favorites";
 
 
   // Albums
@@ -307,7 +320,7 @@ const handleToggleFavorite = async (album: AlbumData) => {
         
         {!loading && !error && albums.length > 0 && (
           <div className="recommendations-section">
-            <h2 className="recommendations-title">{searchQuery ? `${albums.length} deep cut albums for ${searchQuery} lovers` : "Today's top favorites"}</h2>
+            <h2 className="recommendations-title">{resultHeading}</h2>
             <div className="recommendations-grid">
               {albums.map((album, index) => (
                 <AlbumCard 
