@@ -12,7 +12,7 @@ logger = logging.getLogger('deepcuts')
 _ALBUM_METADATA_FIELDS = [
     ('year', 'release_year'),
     ('genre', 'genre'),
-    ('discogs_id', 'discogs_id'),
+    ('discogs_url', 'discogs_id'),
     ('cover_url', 'cover_url'),
     ('spotify_preview_url', 'spotify_preview_url'),
     ('spotify_url', 'spotify_url'),
@@ -66,6 +66,9 @@ class FavoritesService:
             created = await self.client.create_record("albums", insert_data)
             return created['id']
         except PocketBaseError as e:
+            concurrent_album = await self._find_album_by_title_artist(title, artist)
+            if concurrent_album:
+                return concurrent_album['id']
             logger.error(f"Error inserting album: {e}")
             return None
 
@@ -150,7 +153,7 @@ class FavoritesService:
                     'id': fav['id'],
                     'saved_at': fav['created'],
                     'reasoning': fav.get('reasoning', ''),
-                    'albums': album,
+                    'album': album,
                 })
 
             return UserFavoritesList(success=True, favorites=results, total=len(results))
