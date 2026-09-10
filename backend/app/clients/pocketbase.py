@@ -1,11 +1,28 @@
+import base64
+import binascii
+import json
 import logging
-from typing import Any
+import time
+from typing import Any, Final
 
 import httpx
 
 from app.config import settings
 
 logger = logging.getLogger('deepcuts')
+
+_ADMIN_TOKEN_REFRESH_SKEW_SECONDS: Final = 30
+
+
+def _admin_token_needs_refresh(token: str) -> bool:
+    try:
+        payload = token.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(payload))
+        expires_at = float(claims["exp"])
+    except (IndexError, KeyError, TypeError, ValueError, binascii.Error, json.JSONDecodeError):
+        return False
+    return time.time() >= expires_at - _ADMIN_TOKEN_REFRESH_SKEW_SECONDS
 
 
 class PocketBaseError(Exception):
@@ -68,7 +85,7 @@ class PocketBaseClient:
         return token
 
     async def _admin_headers(self, force_refresh: bool = False) -> dict[str, str]:
-        if force_refresh or not self._admin_token:
+        if force_refresh or not self._admin_token or _admin_token_needs_refresh(self._admin_token):
             await self._authenticate_admin()
         return {"Authorization": self._admin_token}
 
