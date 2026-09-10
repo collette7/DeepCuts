@@ -182,7 +182,7 @@ class TestGetUserFavorites:
 
         assert result.success is True
         assert result.total == 1
-        assert result.favorites[0]["albums"]["title"] == "OK Computer"
+        assert result.favorites[0]["album"]["title"] == "OK Computer"
 
     async def test_skips_favorites_missing_expanded_album(self):
         def handler(request: httpx.Request) -> httpx.Response:
