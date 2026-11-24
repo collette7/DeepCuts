@@ -34,6 +34,8 @@ export default function Home() {
   const [favoriteAlbums, setFavoriteAlbums] = useState<Set<string>>(new Set());
   const [favoriteIdMap, setFavoriteIdMap] = useState<Map<string, string>>(new Map());
   const favoritesLoadingRef = useRef(false);
+  const searchRequestRef = useRef(0);
+  const selectionRequestRef = useRef(0);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,21 +44,27 @@ export default function Home() {
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   const loadInitialAlbums = useCallback(async () => {
+    const requestId = ++searchRequestRef.current;
     try {
       setLoading(true);
       const response = await apiClient.getRandomAlbums(10);
+      if (requestId !== searchRequestRef.current) return;
+
       setAlbums(response.albums);
       setResultQuery(null);
       
       // Load Spotify data for initial albums in the background
       if (response.albums && response.albums.length > 0) {
-        loadSpotifyDataProgressively(response.albums, 'initial-load');
+        loadSpotifyDataProgressively(response.albums, 'initial-load', requestId);
       }
     } catch (error) {
+      if (requestId !== searchRequestRef.current) return;
       console.error('Error loading initial albums:', error);
       setError('Failed to load albums');
     } finally {
-      setLoading(false);
+      if (requestId === searchRequestRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -70,6 +78,7 @@ const handleSearchSubmit = async (e: React.FormEvent, overrideQuery?: string) =>
 };
 
 const handleSearch = useCallback(async (query: string) => {
+  const requestId = ++searchRequestRef.current;
   try {
     setSearchQuery(query);
     setError(null);
@@ -85,24 +94,24 @@ const handleSearch = useCallback(async (query: string) => {
     setLoading(true);
     
     const searchData: SearchResponse = await apiClient.searchAlbums(query);
+    if (requestId !== searchRequestRef.current) return;
     
     if (searchData.recommendations && searchData.recommendations.length > 0) {
       // Show AI results immediately
       setAlbums(searchData.recommendations);
       setResultQuery(searchData.query || query);
       setCurrentSessionId(searchData.session_id || null);
-      setLoading(false);
       setSearchQuery('');
       
       // Now load Spotify data progressively in the background
-      loadSpotifyDataProgressively(searchData.recommendations, cacheKey);
+      loadSpotifyDataProgressively(searchData.recommendations, cacheKey, requestId);
     } else {
       setAlbums([]);
       setError('No results found, try again later');
-      setLoading(false);
     }
     
   } catch (error) {
+    if (requestId !== searchRequestRef.current) return;
     console.error('Error searching albums:', error);
     setAlbums([]);
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
@@ -112,45 +121,55 @@ const handleSearch = useCallback(async (query: string) => {
     } else {
       setError('An unexpected error occurred');
     }
-    setLoading(false);
+  } finally {
+    if (requestId === searchRequestRef.current) {
+      setLoading(false);
+    }
   }
 }, [searchCache]);
 
-const loadSpotifyDataProgressively = async (initialAlbums: AlbumData[], cacheKey: string) => {
+const loadSpotifyDataProgressively = async (
+  initialAlbums: AlbumData[],
+  cacheKey: string,
+  requestId: number,
+) => {
   if (!initialAlbums || initialAlbums.length === 0) return;
 
+  const enrichedByKey = new Map<string, AlbumData>();
+
   await enrichAlbumsInParallel(initialAlbums, (original, enriched) => {
-    setAlbums(current => current.map(a => a.id === original.id ? enriched : a));
-    setSelectedAlbum(current => current?.id === original.id ? enriched : current);
+    enrichedByKey.set(albumKey(original), enriched);
+
+    // A newer search owns the screen; do not let stale enrichment replace it.
+    if (requestId !== searchRequestRef.current) return;
+
+    setAlbums(current => current.map(a => albumKey(a) === albumKey(original) ? enriched : a));
+    setSelectedAlbum(current => current && albumKey(current) === albumKey(original) ? enriched : current);
 
     const key = albumKey(original);
     if (user && favoriteAlbums.has(key) && (enriched.spotify_url || enriched.discogs_url)) {
       const dbId = favoriteIdMap.get(key) || original.id;
-      apiClient.updateFavorite(dbId, {
-        spotify_url: enriched.spotify_url,
-        spotify_preview_url: enriched.spotify_preview_url,
-        discogs_url: enriched.discogs_url,
-        cover_url: enriched.cover_url,
-      }).catch(() => {});
+      apiClient.updateFavorite(dbId).catch(() => {});
     }
   });
 
   if (cacheKey && cacheKey.length > 0) {
-    setAlbums(currentAlbums => {
-      setSearchCache(prev => {
-        const next = new Map(prev.set(cacheKey, currentAlbums));
-        if (next.size > MAX_CACHE_ENTRIES) {
-          const oldestKey = next.keys().next().value;
-          if (oldestKey !== undefined) next.delete(oldestKey);
-        }
-        return next;
-      });
-      return currentAlbums;
+    const enrichedAlbums = initialAlbums.map(
+      album => enrichedByKey.get(albumKey(album)) ?? album
+    );
+    setSearchCache(prev => {
+      const next = new Map(prev.set(cacheKey, enrichedAlbums));
+      if (next.size > MAX_CACHE_ENTRIES) {
+        const oldestKey = next.keys().next().value;
+        if (oldestKey !== undefined) next.delete(oldestKey);
+      }
+      return next;
     });
   }
 };
 
 const handleListenNow = async (album: AlbumData) => {
+  const selectionId = ++selectionRequestRef.current;
   setSelectedAlbum(album);
   setDetailsOpen(true);
   apiClient.trackClick(currentSessionId, album);
@@ -158,18 +177,15 @@ const handleListenNow = async (album: AlbumData) => {
   if (!album.spotify_url && album.title && album.artist) {
     try {
       const enriched = await enrichAlbumWithSpotifyData(album);
+      if (selectionId !== selectionRequestRef.current) return;
+
       setSelectedAlbum(enriched);
-      setAlbums(current => current.map(a => a.id === album.id ? enriched : a));
+      setAlbums(current => current.map(a => albumKey(a) === albumKey(album) ? enriched : a));
 
       const key = albumKey(album);
       if (user && favoriteAlbums.has(key) && (enriched.spotify_url || enriched.discogs_url)) {
         const dbId = favoriteIdMap.get(key) || album.id;
-        apiClient.updateFavorite(dbId, {
-          spotify_url: enriched.spotify_url,
-          spotify_preview_url: enriched.spotify_preview_url,
-          discogs_url: enriched.discogs_url,
-          cover_url: enriched.cover_url,
-        }).catch(() => {});
+        apiClient.updateFavorite(dbId).catch(() => {});
       }
     } catch (error) {
       console.error('Failed to fetch Spotify data for album:', error);
@@ -178,6 +194,7 @@ const handleListenNow = async (album: AlbumData) => {
 };
 
 const handleCloseDetails = () => {
+  selectionRequestRef.current += 1;
   setDetailsOpen(false);
   setSelectedAlbum(null);
 };

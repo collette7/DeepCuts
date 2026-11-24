@@ -61,7 +61,7 @@ class TestAddToFavorites:
         assert result.success is True
         assert result.message == "Album added to favorites"
 
-    async def test_reuses_existing_album_and_updates_metadata(self):
+    async def test_reuses_existing_album_without_overwriting_shared_metadata(self):
         existing_album = {"id": "album-1", "title": "OK Computer", "artist": "Radiohead"}
         update_called = {"value": False}
 
@@ -86,7 +86,7 @@ class TestAddToFavorites:
         result = await service.add_to_favorites("user-1", "listener@deepcuts.casa", request)
 
         assert result.success is True
-        assert update_called["value"] is True
+        assert update_called["value"] is False
 
     async def test_is_idempotent_for_same_user_and_album(self):
         existing_album = {"id": "album-1", "title": "OK Computer", "artist": "Radiohead"}
@@ -247,7 +247,9 @@ class TestUpdateFavorite:
             raise AssertionError(f"unexpected request: {request.method} {path}")
 
         service = make_service(admin_auth_or(handler))
-        result = await service.update_favorite("user-1", "album-1", {"spotify_url": "https://open.spotify.com/x"})
+        result = await service.refresh_favorite_metadata(
+            "user-1", "album-1", {"spotify_url": "https://open.spotify.com/x"}
+        )
 
         assert result.success is True
         assert updated_fields == {"spotify_url": "https://open.spotify.com/x"}
@@ -259,7 +261,9 @@ class TestUpdateFavorite:
             raise AssertionError(f"unexpected request: {request.method} {request.url.path}")
 
         service = make_service(admin_auth_or(handler))
-        result = await service.update_favorite("user-1", "album-1", {"spotify_url": "x"})
+        result = await service.refresh_favorite_metadata(
+            "user-1", "album-1", {"spotify_url": "x"}
+        )
 
         assert result.success is False
         assert result.message == "Favorite not found"

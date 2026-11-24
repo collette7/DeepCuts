@@ -69,7 +69,6 @@ export default function FavoritesPage() {
           .filter((album): album is AlbumData => album !== undefined);
         
         setFavorites(response.favorites);
-        setLoading(false);
         
         // Now load Spotify data progressively in the background
         if (albums.length > 0) {
@@ -77,11 +76,11 @@ export default function FavoritesPage() {
         }
       } else {
         setFavorites([]);
-        setLoading(false);
       }
     } catch (error) {
       console.error('Error loading favorites:', error);
       setError('Failed to load your favorites. Please try again.');
+    } finally {
       setLoading(false);
     }
   }, [loadSpotifyDataForFavorites]);

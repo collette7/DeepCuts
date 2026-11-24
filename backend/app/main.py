@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import logging
 import os
 import re
@@ -7,7 +8,7 @@ from typing import Any
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.clients.pocketbase import (
@@ -19,13 +20,19 @@ from app.config import settings
 from app.models.accounts import AccountDeletionResponse
 from app.models.albums import AlbumData, SearchRequest, SearchResponse
 from app.models.analytics import TrackClickRequest
-from app.models.favorites import AddToFavoritesRequest, FavoriteActionResponse, UserFavoritesList
+from app.models.favorites import (
+    AddToFavoritesRequest,
+    FavoriteActionResponse,
+    UpdateFavoriteRequest,
+    UserFavoritesList,
+)
 from app.models.searchSuggestions import SuggestionRequest, SuggestionResponse, SuggestionResult
 from app.rate_limit import (
     enforce_analytics_rate_limit,
     enforce_enrichment_rate_limit,
     enforce_mutation_rate_limit,
     enforce_search_rate_limit,
+    get_verified_user,
 )
 from app.security import require_admin
 from app.services.accounts import account_service
@@ -277,28 +284,12 @@ async def get_random_albums(
 
 async def get_spotify_album_data(title: str, artist: str) -> dict[str, str | None]:
     """Get Spotify album data"""
-    spotify_client_id = os.getenv("SPOTIFY_CLIENT_ID")
-    spotify_client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
-
-    if not spotify_client_id or not spotify_client_secret:
+    access_token = await get_spotify_token()
+    if not access_token:
         return {"preview_url": None, "external_url": None}
 
     try:
-        async with httpx.AsyncClient() as client:
-            # Get Spotify access token
-            auth_url = "https://accounts.spotify.com/api/token"
-            auth_data = {
-                "grant_type": "client_credentials",
-                "client_id": spotify_client_id,
-                "client_secret": spotify_client_secret
-            }
-            auth_response = await client.post(auth_url, data=auth_data)
-
-            if auth_response.status_code != 200:
-                return {"preview_url": None, "external_url": None}
-
-            access_token = auth_response.json().get("access_token")
-
+        async with httpx.AsyncClient(timeout=10.0) as client:
             # Search for album
             search_query = f"album:{title} artist:{artist}"
             search_url = "https://api.spotify.com/v1/search"
@@ -471,31 +462,55 @@ async def get_album_cover_from_discogs(title: str, artist: str) -> str | None:
     return None
 
 
-def get_spotify_token() -> str | None:
-    """Get Spotify access token using client credentials flow."""
-    import base64
+_spotify_token: str | None = None
+_spotify_token_expires_at = 0.0
+_spotify_token_lock = asyncio.Lock()
 
-    client_id = os.getenv("SPOTIFY_CLIENT_ID")
-    client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
 
-    if not client_id or not client_secret:
+async def get_spotify_token() -> str | None:
+    """Return a cached Spotify client-credentials token.
+
+    The token is fetched asynchronously at most once per expiry window, so a
+    search that verifies many albums does not block the event loop or request
+    a new token for each album.
+    """
+    global _spotify_token, _spotify_token_expires_at
+
+    if _spotify_token and time.time() < _spotify_token_expires_at:
+        return _spotify_token
+
+    async with _spotify_token_lock:
+        if _spotify_token and time.time() < _spotify_token_expires_at:
+            return _spotify_token
+
+        client_id = os.getenv("SPOTIFY_CLIENT_ID")
+        client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
+        if not client_id or not client_secret:
+            return None
+
+        try:
+            auth_header = base64.b64encode(
+                f"{client_id}:{client_secret}".encode()
+            ).decode()
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    "https://accounts.spotify.com/api/token",
+                    data={"grant_type": "client_credentials"},
+                    headers={"Authorization": f"Basic {auth_header}"},
+                )
+
+            if response.status_code == 200:
+                payload = response.json()
+                token = payload.get("access_token")
+                if token:
+                    expires_in = int(payload.get("expires_in", 3600))
+                    _spotify_token = token
+                    _spotify_token_expires_at = time.time() + max(60, expires_in - 60)
+                    return token
+        except Exception as e:
+            logger.error(f"Spotify token error: {e}")
+
         return None
-
-    try:
-        auth_url = "https://accounts.spotify.com/api/token"
-        auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
-        headers = {"Authorization": f"Basic {auth_header}"}
-        data = {"grant_type": "client_credentials"}
-
-        import httpx
-        response = httpx.post(auth_url, data=data, headers=headers, timeout=10.0)
-
-        if response.status_code == 200:
-            return response.json().get("access_token")
-    except Exception as e:
-        logger.error(f"Spotify token error: {e}")
-
-    return None
 
 
 def fuzzy_match(query: str, target: str, threshold: float = 0.65) -> bool:
@@ -562,7 +577,7 @@ async def verify_album_exists(title: str, artist: str) -> bool:
     # Track whether we actually performed a successful search
     searched = False
 
-    spotify_access_token = get_spotify_token()
+    spotify_access_token = await get_spotify_token()
 
     if spotify_access_token:
         try:
@@ -656,22 +671,17 @@ async def verify_album_exists(title: str, artist: str) -> bool:
 
 @app.post("/api/v1/search")
 async def search_albums(
-    request: SearchRequest,
-    authorization: str = Header(None),
+    payload: SearchRequest,
+    request: Request,
     _rate_limit: None = Depends(enforce_search_rate_limit),
 ) -> SearchResponse:
     """Get album recommendations based on user query."""
     start_time = time.time()
 
-    # Get user email if authenticated
-    user_email = None
-    if authorization and authorization.startswith("Bearer "):
-        try:
-            token = authorization.replace("Bearer ", "")
-            user = await authenticate_token(token)
-            user_email = user.email
-        except HTTPException as e:
-            logger.info(f"Search: Could not authenticate user: {e.detail}")
+    # The rate limit dependency verifies the bearer token once and caches the
+    # result. An invalid header therefore falls back to the IP bucket.
+    user = await get_verified_user(request)
+    user_email = user.email if user else None
 
     session_id = None
 
@@ -688,8 +698,8 @@ async def search_albums(
             raise HTTPException(status_code=504, detail="Search timed out before starting.")
 
         result = await ai_service.get_album_recommendations(
-            request.query,
-            exclude=request.exclude,
+            payload.query,
+            exclude=payload.exclude,
         )
         recommendations: list[AlbumData] = result.albums
         raw_count = len(recommendations)
@@ -702,7 +712,7 @@ async def search_albums(
                 ai_error = "AI returned no recommendations for this query. Try rephrasing."
             raise HTTPException(status_code=503, detail=safe_error_message(ai_error))
 
-        excluded_keys = {key.strip().lower() for key in request.exclude}
+        excluded_keys = {key.strip().lower() for key in payload.exclude}
         if excluded_keys:
             recommendations = [
                 a for a in recommendations
@@ -758,7 +768,7 @@ async def search_albums(
 
         if user_email:
             session_id = await search_session_service.create_session(
-                query=request.query,
+                query=payload.query,
                 albums=recommendations,
                 user_email=user_email,
                 ai_model=ai_service.ACTIVE_MODEL,
@@ -770,18 +780,18 @@ async def search_albums(
             await search_session_service.track_filtered_albums(session_id, filtered_albums)
 
         # Limit results for response
-        limited_recommendations = recommendations[:request.max_results]
+        limited_recommendations = recommendations[:payload.max_results]
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Search error for query '{request.query}': {e}")
+        logger.error(f"Search error for query '{payload.query}': {e}")
         raise HTTPException(status_code=500, detail=safe_error_message(str(e))) from None
 
     processing_time = int((time.time() - start_time) * 1000)
 
     return SearchResponse(
-        query=request.query,
+        query=payload.query,
         recommendations=limited_recommendations,
         total_found=len(limited_recommendations),
         processing_time_ms=processing_time,
@@ -931,23 +941,38 @@ async def search_discogs(
         raise HTTPException(status_code=500, detail="Search service temporarily unavailable") from e
 
 
-async def get_current_user(authorization: str = Header(None)) -> str:
-    """FastAPI dependency: verify the bearer token, return the PocketBase user id."""
+async def _require_authenticated_user(
+    request: Request,
+    authorization: str | None,
+) -> AuthenticatedUser:
+    """Resolve the caller once, reusing verification done for rate limiting."""
+    user = await get_verified_user(request)
+    if user:
+        return user
+
     if not authorization:
         raise HTTPException(status_code=401, detail="Authorization header required")
 
-    if not authorization.startswith("Bearer "):
+    if not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Invalid authorization format")
 
-    token = authorization.replace("Bearer ", "")
-    user = await authenticate_token(token)
+    return await authenticate_token(authorization[7:].strip())
+
+
+async def get_current_user(
+    request: Request,
+    authorization: str = Header(None),
+) -> str:
+    """FastAPI dependency: verify the bearer token, return the PocketBase user id."""
+    user = await _require_authenticated_user(request, authorization)
     return user.id
 
 
-async def get_authenticated_user(authorization: str = Header(None)) -> AuthenticatedUser:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Authorization header required")
-    return await authenticate_token(authorization.replace("Bearer ", ""))
+async def get_authenticated_user(
+    request: Request,
+    authorization: str = Header(None),
+) -> AuthenticatedUser:
+    return await _require_authenticated_user(request, authorization)
 
 
 @app.post("/api/v1/favorites/add")
@@ -993,12 +1018,38 @@ async def remove_favorite(
 @app.patch("/api/v1/favorites/update/{album_id}")
 async def update_favorite(
     album_id: str,
-    request: AddToFavoritesRequest,
+    request: UpdateFavoriteRequest | None = None,
     user_id: str = Depends(get_current_user),
     _rate_limit: None = Depends(enforce_mutation_rate_limit),
 ) -> FavoriteActionResponse:
-    """Update album metadata for a favorite."""
-    return await favorites_service.update_favorite(user_id, album_id, request.album_data)
+    """Refresh album metadata for a favorite from provider APIs.
+
+    The request body is intentionally ignored. Shared album records must only
+    change from server-side Spotify and Discogs lookups.
+    """
+    del request
+    if not await favorites_service.is_favorite(user_id, album_id):
+        return FavoriteActionResponse(success=False, message="Favorite not found")
+
+    album = await pocketbase_client.get_record("albums", album_id)
+    if not album:
+        raise HTTPException(status_code=404, detail="Album not found")
+
+    title = album.get("title", "")
+    artist = album.get("artist", "")
+    if not title or not artist:
+        raise HTTPException(status_code=404, detail="Album not found")
+
+    spotify_data, discogs_cover = await asyncio.gather(
+        get_spotify_album_data(title, artist),
+        get_album_cover_from_discogs(title, artist),
+    )
+    metadata = {
+        "spotify_url": spotify_data.get("external_url"),
+        "spotify_preview_url": spotify_data.get("preview_url"),
+        "cover_url": discogs_cover or spotify_data.get("cover_url"),
+    }
+    return await favorites_service.refresh_favorite_metadata(user_id, album_id, metadata)
 
 
 @app.get("/api/v1/favorites")

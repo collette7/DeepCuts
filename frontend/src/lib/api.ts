@@ -159,14 +159,15 @@ class ApiClient {
         }
     }
 
-    async updateFavorite(albumId: string, albumData: Partial<AlbumData>): Promise<FavoriteActionResponse> {
+    async updateFavorite(albumId: string): Promise<FavoriteActionResponse> {
         try {
             // Sanitize albumId to prevent path traversal
             const sanitizedAlbumId = encodeURIComponent(albumId);
             const response = await fetch(`${API_BASE_URL}/api/v1/favorites/update/${sanitizedAlbumId}`, {
                 method: 'PATCH',
                 headers: this.getAuthHeaders(),
-                body: JSON.stringify({ album_data: albumData })
+                // The server ignores metadata; it refreshes from providers.
+                body: JSON.stringify({}),
             });
 
             if (!response.ok) {

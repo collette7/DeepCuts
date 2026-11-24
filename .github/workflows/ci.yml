@@ -108,19 +108,15 @@ jobs:
             sys.exit(1)
         "
 
-    - name: Backend - AI Model Configuration Tests
+    - name: Backend - Test suite
       if: matrix.component == 'backend'
       env:
         ACTIVE_MODEL: gemini-2.5-flash
-        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: |
         cd backend
-        pytest tests/test_ai_models.py::TestModelConfiguration -v
-        pytest tests/test_ai_models.py::TestDeprecatedModels -v
+        pytest -q -k "not TestClaudeAPI and not TestGeminiAPI"
 
   build-status:
     name: Build Status Monitor
@@ -174,13 +170,9 @@ jobs:
       run: |
         cd backend
         timeout 30s python -c "
-        try:
-            from app.main import app
-            print('✅ Backend application initialized successfully')
-        except Exception as e:
-            print(f'❌ Backend initialization failed: {e}')
-            raise
-        " || echo "✅ Backend startup test completed"
+        from app.main import app
+        print('✅ Backend application initialized successfully')
+        "
         
     - name: Generate build report
       run: |

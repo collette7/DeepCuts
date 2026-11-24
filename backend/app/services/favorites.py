@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import urlsplit
 
 from app.clients.pocketbase import (
     PocketBaseError,
@@ -9,14 +10,73 @@ from app.models.favorites import AddToFavoritesRequest, FavoriteActionResponse, 
 
 logger = logging.getLogger('deepcuts')
 
-_ALBUM_METADATA_FIELDS = [
-    ('year', 'release_year'),
-    ('genre', 'genre'),
-    ('discogs_url', 'discogs_id'),
-    ('cover_url', 'cover_url'),
-    ('spotify_preview_url', 'spotify_preview_url'),
-    ('spotify_url', 'spotify_url'),
-]
+_ALLOWED_COVER_HOSTS = ("i.scdn.co", "img.discogs.com", "mosaic.scdn.co")
+_ALLOWED_PREVIEW_HOSTS = ("p.scdn.co",)
+_ALLOWED_SPOTIFY_HOSTS = ("open.spotify.com",)
+_REFRESHABLE_ALBUM_FIELDS = ("spotify_url", "spotify_preview_url", "cover_url")
+
+
+def _trusted_url(
+    value: object,
+    allowed_hosts: tuple[str, ...],
+    *,
+    allow_discogs_subdomains: bool = False,
+) -> str | None:
+    if not isinstance(value, str) or not value:
+        return None
+    parsed = urlsplit(value)
+    if parsed.scheme != "https" or not parsed.hostname:
+        return None
+    host = parsed.hostname.lower()
+    if host in allowed_hosts:
+        return value
+    if allow_discogs_subdomains and (
+        host == "discogs.com" or host.endswith(".discogs.com")
+    ):
+        return value
+    return None
+
+
+def _new_album_metadata(album_data: dict) -> dict:
+    """Build album fields from client data, accepting only trusted sources.
+
+    Shared album records are readable by every user, so client-supplied
+    metadata must not be able to point readers at arbitrary URLs.
+    """
+    metadata: dict = {}
+    year = album_data.get("year")
+    if isinstance(year, int) and 1000 <= year <= 2100:
+        metadata["release_year"] = year
+
+    genre = album_data.get("genre")
+    if isinstance(genre, str) and 0 < len(genre) <= 200:
+        metadata["genre"] = genre
+
+    cover_url = _trusted_url(
+        album_data.get("cover_url"),
+        _ALLOWED_COVER_HOSTS,
+        allow_discogs_subdomains=True,
+    )
+    if cover_url:
+        metadata["cover_url"] = cover_url
+
+    preview_url = _trusted_url(album_data.get("spotify_preview_url"), _ALLOWED_PREVIEW_HOSTS)
+    if preview_url:
+        metadata["spotify_preview_url"] = preview_url
+
+    spotify_url = _trusted_url(album_data.get("spotify_url"), _ALLOWED_SPOTIFY_HOSTS)
+    if spotify_url:
+        metadata["spotify_url"] = spotify_url
+
+    discogs_url = _trusted_url(
+        album_data.get("discogs_url"),
+        (),
+        allow_discogs_subdomains=True,
+    )
+    if discogs_url and len(discogs_url) <= 200:
+        metadata["discogs_id"] = discogs_url
+
+    return metadata
 
 
 class FavoritesService:
@@ -44,24 +104,12 @@ class FavoritesService:
         existing = await self._find_album_by_title_artist(title, artist)
 
         if existing:
-            update_fields = {
-                dst: album_data[src]
-                for src, dst in _ALBUM_METADATA_FIELDS
-                if album_data.get(src)
-            }
-            if update_fields:
-                try:
-                    await self.client.update_record("albums", existing['id'], update_fields)
-                except PocketBaseError as e:
-                    logger.error(f"Error updating album metadata: {e}")
+            # Album records are shared across users. Never overwrite existing
+            # metadata from a client payload; refreshes use provider data.
             return existing['id']
 
         insert_data = {'title': title, 'artist': artist}
-        insert_data.update({
-            dst: album_data[src]
-            for src, dst in _ALBUM_METADATA_FIELDS
-            if album_data.get(src)
-        })
+        insert_data.update(_new_album_metadata(album_data))
         try:
             created = await self.client.create_record("albums", insert_data)
             return created['id']
@@ -174,31 +222,35 @@ class FavoritesService:
         """Remove album method for authenticated endpoints."""
         return await self.remove_from_favorites(user_id, album_id)
 
-    async def update_favorite(self, user_id: str, album_id: str, album_data: dict) -> FavoriteActionResponse:
-        """Update album metadata for a favorite entry.
+    async def is_favorite(self, user_id: str, album_id: str) -> bool:
+        """Return whether the user owns a favorite for this album."""
+        existing = await self.client.list_records(
+            "favorites",
+            filter=f"user = {escape_filter_value(user_id)} && album = {escape_filter_value(album_id)}",
+        )
+        return bool(existing)
 
-        ``user_id`` is the caller's PocketBase user record id; only used to
-        confirm the favorite belongs to them before updating the shared
-        album record.
+    async def refresh_favorite_metadata(
+        self,
+        user_id: str,
+        album_id: str,
+        metadata: dict,
+    ) -> FavoriteActionResponse:
+        """Refresh shared album metadata from provider lookups.
+
+        ``metadata`` must come from a server-side Spotify/Discogs lookup, not
+        from the request body. ``user_id`` only proves the caller owns a
+        favorite for this album.
         """
         try:
-            existing = await self.client.list_records(
-                "favorites",
-                filter=f"user = {escape_filter_value(user_id)} && album = {escape_filter_value(album_id)}",
-            )
-            if not existing:
+            if not await self.is_favorite(user_id, album_id):
                 return FavoriteActionResponse(success=False, message="Favorite not found")
 
-            update_data = {}
-            if 'spotify_url' in album_data:
-                update_data['spotify_url'] = album_data['spotify_url']
-            if 'spotify_preview_url' in album_data:
-                update_data['spotify_preview_url'] = album_data['spotify_preview_url']
-            if 'discogs_url' in album_data:
-                update_data['discogs_id'] = album_data['discogs_url']
-            if 'cover_url' in album_data:
-                update_data['cover_url'] = album_data['cover_url']
-
+            update_data = {
+                field: metadata[field]
+                for field in _REFRESHABLE_ALBUM_FIELDS
+                if isinstance(metadata.get(field), str) and metadata[field]
+            }
             if update_data:
                 await self.client.update_record("albums", album_id, update_data)
 

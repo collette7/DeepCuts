@@ -8,6 +8,9 @@ from typing import Final
 import anyio
 from fastapi import HTTPException, Request
 
+from app.services.auth import AuthenticatedUser
+from app.services.auth import get_current_user as authenticate_token
+
 
 @dataclass(frozen=True, slots=True)
 class RateLimitPolicy:
@@ -55,12 +58,7 @@ MUTATION_POLICY: Final = RateLimitPolicy(requests=30, window_seconds=60)
 rate_limiter = SlidingWindowRateLimiter()
 
 
-def _client_key(request: Request, bucket: str) -> str:
-    authorization = request.headers.get("authorization")
-    if authorization:
-        identity = hashlib.sha256(authorization.encode()).hexdigest()[:16]
-        return f"{bucket}:account:{identity}"
-
+def _ip_key(request: Request, bucket: str) -> str:
     forwarded_for = request.headers.get("x-forwarded-for")
     if forwarded_for:
         return f"{bucket}:ip:{forwarded_for.split(',')[-1].strip()}"
@@ -69,17 +67,48 @@ def _client_key(request: Request, bucket: str) -> str:
     return f"{bucket}:ip:{host}"
 
 
+async def get_verified_user(request: Request) -> AuthenticatedUser | None:
+    """Return the caller only after PocketBase verifies the bearer token.
+
+    The verified user is cached on the request so the endpoint does not
+    authenticate the same token a second time.
+    """
+    cached = getattr(request.state, "verified_user", None)
+    if isinstance(cached, AuthenticatedUser):
+        return cached
+
+    authorization = request.headers.get("authorization", "")
+    if not authorization.lower().startswith("bearer "):
+        return None
+
+    try:
+        user = await authenticate_token(authorization[7:].strip())
+    except HTTPException:
+        return None
+
+    request.state.verified_user = user
+    return user
+
+
+async def _client_key(request: Request, bucket: str) -> str:
+    user = await get_verified_user(request)
+    if user:
+        identity = hashlib.sha256(user.id.encode()).hexdigest()[:16]
+        return f"{bucket}:account:{identity}"
+    return _ip_key(request, bucket)
+
+
 async def enforce_search_rate_limit(request: Request) -> None:
-    await rate_limiter.check(_client_key(request, "search"), SEARCH_POLICY)
+    await rate_limiter.check(await _client_key(request, "search"), SEARCH_POLICY)
 
 
 async def enforce_enrichment_rate_limit(request: Request) -> None:
-    await rate_limiter.check(_client_key(request, "enrichment"), ENRICHMENT_POLICY)
+    await rate_limiter.check(await _client_key(request, "enrichment"), ENRICHMENT_POLICY)
 
 
 async def enforce_analytics_rate_limit(request: Request) -> None:
-    await rate_limiter.check(_client_key(request, "analytics"), ANALYTICS_POLICY)
+    await rate_limiter.check(await _client_key(request, "analytics"), ANALYTICS_POLICY)
 
 
 async def enforce_mutation_rate_limit(request: Request) -> None:
-    await rate_limiter.check(_client_key(request, "mutation"), MUTATION_POLICY)
+    await rate_limiter.check(await _client_key(request, "mutation"), MUTATION_POLICY)

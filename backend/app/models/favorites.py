@@ -30,6 +30,19 @@ class AddToFavoritesRequest(BaseModel):
         return album_data
 
 
+class UpdateFavoriteRequest(BaseModel):
+    """Request to refresh metadata for a favorite.
+
+    ``album_data`` remains accepted for older clients but is ignored. Shared
+    album metadata is refreshed from provider APIs on the server so one user
+    cannot overwrite what other users see.
+    """
+    album_data: dict | None = Field(
+        default=None,
+        description="Deprecated and ignored; provider data is used instead",
+    )
+
+
 class FavoriteActionResponse(BaseModel):
     """Response when adding or removing favorites"""
     success: bool = Field(..., description="True if the action worked")
